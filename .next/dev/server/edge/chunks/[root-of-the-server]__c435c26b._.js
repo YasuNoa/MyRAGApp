@@ -39,9 +39,7 @@ const authConfig = {
             // API routes are always allowed (handled by their own logic if needed)
             if (isOnApi) return true;
             if (isOnLogin || isOnRegister) {
-                if (isLoggedIn) {
-                    return Response.redirect(new URL("/", nextUrl));
-                }
+                // Already logged in, allow access (will redirect in page logic if needed)
                 return true;
             }
             // Default: require login for all other pages

@@ -30,6 +30,7 @@ model Message {
   id        String   @id @default(cuid())
   content   String
   role      String   // "user" or "assistant"
+  category  String?  @default("その他")
   userId    String
   createdAt DateTime @default(now())
 
