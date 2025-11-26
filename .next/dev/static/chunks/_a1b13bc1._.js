@@ -95,7 +95,7 @@ function Home() {
                             WebkitBackgroundClip: "text",
                             WebkitTextFillColor: "transparent"
                         },
-                        children: "じぶん博士"
+                        children: "じぶんAI"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
                         lineNumber: 46,

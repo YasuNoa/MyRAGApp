@@ -10,6 +10,12 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const errorParam = searchParams?.get("error");
+
+  if (errorParam === "EmailRequired" && !error) {
+    setError("LINEログインでメールアドレスが取得できませんでした。LINEアプリの設定でメールアドレスの提供を許可してください。");
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

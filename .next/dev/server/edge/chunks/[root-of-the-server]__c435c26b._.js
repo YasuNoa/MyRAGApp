@@ -23,6 +23,14 @@ const authConfig = {
         signIn: "/login"
     },
     callbacks: {
+        async signIn ({ account, profile }) {
+            if (account?.provider === "line") {
+                if (!profile?.email) {
+                    return "/login?error=EmailRequired";
+                }
+            }
+            return true;
+        },
         authorized ({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
             const isOnDashboard = nextUrl.pathname.startsWith("/");

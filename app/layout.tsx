@@ -31,6 +31,7 @@ export default function RootLayout({
           <div style={{ fontWeight: "bold", fontSize: "20px", marginRight: "auto", color: "var(--text-color)" }}>じぶんAI</div>
           <a href="/" className="neo-nav-link">チャット</a>
           <a href="/knowledge" className="neo-nav-link">知識登録</a>
+          <a href="/profile" className="neo-nav-link">設定</a>
         </nav>
         
         {/* children には、各ページのコンテンツ（page.tsxなど）が差し込まれます */}
