@@ -7,23 +7,23 @@ import { Hono } from "hono";
 // Gemini（AI）を操作するための自作関数をインポートします。
 // getEmbedding: テキストをベクトル（数値の羅列）に変換する関数
 // generateAnswer: 検索結果を元にAIに回答を生成させる関数
-import { getEmbedding, generateAnswer, classifyIntent } from "./lib/gemini.js";
+import { getEmbedding, generateAnswer, classifyIntent } from "./lib/gemini";
 // Pinecone（ベクトルデータベース）を操作するための自作関数をインポートします。
 // upsertDocument: ベクトルデータを保存・更新する関数
 // queryDocuments: 類似するベクトルを検索する関数
-import { upsertDocument, queryDocuments } from "./lib/pinecone.js";
+import { upsertDocument, queryDocuments } from "./lib/pinecone";
 // LINE Bot関連の機能をインポートします。
 // lineConfig: LINEの設定情報
 // lineClient: LINE APIを叩くためのクライアント
 // replyMessage: ユーザーに返信を送るための関数
-import { lineConfig, lineClient, replyMessage } from "./lib/line.js";
+import { lineConfig, lineClient, replyMessage } from "./lib/line";
 // LINEからの署名検証などを行うためのミドルウェアですが、今回は手動実装しているため未使用の可能性があります。
 import { middleware } from "@line/bot-sdk";
 // 一意なID（UUID）を生成するためのライブラリです。
 // データベースに保存する際、ドキュメントごとに重複しないIDを付けるために使います。
 import { v4 as uuidv4 } from "uuid";
 import { auth } from "../auth";
-import { prisma } from "./lib/prisma.js";
+import { prisma } from "./lib/prisma";
 
 // Honoアプリのインスタンスを作成します。
 // これがサーバーの本体となり、ここにルート（URLごとの処理）を追加していきます。
