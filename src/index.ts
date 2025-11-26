@@ -1,13 +1,13 @@
 // HonoのサーバーをNode.js環境で動かすためのアダプターをインポートします。
 // これがないと、Honoで作ったアプリを通常のNode.jsサーバーとして起動できません。
-import { serve } from "@hono/node-server";
+// import { serve } from "@hono/node-server"; // src/server.ts に移動
 // Webフレームワーク「Hono」本体をインポートします。
 // Honoは軽量で高速なWebフレームワークで、APIサーバーを作るのに適しています。
 import { Hono } from "hono";
 // Gemini（AI）を操作するための自作関数をインポートします。
 // getEmbedding: テキストをベクトル（数値の羅列）に変換する関数
 // generateAnswer: 検索結果を元にAIに回答を生成させる関数
-import { getEmbedding, generateAnswer } from "./lib/gemini";
+import { getEmbedding, generateAnswer, classifyIntent } from "./lib/gemini";
 // Pinecone（ベクトルデータベース）を操作するための自作関数をインポートします。
 // upsertDocument: ベクトルデータを保存・更新する関数
 // queryDocuments: 類似するベクトルを検索する関数
@@ -22,10 +22,12 @@ import { middleware } from "@line/bot-sdk";
 // 一意なID（UUID）を生成するためのライブラリです。
 // データベースに保存する際、ドキュメントごとに重複しないIDを付けるために使います。
 import { v4 as uuidv4 } from "uuid";
+import { auth } from "../auth";
+import { prisma } from "./lib/prisma";
 
 // Honoアプリのインスタンスを作成します。
 // これがサーバーの本体となり、ここにルート（URLごとの処理）を追加していきます。
-const app = new Hono();
+const app = new Hono().basePath("/api");
 
 // データを保存するAPIエンドポイントを定義します。
 // HTTPメソッドは「POST」を使います（データの作成・追加はPOSTが一般的だからです）。
@@ -71,30 +73,44 @@ app.post("/add", async (c) => {
 // ここでもデータの送信を伴うので「POST」を使います。
 // URLは "/ask" です。
 app.post("/ask", async (c) => {
-    // リクエストボディから "query"（質問文）を取り出します。
-    const { query } = await c.req.json();
+    const session = await auth();
+    if (!session || !session.user?.id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+    const userId = session.user.id;
 
-    // 質問文がなければエラーを返します。
+    const { query } = await c.req.json();
     if (!query) return c.json({ error: "Query is required" }, 400);
 
     try {
         console.log(`[検索中] 質問: ${query}`);
 
-        // 1. 質問文自体もベクトル化します。
-        // これにより、保存されているテキストのベクトルとの「距離（類似度）」を計算できるようになります。
+        // 1. ユーザーのメッセージをDBに保存
+        await prisma.message.create({
+            data: {
+                content: query,
+                role: "user",
+                userId: userId,
+            },
+        });
+
+        // 2. ベクトル化 & 検索
         const vector = await getEmbedding(query);
-
-        // 2. Pineconeから、質問のベクトルに近い（意味が似ている）テキストを検索します。
-        // これが RAG (Retrieval-Augmented Generation) の "Retrieval"（検索）部分です。
         const context = await queryDocuments(vector);
-        console.log(`[参照コンテキスト] ${context.length}件見つかりました:`, context);
 
-        // 3. 検索で見つかったテキスト（context）と質問（query）を合わせてGeminiに渡します。
-        // これにより、AIは「検索結果に基づいた回答」を生成できます。
+        // 3. 回答生成
         const answer = await generateAnswer(query, context);
 
+        // 4. AIの回答をDBに保存
+        await prisma.message.create({
+            data: {
+                content: answer,
+                role: "assistant",
+                userId: userId,
+            },
+        });
+
         console.log(`[回答] ${answer}`);
-        // 回答と、参照したコンテキストを返します。
         return c.json({ answer, context });
     } catch (e) {
         console.error(e);
@@ -120,54 +136,86 @@ app.post("/webhook/line", async (c) => {
     // LINEからのイベントデータ（メッセージ受信など）を取り出します。
     const events = JSON.parse(body).events;
 
-    // 届いたイベントを1つずつ処理します（同時に複数のメッセージが来ることもあるため）。
+    // 届いたイベントを1つずつ処理します
     for (const event of events) {
-        // イベントの種類が「メッセージ」で、かつその中身が「テキスト」である場合のみ反応します。
-        // （スタンプや画像などは今回は無視します）
         if (event.type === "message" && event.message.type === "text") {
-            const userMessage = event.message.text; // ユーザーが送ってきたメッセージ
-            const replyToken = event.replyToken; // 返信するために必要なトークン（切符のようなもの）
+            const userMessage = event.message.text;
+            const replyToken = event.replyToken;
+            const lineUserId = event.source.userId; // LINEのユーザーID
 
-            console.log(`[LINE] 受信: ${userMessage}`);
+            console.log(`[LINE] 受信: ${userMessage} (from ${lineUserId})`);
 
             try {
-                // ここでRAGのフローを実行します。
-                // 1. ユーザーのメッセージをベクトル化
-                const vector = await getEmbedding(userMessage);
-                // 2. 関連情報を検索
-                const context = await queryDocuments(vector);
-                // 3. AIで回答生成
-                const answer = await generateAnswer(userMessage, context);
+                // 1. LINE IDからアプリのユーザーIDを特定する
+                const account = await prisma.account.findFirst({
+                    where: {
+                        provider: "line",
+                        providerAccountId: lineUserId,
+                    },
+                });
 
-                // 生成された回答をLINEに返信します。
-                await replyMessage(replyToken, answer);
-                console.log(`[LINE] 返信: ${answer}`);
+                // ユーザーが見つからない場合は、とりあえずログだけ出して処理続行（またはエラー返信）
+                // ここでは「ゲスト」として扱うか、エラーにするか迷いますが、一旦保存せずに進めます。
+                const userId = account?.userId;
+
+                // 2. ユーザーのメッセージをDBに保存（ユーザーが特定できた場合のみ）
+                if (userId) {
+                    await prisma.message.create({
+                        data: {
+                            content: userMessage,
+                            role: "user",
+                            userId: userId,
+                        },
+                    });
+                }
+
+                // 3. 意図分類 (STORE or SEARCH)
+                // ここでGeminiに「これは覚えさせるやつ？質問？」と聞きます
+                // import { classifyIntent } from "./lib/gemini"; を忘れずに！
+                const intent = await classifyIntent(userMessage);
+                console.log(`[LINE] 意図: ${intent}`);
+
+                let replyText = "";
+
+                if (intent === "STORE") {
+                    // === 覚えるモード ===
+                    const vector = await getEmbedding(userMessage);
+                    const id = uuidv4();
+                    await upsertDocument(id, userMessage, vector);
+                    replyText = "覚えました！🧠";
+                } else {
+                    // === 検索・会話モード ===
+                    const vector = await getEmbedding(userMessage);
+                    const context = await queryDocuments(vector);
+                    replyText = await generateAnswer(userMessage, context);
+                }
+
+                // 4. LINEに返信
+                await replyMessage(replyToken, replyText);
+                console.log(`[LINE] 返信: ${replyText}`);
+
+                // 5. AIの回答をDBに保存（ユーザーが特定できた場合のみ）
+                if (userId) {
+                    await prisma.message.create({
+                        data: {
+                            content: replyText,
+                            role: "assistant",
+                            userId: userId,
+                        },
+                    });
+                }
+
             } catch (e) {
                 console.error("[LINE] Error:", e);
-                // エラー時はユーザーに謝罪メッセージを送ります。
-                // これがないとユーザーは無視されたと感じてしまいます。
                 await replyMessage(replyToken, "すみません、エラーが発生しました。");
             }
         }
     }
 
-    // LINEサーバーに対して「正常に受け取りました」という合図（200 OK）を返します。
-    // これを返さないと、LINEサーバーは「失敗した」と思って何度も同じ通知を送ってきてしまいます。
     return c.json({ success: true });
 });
 
-// サーバーを起動する処理です。
-// ローカル開発時（NODE_ENVがproductionでない時）のみ実行されます。
-// Vercelなどのクラウド環境では、この部分は実行されず、export default app が使われます。
-if (process.env.NODE_ENV !== 'production') {
-    const port = 3001;
-    console.log(`Server is running on port ${port}`);
-
-    serve({
-        fetch: app.fetch,
-        port
-    });
-}
+// サーバー起動処理は src/server.ts に移動しました。
 
 // アプリケーションをエクスポートします。
 // Vercelなどのホスティングサービスは、この default export を使ってアプリを起動します。

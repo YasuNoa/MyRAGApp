@@ -33,6 +33,29 @@ export async function getEmbedding(text: string): Promise<number[]> {
     return result.embedding.values;
 }
 
+// ユーザーの意図を分類する関数
+export async function classifyIntent(text: string): Promise<"STORE" | "SEARCH"> {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const prompt = `
+    あなたはユーザーの意図を分類するAIです。
+    以下のテキストが「知識として覚えるべき情報」なのか、「何かを尋ねている質問」なのかを判断してください。
+    
+    テキスト: "${text}"
+    
+    出力は以下のいずれかのみを返してください。余計な文字は一切含めないでください。
+    - STORE (情報の入力、知識の追加、宣言文など)
+    - SEARCH (質問、検索、挨拶、会話など)
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const intent = response.text().trim().toUpperCase();
+
+    if (intent.includes("STORE")) return "STORE";
+    return "SEARCH";
+}
+
 // ユーザーの質問と、検索で見つかった情報（コンテキスト）を元に、回答を生成する関数です。
 // なぜこれが必要か？:
 // AI（Gemini）は、あなたがPineconeに保存したデータのことを知りません。

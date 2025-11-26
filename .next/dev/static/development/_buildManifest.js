@@ -2,11 +2,7 @@ self.__BUILD_MANIFEST = {
   "__rewrites": {
     "afterFiles": [],
     "beforeFiles": [],
-    "fallback": [
-      {
-        "source": "/api/:path*"
-      }
-    ]
+    "fallback": []
   },
   "sortedPages": [
     "/_app",

@@ -7,8 +7,7 @@ import bcrypt from "bcryptjs";
 import Line from "next-auth/providers/line";
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
-
-const prisma = new PrismaClient();
+import { prisma } from "./src/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
