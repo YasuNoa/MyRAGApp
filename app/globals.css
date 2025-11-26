@@ -102,3 +102,29 @@ body {
   color: var(--text-color);
   background-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Responsive Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+@media (max-width: 768px) {
+  .neo-card {
+    padding: 16px;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  /* Adjust font sizes for mobile */
+  h1 {
+    font-size: 1.8rem !important;
+  }
+
+  h2 {
+    font-size: 1.4rem !important;
+  }
+}

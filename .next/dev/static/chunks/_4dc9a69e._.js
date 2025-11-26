@@ -14,7 +14,7 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }
 }),
-"[project]/app/actions/data:b84e40 [app-client] (ecmascript) <text/javascript>", ((__turbopack_context__) => {
+"[project]/app/actions/data:1f4bf0 [app-client] (ecmascript) <text/javascript>", ((__turbopack_context__) => {
 "use strict";
 
 /* __next_internal_action_entry_do_not_use__ [{"408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e":"updateProfile"},"app/actions/profile.ts",""] */ __turbopack_context__.s([
@@ -24,7 +24,7 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper.js [app-client] (ecmascript)");
 "use turbopack no side effects";
 ;
-var updateProfile = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createServerReference"])("408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e", __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["callServer"], void 0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["findSourceMapURL"], "updateProfile"); //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4vcHJvZmlsZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJcInVzZSBzZXJ2ZXJcIjtcblxuaW1wb3J0IHsgYXV0aCB9IGZyb20gXCJAL2F1dGhcIjtcbmltcG9ydCB7IHByaXNtYSB9IGZyb20gXCJAL3NyYy9saWIvcHJpc21hXCI7XG5pbXBvcnQgYmNyeXB0IGZyb20gXCJiY3J5cHRqc1wiO1xuaW1wb3J0IHsgcmV2YWxpZGF0ZVBhdGggfSBmcm9tIFwibmV4dC9jYWNoZVwiO1xuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gdXBkYXRlUHJvZmlsZShmb3JtRGF0YTogRm9ybURhdGEpIHtcbiAgICBjb25zdCBzZXNzaW9uID0gYXdhaXQgYXV0aCgpO1xuICAgIGlmICghc2Vzc2lvbj8udXNlcj8uaWQpIHtcbiAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44Ot44Kw44Kk44Oz44GX44Gm44GP44Gg44GV44GEXCIgfTtcbiAgICB9XG5cbiAgICBjb25zdCBlbWFpbCA9IGZvcm1EYXRhLmdldChcImVtYWlsXCIpIGFzIHN0cmluZztcbiAgICBjb25zdCBwYXNzd29yZCA9IGZvcm1EYXRhLmdldChcInBhc3N3b3JkXCIpIGFzIHN0cmluZztcblxuICAgIGlmICghZW1haWwgJiYgIXBhc3N3b3JkKSB7XG4gICAgICAgIHJldHVybiB7IGVycm9yOiBcIuWkieabtOWGheWuueOCkuWFpeWKm+OBl+OBpuOBj+OBoOOBleOBhFwiIH07XG4gICAgfVxuXG4gICAgY29uc3QgdXBkYXRlRGF0YTogYW55ID0ge307XG5cbiAgICBpZiAoZW1haWwpIHtcbiAgICAgICAgLy8gQ2hlY2sgaWYgZW1haWwgaXMgYWxyZWFkeSB0YWtlbiBieSBhbm90aGVyIHVzZXJcbiAgICAgICAgY29uc3QgZXhpc3RpbmdVc2VyID0gYXdhaXQgcHJpc21hLnVzZXIuZmluZFVuaXF1ZSh7XG4gICAgICAgICAgICB3aGVyZTogeyBlbWFpbCB9LFxuICAgICAgICB9KTtcbiAgICAgICAgaWYgKGV4aXN0aW5nVXNlciAmJiBleGlzdGluZ1VzZXIuaWQgIT09IHNlc3Npb24udXNlci5pZCkge1xuICAgICAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44GT44Gu44Oh44O844Or44Ki44OJ44Os44K544Gv5pei44Gr5L2/55So44GV44KM44Gm44GE44G+44GZXCIgfTtcbiAgICAgICAgfVxuICAgICAgICB1cGRhdGVEYXRhLmVtYWlsID0gZW1haWw7XG4gICAgfVxuXG4gICAgaWYgKHBhc3N3b3JkKSB7XG4gICAgICAgIGlmIChwYXNzd29yZC5sZW5ndGggPCA2KSB7XG4gICAgICAgICAgICByZXR1cm4geyBlcnJvcjogXCLjg5Hjgrnjg6/jg7zjg4njga825paH5a2X5Lul5LiK44Gn5YWl5Yqb44GX44Gm44GP44Gg44GV44GEXCIgfTtcbiAgICAgICAgfVxuICAgICAgICBjb25zdCBoYXNoZWRQYXNzd29yZCA9IGF3YWl0IGJjcnlwdC5oYXNoKHBhc3N3b3JkLCAxMCk7XG4gICAgICAgIHVwZGF0ZURhdGEucGFzc3dvcmQgPSBoYXNoZWRQYXNzd29yZDtcbiAgICB9XG5cbiAgICB0cnkge1xuICAgICAgICBhd2FpdCBwcmlzbWEudXNlci51cGRhdGUoe1xuICAgICAgICAgICAgd2hlcmU6IHsgaWQ6IHNlc3Npb24udXNlci5pZCB9LFxuICAgICAgICAgICAgZGF0YTogdXBkYXRlRGF0YSxcbiAgICAgICAgfSk7XG4gICAgICAgIHJldmFsaWRhdGVQYXRoKFwiL3Byb2ZpbGVcIik7XG4gICAgICAgIHJldHVybiB7IHN1Y2Nlc3M6IFwi44OX44Ot44OV44Kj44O844Or44KS5pu05paw44GX44G+44GX44GfXCIgfTtcbiAgICB9IGNhdGNoIChlcnJvcikge1xuICAgICAgICBjb25zb2xlLmVycm9yKFwiUHJvZmlsZSB1cGRhdGUgZXJyb3I6XCIsIGVycm9yKTtcbiAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44Ko44Op44O844GM55m655Sf44GX44G+44GX44GfXCIgfTtcbiAgICB9XG59XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjZSQU9zQiJ9
+var updateProfile = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["createServerReference"])("408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e", __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["callServer"], void 0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["findSourceMapURL"], "updateProfile"); //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4vcHJvZmlsZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJcInVzZSBzZXJ2ZXJcIjtcblxuaW1wb3J0IHsgYXV0aCB9IGZyb20gXCJAL2F1dGhcIjtcbmltcG9ydCB7IHByaXNtYSB9IGZyb20gXCJAL3NyYy9saWIvcHJpc21hXCI7XG5pbXBvcnQgYmNyeXB0IGZyb20gXCJiY3J5cHRqc1wiO1xuaW1wb3J0IHsgcmV2YWxpZGF0ZVBhdGggfSBmcm9tIFwibmV4dC9jYWNoZVwiO1xuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gdXBkYXRlUHJvZmlsZShmb3JtRGF0YTogRm9ybURhdGEpIHtcbiAgICBjb25zdCBzZXNzaW9uID0gYXdhaXQgYXV0aCgpO1xuICAgIGlmICghc2Vzc2lvbj8udXNlcj8uaWQpIHtcbiAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44Ot44Kw44Kk44Oz44GX44Gm44GP44Gg44GV44GEXCIgfTtcbiAgICB9XG5cbiAgICBjb25zdCBlbWFpbCA9IGZvcm1EYXRhLmdldChcImVtYWlsXCIpIGFzIHN0cmluZztcbiAgICBjb25zdCBwYXNzd29yZCA9IGZvcm1EYXRhLmdldChcInBhc3N3b3JkXCIpIGFzIHN0cmluZztcblxuICAgIGlmICghZW1haWwgJiYgIXBhc3N3b3JkKSB7XG4gICAgICAgIHJldHVybiB7IGVycm9yOiBcIuWkieabtOWGheWuueOCkuWFpeWKm+OBl+OBpuOBj+OBoOOBleOBhFwiIH07XG4gICAgfVxuXG4gICAgY29uc3QgdXBkYXRlRGF0YTogYW55ID0ge307XG5cbiAgICBpZiAoZW1haWwpIHtcbiAgICAgICAgLy8gQ2hlY2sgaWYgdXNlciBhbHJlYWR5IGhhcyBhbiBlbWFpbFxuICAgICAgICBjb25zdCBjdXJyZW50VXNlciA9IGF3YWl0IHByaXNtYS51c2VyLmZpbmRVbmlxdWUoe1xuICAgICAgICAgICAgd2hlcmU6IHsgaWQ6IHNlc3Npb24udXNlci5pZCB9LFxuICAgICAgICB9KTtcblxuICAgICAgICBpZiAoY3VycmVudFVzZXI/LmVtYWlsKSB7XG4gICAgICAgICAgICAvLyBJZiBlbWFpbCBpcyBhbHJlYWR5IHNldCwgZG8gbm90IGFsbG93IHVwZGF0ZVxuICAgICAgICAgICAgLy8gKFVubGVzcyB3ZSBpbXBsZW1lbnQgYSBzcGVjaWZpYyBlbWFpbCBjaGFuZ2UgZmxvdyBsYXRlcilcbiAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgIC8vIENoZWNrIGlmIGVtYWlsIGlzIGFscmVhZHkgdGFrZW4gYnkgYW5vdGhlciB1c2VyXG4gICAgICAgICAgICBjb25zdCBleGlzdGluZ1VzZXIgPSBhd2FpdCBwcmlzbWEudXNlci5maW5kVW5pcXVlKHtcbiAgICAgICAgICAgICAgICB3aGVyZTogeyBlbWFpbCB9LFxuICAgICAgICAgICAgfSk7XG4gICAgICAgICAgICBpZiAoZXhpc3RpbmdVc2VyICYmIGV4aXN0aW5nVXNlci5pZCAhPT0gc2Vzc2lvbi51c2VyLmlkKSB7XG4gICAgICAgICAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44GT44Gu44Oh44O844Or44Ki44OJ44Os44K544Gv5pei44Gr5L2/55So44GV44KM44Gm44GE44G+44GZXCIgfTtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAgIHVwZGF0ZURhdGEuZW1haWwgPSBlbWFpbDtcbiAgICAgICAgfVxuICAgIH1cblxuICAgIGlmIChwYXNzd29yZCkge1xuICAgICAgICBpZiAocGFzc3dvcmQubGVuZ3RoIDwgNikge1xuICAgICAgICAgICAgcmV0dXJuIHsgZXJyb3I6IFwi44OR44K544Ov44O844OJ44GvNuaWh+Wtl+S7peS4iuOBp+WFpeWKm+OBl+OBpuOBj+OBoOOBleOBhFwiIH07XG4gICAgICAgIH1cbiAgICAgICAgY29uc3QgaGFzaGVkUGFzc3dvcmQgPSBhd2FpdCBiY3J5cHQuaGFzaChwYXNzd29yZCwgMTApO1xuICAgICAgICB1cGRhdGVEYXRhLnBhc3N3b3JkID0gaGFzaGVkUGFzc3dvcmQ7XG4gICAgfVxuXG4gICAgdHJ5IHtcbiAgICAgICAgYXdhaXQgcHJpc21hLnVzZXIudXBkYXRlKHtcbiAgICAgICAgICAgIHdoZXJlOiB7IGlkOiBzZXNzaW9uLnVzZXIuaWQgfSxcbiAgICAgICAgICAgIGRhdGE6IHVwZGF0ZURhdGEsXG4gICAgICAgIH0pO1xuICAgICAgICByZXZhbGlkYXRlUGF0aChcIi9wcm9maWxlXCIpO1xuICAgICAgICBsZXQgc3VjY2Vzc01lc3NhZ2UgPSBcIuODl+ODreODleOCo+ODvOODq+OCkuabtOaWsOOBl+OBvuOBl+OBn1wiO1xuICAgICAgICBpZiAodXBkYXRlRGF0YS5wYXNzd29yZCAmJiAhdXBkYXRlRGF0YS5lbWFpbCkge1xuICAgICAgICAgICAgc3VjY2Vzc01lc3NhZ2UgPSBcIuODkeOCueODr+ODvOODieOCkuabtOaWsOOBl+OBvuOBl+OBn1wiO1xuICAgICAgICB9IGVsc2UgaWYgKHVwZGF0ZURhdGEuZW1haWwgJiYgIXVwZGF0ZURhdGEucGFzc3dvcmQpIHtcbiAgICAgICAgICAgIHN1Y2Nlc3NNZXNzYWdlID0gXCLjg6Hjg7zjg6vjgqLjg4njg6zjgrnjgpLmm7TmlrDjgZfjgb7jgZfjgZ9cIjtcbiAgICAgICAgfVxuXG4gICAgICAgIHJldHVybiB7IHN1Y2Nlc3M6IHN1Y2Nlc3NNZXNzYWdlIH07XG4gICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgY29uc29sZS5lcnJvcihcIlByb2ZpbGUgdXBkYXRlIGVycm9yOlwiLCBlcnJvcik7XG4gICAgICAgIHJldHVybiB7IGVycm9yOiBcIuOCqOODqeODvOOBjOeZuueUn+OBl+OBvuOBl+OBn1wiIH07XG4gICAgfVxufVxuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI2UkFPc0IifQ==
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }
@@ -37,7 +37,7 @@ __turbopack_context__.s([
     ()=>ProfileForm
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$data$3a$b84e40__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__ = __turbopack_context__.i("[project]/app/actions/data:b84e40 [app-client] (ecmascript) <text/javascript>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$data$3a$1f4bf0__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__ = __turbopack_context__.i("[project]/app/actions/data:1f4bf0 [app-client] (ecmascript) <text/javascript>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
@@ -53,7 +53,7 @@ function ProfileForm({ user }) {
         setLoading(true);
         setMessage("");
         setError("");
-        const result = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$data$3a$b84e40__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["updateProfile"])(formData);
+        const result = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$data$3a$1f4bf0__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["updateProfile"])(formData);
         if (result.error) {
             setError(result.error);
         } else {
@@ -96,12 +96,27 @@ function ProfileForm({ user }) {
                             className: "neo-input",
                             style: {
                                 width: "100%",
-                                boxSizing: "border-box"
-                            }
+                                boxSizing: "border-box",
+                                opacity: user.email ? 0.7 : 1,
+                                color: user.email ? "var(--text-secondary)" : "var(--text-color)"
+                            },
+                            readOnly: !!user.email
                         }, void 0, false, {
                             fileName: "[project]/app/profile/profile-form.tsx",
                             lineNumber: 33,
                             columnNumber: 11
+                        }, this),
+                        user.email && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            style: {
+                                fontSize: "12px",
+                                color: "var(--text-secondary)",
+                                marginTop: "4px"
+                            },
+                            children: "※メールアドレスは変更できません"
+                        }, void 0, false, {
+                            fileName: "[project]/app/profile/profile-form.tsx",
+                            lineNumber: 48,
+                            columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
@@ -120,7 +135,7 @@ function ProfileForm({ user }) {
                             children: "新しいパスワード"
                         }, void 0, false, {
                             fileName: "[project]/app/profile/profile-form.tsx",
-                            lineNumber: 44,
+                            lineNumber: 55,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -134,13 +149,13 @@ function ProfileForm({ user }) {
                             }
                         }, void 0, false, {
                             fileName: "[project]/app/profile/profile-form.tsx",
-                            lineNumber: 47,
+                            lineNumber: 58,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/profile/profile-form.tsx",
-                    lineNumber: 43,
+                    lineNumber: 54,
                     columnNumber: 9
                 }, this),
                 error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -151,7 +166,7 @@ function ProfileForm({ user }) {
                     children: error
                 }, void 0, false, {
                     fileName: "[project]/app/profile/profile-form.tsx",
-                    lineNumber: 56,
+                    lineNumber: 67,
                     columnNumber: 19
                 }, this),
                 message && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -162,7 +177,7 @@ function ProfileForm({ user }) {
                     children: message
                 }, void 0, false, {
                     fileName: "[project]/app/profile/profile-form.tsx",
-                    lineNumber: 57,
+                    lineNumber: 68,
                     columnNumber: 21
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -172,7 +187,7 @@ function ProfileForm({ user }) {
                     children: loading ? "更新中..." : "保存する"
                 }, void 0, false, {
                     fileName: "[project]/app/profile/profile-form.tsx",
-                    lineNumber: 59,
+                    lineNumber: 70,
                     columnNumber: 9
                 }, this)
             ]
@@ -1209,4 +1224,4 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 }),
 ]);
 
-//# sourceMappingURL=_6cfa633a._.js.map
+//# sourceMappingURL=_4dc9a69e._.js.map

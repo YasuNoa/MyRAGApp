@@ -45,13 +45,14 @@ export default function LoginPage() {
 
   return (
     <div style={{ 
-      height: "100vh", 
+      minHeight: "100vh", 
       display: "flex", 
       justifyContent: "center", 
       alignItems: "center",
-      backgroundColor: "var(--bg-color)"
+      backgroundColor: "var(--bg-color)",
+      padding: "20px"
     }}>
-      <div className="neo-card" style={{ width: "400px", border: "1px solid var(--border-color)" }}>
+      <div className="neo-card" style={{ width: "100%", maxWidth: "400px", border: "1px solid var(--border-color)" }}>
         <h1 style={{ textAlign: "center", fontSize: "1.8rem", marginBottom: "30px" }}>ログイン</h1>
         
         {/* LINE Login Button */}
@@ -80,7 +81,26 @@ export default function LoginPage() {
           </button>
         </form>
 
+
+        <div style={{ display: "flex", alignItems: "center", margin: "20px 0" }}>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
+          <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>または</span>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
+        </div>
+
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>メールアドレス</label>
+            <input
+              type="email"
+              className="neo-input"
+              style={{ width: "100%", boxSizing: "border-box" }}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="example@email.com"
+              required
+            />
+          </div>
           <div>
             <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>パスワード</label>
             <input

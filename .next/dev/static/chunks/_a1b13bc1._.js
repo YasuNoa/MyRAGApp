@@ -210,12 +210,13 @@ function Home() {
                     position: "sticky",
                     bottom: "20px",
                     backgroundColor: "var(--surface-color)",
-                    padding: "10px",
+                    padding: "8px",
                     borderRadius: "30px",
                     border: "1px solid var(--border-color)",
                     display: "flex",
                     alignItems: "center",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                    margin: "0 10px" // Add margin for mobile
                 },
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -228,14 +229,15 @@ function Home() {
                             backgroundColor: "transparent",
                             border: "none",
                             color: "var(--text-color)",
-                            padding: "10px 20px",
+                            padding: "10px 16px",
                             fontSize: "16px",
-                            outline: "none"
+                            outline: "none",
+                            minWidth: 0 // Prevent overflow
                         },
                         disabled: isLoading
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 122,
+                        lineNumber: 123,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -246,8 +248,9 @@ function Home() {
                             color: input.trim() ? "#202124" : "#9aa0a6",
                             border: "none",
                             borderRadius: "50%",
-                            width: "40px",
-                            height: "40px",
+                            width: "36px",
+                            height: "36px",
+                            flexShrink: 0,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -257,7 +260,7 @@ function Home() {
                         children: "➤"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 138,
+                        lineNumber: 140,
                         columnNumber: 9
                     }, this)
                 ]

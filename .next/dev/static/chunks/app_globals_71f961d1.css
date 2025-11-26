@@ -86,4 +86,28 @@ body {
   background-color: #ffffff1a;
 }
 
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+@media (max-width: 768px) {
+  .neo-card {
+    padding: 16px;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  h1 {
+    font-size: 1.8rem !important;
+  }
+
+  h2 {
+    font-size: 1.4rem !important;
+  }
+}
+
 /*# sourceMappingURL=app_globals_71f961d1.css.map*/

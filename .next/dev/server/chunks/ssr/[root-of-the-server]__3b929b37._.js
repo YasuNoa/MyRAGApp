@@ -97,6 +97,21 @@ const { handlers, signIn, signOut, auth } = (0, __TURBOPACK__imported__module__$
     session: {
         strategy: "jwt"
     },
+    callbacks: {
+        ...__TURBOPACK__imported__module__$5b$project$5d2f$auth$2e$config$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["authConfig"].callbacks,
+        async jwt ({ token, user }) {
+            if (user) {
+                token.id = user.id;
+            }
+            return token;
+        },
+        async session ({ session, token }) {
+            if (token.id && session.user) {
+                session.user.id = token.id;
+            }
+            return session;
+        }
+    },
     providers: [
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$auth$2f$node_modules$2f40$auth$2f$core$2f$providers$2f$line$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"])({
             clientId: process.env.AUTH_LINE_ID,
@@ -110,9 +125,9 @@ const { handlers, signIn, signOut, auth } = (0, __TURBOPACK__imported__module__$
         }),
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$auth$2f$node_modules$2f40$auth$2f$core$2f$providers$2f$credentials$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"])({
             credentials: {
-                username: {
-                    label: "Phone Number",
-                    type: "text"
+                email: {
+                    label: "Email",
+                    type: "email"
                 },
                 password: {
                     label: "Password",
@@ -120,10 +135,10 @@ const { handlers, signIn, signOut, auth } = (0, __TURBOPACK__imported__module__$
                 }
             },
             authorize: async (credentials)=>{
-                if (!credentials?.username || !credentials?.password) return null;
+                if (!credentials?.email || !credentials?.password) return null;
                 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["prisma"].user.findUnique({
                     where: {
-                        phoneNumber: credentials.username
+                        email: credentials.email
                     }
                 });
                 if (!user || !user.password) {
@@ -200,18 +215,29 @@ async function updateProfile(formData) {
     }
     const updateData = {};
     if (email) {
-        // Check if email is already taken by another user
-        const existingUser = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["prisma"].user.findUnique({
+        // Check if user already has an email
+        const currentUser = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["prisma"].user.findUnique({
             where: {
-                email
+                id: session.user.id
             }
         });
-        if (existingUser && existingUser.id !== session.user.id) {
-            return {
-                error: "このメールアドレスは既に使用されています"
-            };
+        if (currentUser?.email) {
+        // If email is already set, do not allow update
+        // (Unless we implement a specific email change flow later)
+        } else {
+            // Check if email is already taken by another user
+            const existingUser = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["prisma"].user.findUnique({
+                where: {
+                    email
+                }
+            });
+            if (existingUser && existingUser.id !== session.user.id) {
+                return {
+                    error: "このメールアドレスは既に使用されています"
+                };
+            }
+            updateData.email = email;
         }
-        updateData.email = email;
     }
     if (password) {
         if (password.length < 6) {
@@ -230,8 +256,14 @@ async function updateProfile(formData) {
             data: updateData
         });
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$cache$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["revalidatePath"])("/profile");
+        let successMessage = "プロフィールを更新しました";
+        if (updateData.password && !updateData.email) {
+            successMessage = "パスワードを更新しました";
+        } else if (updateData.email && !updateData.password) {
+            successMessage = "メールアドレスを更新しました";
+        }
         return {
-            success: "プロフィールを更新しました"
+            success: successMessage
         };
     } catch (error) {
         console.error("Profile update error:", error);

@@ -36,8 +36,19 @@ export default function ProfileForm({ user }: { user: any }) {
             defaultValue={user.email || ""} 
             placeholder="example@email.com"
             className="neo-input"
-            style={{ width: "100%", boxSizing: "border-box" }}
+            style={{ 
+              width: "100%", 
+              boxSizing: "border-box",
+              opacity: user.email ? 0.7 : 1,
+              color: user.email ? "var(--text-secondary)" : "var(--text-color)"
+            }}
+            readOnly={!!user.email}
           />
+          {user.email && (
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+              ※メールアドレスは変更できません
+            </p>
+          )}
         </div>
 
         <div>

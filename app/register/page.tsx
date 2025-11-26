@@ -28,13 +28,14 @@ export default function RegisterPage() {
 
   return (
     <div style={{ 
-      height: "100vh", 
+      minHeight: "100vh", 
       display: "flex", 
       justifyContent: "center", 
       alignItems: "center",
-      backgroundColor: "var(--bg-color)"
+      backgroundColor: "var(--bg-color)",
+      padding: "20px"
     }}>
-      <div className="neo-card" style={{ width: "400px", border: "1px solid var(--border-color)" }}>
+      <div className="neo-card" style={{ width: "100%", maxWidth: "400px", border: "1px solid var(--border-color)" }}>
         <h1 style={{ textAlign: "center", fontSize: "1.8rem", marginBottom: "30px" }}>新規登録</h1>
         
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

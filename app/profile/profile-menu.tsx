@@ -9,7 +9,7 @@ export default function ProfileMenu({ user }: { user: any }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
 
   return (
-    <div className="neo-card" style={{ maxWidth: "600px", margin: "0 auto", padding: "0", overflow: "hidden" }}>
+    <div className="neo-card" style={{ width: "100%", maxWidth: "600px", margin: "0 auto", padding: "0", overflow: "hidden" }}>
       {/* Header */}
       <div style={{ 
         padding: "32px", 

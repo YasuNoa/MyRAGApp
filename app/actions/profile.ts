@@ -21,14 +21,24 @@ export async function updateProfile(formData: FormData) {
     const updateData: any = {};
 
     if (email) {
-        // Check if email is already taken by another user
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
+        // Check if user already has an email
+        const currentUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
         });
-        if (existingUser && existingUser.id !== session.user.id) {
-            return { error: "このメールアドレスは既に使用されています" };
+
+        if (currentUser?.email) {
+            // If email is already set, do not allow update
+            // (Unless we implement a specific email change flow later)
+        } else {
+            // Check if email is already taken by another user
+            const existingUser = await prisma.user.findUnique({
+                where: { email },
+            });
+            if (existingUser && existingUser.id !== session.user.id) {
+                return { error: "このメールアドレスは既に使用されています" };
+            }
+            updateData.email = email;
         }
-        updateData.email = email;
     }
 
     if (password) {
@@ -45,7 +55,14 @@ export async function updateProfile(formData: FormData) {
             data: updateData,
         });
         revalidatePath("/profile");
-        return { success: "プロフィールを更新しました" };
+        let successMessage = "プロフィールを更新しました";
+        if (updateData.password && !updateData.email) {
+            successMessage = "パスワードを更新しました";
+        } else if (updateData.email && !updateData.password) {
+            successMessage = "メールアドレスを更新しました";
+        }
+
+        return { success: successMessage };
     } catch (error) {
         console.error("Profile update error:", error);
         return { error: "エラーが発生しました" };

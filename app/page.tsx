@@ -112,12 +112,13 @@ export default function Home() {
         position: "sticky",
         bottom: "20px",
         backgroundColor: "var(--surface-color)",
-        padding: "10px",
+        padding: "8px",
         borderRadius: "30px",
         border: "1px solid var(--border-color)",
         display: "flex",
         alignItems: "center",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        margin: "0 10px" // Add margin for mobile
       }}>
         <input
           type="text"
@@ -129,9 +130,10 @@ export default function Home() {
             backgroundColor: "transparent", 
             border: "none", 
             color: "var(--text-color)",
-            padding: "10px 20px",
+            padding: "10px 16px",
             fontSize: "16px",
-            outline: "none"
+            outline: "none",
+            minWidth: 0 // Prevent overflow
           }}
           disabled={isLoading}
         />
@@ -143,8 +145,9 @@ export default function Home() {
             color: input.trim() ? "#202124" : "#9aa0a6",
             border: "none",
             borderRadius: "50%",
-            width: "40px",
-            height: "40px",
+            width: "36px",
+            height: "36px",
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
