@@ -57,3 +57,64 @@
 
 ### ✅ 何のために？ (Result)
 *   PC、タブレット、スマホ、どの端末でも快適に「じぶんAI」を使えるようになりました。
+
+---
+
+## 4. Vercelデプロイのトラブルシューティング
+
+### 🎯 なぜやったか？ (Why)
+*   **課題**: ローカルでは動作するのに、Vercelにデプロイすると500エラーや404エラーが発生。
+*   **目的**: 本番環境でも安定して動作するアプリにする。
+
+### 🛠️ どうやってやったか？ (How)
+1.  **データベース接続問題の解決**:
+    *   ローカルのPostgreSQLがポート5432を占有していたため、Dockerのポートを5433に変更。
+    *   本番用マイグレーション: `npx prisma migrate deploy` で本番DBにスキーマを適用。
+
+2.  **ESM/CommonJS互換性問題**:
+    *   `package.json` の `"type": "module"` がNext.jsと競合していたため削除。
+    *   `src/index.ts` (Hono) が原因で `Cannot use import statement outside a module` エラー発生。
+
+3.  **Honoから Next.js API Routes への移行**:
+    *   Vercelの Edge Runtime と Hono の相性問題を解決するため、全APIを Next.js API Routes で書き直し。
+    *   移行したエンドポイント:
+        *   `/api/ask` - チャット質問API
+        *   `/api/add` - 知識追加API
+        *   `/api/webhook/line` - LINE Webhook
+
+4.  **ビルド設定の最適化**:
+    *   `.next` ディレクトリがGitにコミットされていたため、`.gitignore` に追加。
+    *   不要なファイル (`.DS_Store`, `tsconfig.tsbuildinfo`, `node_modules_backup`) も除外。
+
+5.  **認証設定の修正**:
+    *   `auth.config.ts` の `authorized` コールバックで `Response.redirect` を使用していたが、NextAuth v5 では非対応のため削除。
+    *   セッションに `name`, `email`, `image` を含めるように修正し、LINEログイン時のアイコン表示に対応。
+
+6.  **環境変数の設定**:
+    *   `AUTH_SECRET` をVercelに追加。
+    *   ドメイン変更 (`jibunai.vercel.app`) に伴い、`AUTH_URL` と LINE Callback URL を更新。
+
+### ✅ 何のために？ (Result)
+*   Vercelで正常にデプロイされ、本番環境でもログイン・チャット・LINE連携が動作するようになりました。
+*   クリーンなリポジトリ管理により、今後のデプロイも安定します。
+
+---
+
+## 5. カテゴリ機能の準備（進行中）
+
+### 🎯 なぜやったか？ (Why)
+*   **課題**: メッセージが増えると整理が難しくなる。
+*   **目的**: メッセージを「料理」「予定」「メモ」などのカテゴリで分類できるようにする。
+
+### 🛠️ どうやってやったか？ (How)
+1.  **スキーマ更新**:
+    *   `Message` モデルに `category` カラムを追加（デフォルト: "その他"）。
+    *   ローカル・本番両方でマイグレーション完了。
+
+2.  **ハイブリッド分類方式**:
+    *   ユーザー指定: `#料理 おにぎり作る` → カテゴリ = "料理"
+    *   AI自動分類: `おにぎり作る` → Geminiが自動判定
+
+### ✅ 何のために？ (Result)
+*   （実装中）メッセージの整理・検索が容易になる予定。
+
