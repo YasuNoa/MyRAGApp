@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # バックエンド (API Server)
+  backend:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    # 起動時に npm install を実行してからサーバーを起動
+    command: sh -c "npm install && npm run server"
+
+  # フロントエンド (Next.js)
+  frontend:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://backend:3001
+    # 起動時に npm install を実行してから開発サーバーを起動
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+
+  # データベース (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: myragapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

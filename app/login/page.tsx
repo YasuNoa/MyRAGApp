@@ -1,0 +1,132 @@
+"use client";
+
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("ログインに失敗しました。IDかパスワードが違います。");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+      setError("エラーが発生しました");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ 
+      height: "100vh", 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center",
+      backgroundColor: "var(--bg-color)"
+    }}>
+      <div className="neo-card" style={{ width: "400px", border: "1px solid var(--border-color)" }}>
+        <h1 style={{ textAlign: "center", fontSize: "1.8rem", marginBottom: "30px" }}>ログイン</h1>
+        
+        {/* LINE Login Button */}
+        <form
+          action={async () => {
+            await signIn("line");
+          }}
+          style={{ marginBottom: "20px" }}
+        >
+          <button
+            type="submit"
+            className="neo-button"
+            style={{
+              width: "100%",
+              backgroundColor: "#06C755", // LINE Green
+              color: "white",
+              fontWeight: "bold",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+            }}
+          >
+            LINEでログイン
+          </button>
+        </form>
+
+        <div style={{ display: "flex", alignItems: "center", margin: "20px 0" }}>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
+          <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>または電話番号で</span>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>電話番号</label>
+            <input
+              type="tel"
+              className="neo-input"
+              style={{ width: "100%", boxSizing: "border-box" }}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="09012345678"
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>パスワード</label>
+            <input
+              type="password"
+              className="neo-input"
+              style={{ width: "100%", boxSizing: "border-box" }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="password"
+            />
+          </div>
+
+          {error && (
+            <div style={{ color: "#ff6b6b", fontSize: "14px", textAlign: "center" }}>
+              {error}
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            className="neo-button"
+            style={{ marginTop: "10px", width: "100%" }}
+            disabled={isLoading}
+          >
+            {isLoading ? "確認中..." : "ログイン"}
+          </button>
+        </form>
+
+        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
+          <a href="/register" style={{ color: "var(--primary-color)", textDecoration: "none" }}>
+            アカウントをお持ちでない方はこちら
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}

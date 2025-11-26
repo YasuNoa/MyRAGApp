@@ -1,0 +1,104 @@
+/* Modern Dark Mode Design Tokens (Gemini/GPT Style) */
+:root {
+  /* Gemini/GPT風のダークテーマ */
+  --bg-color: #131314;
+  /* 深いグレー（背景） */
+  --surface-color: #1e1e1e;
+  /* カードやサイドバー */
+  --primary-color: #8ab4f8;
+  /* リンクやアクセントの青 */
+  --text-color: #e8eaed;
+  /* メインテキスト（白に近いグレー） */
+  --text-secondary: #9aa0a6;
+  /* サブテキスト */
+  --border-color: #3c4043;
+  /* 目立たない境界線 */
+
+  /* 角丸 */
+  --radius: 12px;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 共通コンポーネント: カード */
+.neo-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: none;
+  /* フラットに */
+}
+
+/* 共通コンポーネント: ボタン */
+.neo-button {
+  background-color: var(--primary-color);
+  color: #202124;
+  /* ボタン内の文字は濃い色で視認性確保 */
+  border: none;
+  border-radius: 24px;
+  /* 丸みのあるボタン */
+  padding: 10px 24px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+}
+
+.neo-button:hover {
+  opacity: 0.9;
+}
+
+.neo-button:disabled {
+  background-color: #5f6368;
+  cursor: not-allowed;
+}
+
+.neo-button.secondary {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--primary-color);
+}
+
+.neo-button.secondary:hover {
+  background-color: rgba(138, 180, 248, 0.1);
+}
+
+/* 共通コンポーネント: 入力フォーム */
+.neo-input {
+  background-color: #2b2c2e;
+  /* 入力欄は少し明るく */
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--text-color);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.neo-input:focus {
+  border-color: var(--primary-color);
+  background-color: #303134;
+}
+
+/* ナビゲーションリンク */
+.neo-nav-link {
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.neo-nav-link:hover {
+  color: var(--text-color);
+  background-color: rgba(255, 255, 255, 0.1);
+}
