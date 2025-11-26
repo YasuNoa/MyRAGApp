@@ -33,17 +33,19 @@ const authConfig = {
         },
         authorized ({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith("/");
             const isOnLogin = nextUrl.pathname.startsWith("/login");
             const isOnRegister = nextUrl.pathname.startsWith("/register");
-            if (isOnDashboard) {
-                // ログイン画面と登録画面は誰でもアクセスOK
-                if (isOnLogin || isOnRegister) return true;
-            // その他のページはログイン必須
-            // if (isLoggedIn) return true;
-            // return false; // Redirect unauthenticated users to login page
+            const isOnApi = nextUrl.pathname.startsWith("/api");
+            // API routes are always allowed (handled by their own logic if needed)
+            if (isOnApi) return true;
+            if (isOnLogin || isOnRegister) {
+                if (isLoggedIn) {
+                    return Response.redirect(new URL("/", nextUrl));
+                }
+                return true;
             }
-            return true;
+            // Default: require login for all other pages
+            return isLoggedIn;
         }
     },
     providers: []
@@ -60,30 +62,9 @@ __turbopack_context__.s([
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$auth$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/next-auth/index.js [middleware-edge] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$auth$2e$config$2e$ts__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/auth.config.ts [middleware-edge] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$api$2f$server$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/next/dist/esm/api/server.js [middleware-edge] (ecmascript) <locals>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$exports$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/esm/server/web/exports/index.js [middleware-edge] (ecmascript)");
 ;
 ;
-;
-const { auth } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$auth$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__$3c$locals$3e$__["default"])(__TURBOPACK__imported__module__$5b$project$5d2f$auth$2e$config$2e$ts__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["authConfig"]);
-const __TURBOPACK__default__export__ = auth((req)=>{
-    const isLoggedIn = !!req.auth;
-    const isOnLoginPage = req.nextUrl.pathname.startsWith("/login");
-    const isOnRegisterPage = req.nextUrl.pathname.startsWith("/register");
-    const isOnApiRoute = req.nextUrl.pathname.startsWith("/api");
-    if (isOnApiRoute || req.nextUrl.pathname.includes(".")) {
-        return;
-    }
-    if (isOnLoginPage || isOnRegisterPage) {
-        if (isLoggedIn) {
-            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$exports$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].redirect(new URL("/", req.url));
-        }
-        return;
-    }
-    if (!isLoggedIn) {
-        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$exports$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].redirect(new URL("/login", req.url));
-    }
-});
+const __TURBOPACK__default__export__ = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$auth$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__$3c$locals$3e$__["default"])(__TURBOPACK__imported__module__$5b$project$5d2f$auth$2e$config$2e$ts__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["authConfig"]).auth;
 const config = {
     matcher: [
         "/((?!api|_next/static|_next/image|favicon.ico).*)"

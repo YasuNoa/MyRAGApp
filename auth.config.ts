@@ -15,18 +15,22 @@ export const authConfig = {
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith("/");
             const isOnLogin = nextUrl.pathname.startsWith("/login");
             const isOnRegister = nextUrl.pathname.startsWith("/register");
+            const isOnApi = nextUrl.pathname.startsWith("/api");
 
-            if (isOnDashboard) {
-                // ログイン画面と登録画面は誰でもアクセスOK
-                if (isOnLogin || isOnRegister) return true;
-                // その他のページはログイン必須
-                // if (isLoggedIn) return true;
-                // return false; // Redirect unauthenticated users to login page
+            // API routes are always allowed (handled by their own logic if needed)
+            if (isOnApi) return true;
+
+            if (isOnLogin || isOnRegister) {
+                if (isLoggedIn) {
+                    return Response.redirect(new URL("/", nextUrl));
+                }
+                return true;
             }
-            return true;
+
+            // Default: require login for all other pages
+            return isLoggedIn;
         },
     },
     providers: [], // Providers are configured in auth.ts
