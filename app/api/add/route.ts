@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, id });
     } catch (e) {
         console.error(e);
-        return NextResponse.json({ error: "Failed to add document" }, { status: 500 });
+        return NextResponse.json({
+            error: "Failed to add document",
+            details: e instanceof Error ? e.message : String(e)
+        }, { status: 500 });
     }
 }
