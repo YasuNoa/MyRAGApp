@@ -11,7 +11,7 @@ model User {
   // ユーザー自身のID（他テーブルからは userId として参照される）
   id            String    @id @default(cuid())
   name          String
-  phoneNumber   String    @unique
+  phoneNumber   String?   @unique
   password      String?
   email         String    @unique
   emailVerified DateTime?
