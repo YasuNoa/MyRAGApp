@@ -1,12 +1,20 @@
-[00:00:03.701] Server  WARN     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
-[00:00:03.910] Server  LOG      ✓ Ready in 3.5s
-[00:06:11.317] Server  LOG        Reload env: .env.local
-[00:07:36.318] Server  LOG        Reload env: .env.local
-[00:09:45.277] Server  LOG        Reload env: .env
-[00:09:47.661] Server  LOG        Reload env: .env
-[00:11:28.677] Server  LOG      ✓ Compiled in 38ms
-[00:11:30.853] Server  LOG      ✓ Compiled in 96ms
-[00:13:04.699] Server  LOG      ✓ Compiled in 109ms
-[00:13:24.486] Server  LOG      ✓ Compiled in 32ms
-[00:15:19.690] Server  LOG      ✓ Compiled in 54ms
-[00:15:22.395] Server  LOG      ✓ Compiled in 52ms
+[00:00:03.049] Server  WARN     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[00:00:03.235] Server  LOG      ✓ Ready in 2.8s
+[00:00:12.530] Server  ERROR   [auth][error] JWTSessionError: Read more at https://errors.authjs.dev#jwtsessionerror
+[00:00:12.532] Server  ERROR   [auth][cause]: Error: no matching decryption secret
+    at clockTolerance (/app/.next/dev/server/edge/chunks/97170_@auth_core_8e60f9f3._.js:915:15)
+    at async flattenedDecrypt (/app/.next/dev/server/edge/chunks/node_modules_jose_dist_webapi_f4e85af0._.js:3329:15)
+    at async compactDecrypt (/app/.next/dev/server/edge/chunks/node_modules_jose_dist_webapi_f4e85af0._.js:3425:23)
+    at async jwtDecrypt (/app/.next/dev/server/edge/chunks/node_modules_jose_dist_webapi_f4e85af0._.js:3459:23)
+    at async Object.decode (/app/.next/dev/server/edge/chunks/97170_@auth_core_8e60f9f3._.js:905:25)
+    at async Module.session (/app/.next/dev/server/edge/chunks/97170_@auth_core_8e60f9f3._.js:4547:29)
+    at async AuthInternal (/app/.next/dev/server/edge/chunks/97170_@auth_core_8e60f9f3._.js:5132:24)
+    at async Auth (/app/.next/dev/server/edge/chunks/97170_@auth_core_8e60f9f3._.js:5371:34)
+    at async handleAuth (/app/.next/dev/server/edge/chunks/node_modules_7533397a._.js:4022:29)
+    at async /app/.next/dev/server/edge/chunks/_99c42b3c._.js:12830:20
+[00:00:12.532] Server  ERROR   [auth][details]: {}
+[00:00:15.553] Server  LOG      ○ Compiling /login ...
+[00:00:16.183] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:31.798] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:35.324] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:01:04.084] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

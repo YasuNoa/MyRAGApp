@@ -1,6 +1,6 @@
 {
   "node": {
-    "001e3cc76ef726934145ae979abf15ac3cb47ec90f": {
+    "001665b23cff1fa91a632e7017465f2495605c362c": {
       "workers": {
         "app/profile/page": {
           "moduleId": "[project]/.next-internal/server/app/profile/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/auth.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/profile.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
@@ -15,7 +15,7 @@
       "exportedName": "logout",
       "filename": "app/actions/auth.ts"
     },
-    "408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e": {
+    "4033e192e82ddbe2713f58e10f1aad13036c007715": {
       "workers": {
         "app/profile/page": {
           "moduleId": "[project]/.next-internal/server/app/profile/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/auth.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/profile.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",

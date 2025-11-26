@@ -27,17 +27,19 @@ const authConfig = {
         },
         authorized ({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith("/");
             const isOnLogin = nextUrl.pathname.startsWith("/login");
             const isOnRegister = nextUrl.pathname.startsWith("/register");
-            if (isOnDashboard) {
-                // ログイン画面と登録画面は誰でもアクセスOK
-                if (isOnLogin || isOnRegister) return true;
-            // その他のページはログイン必須
-            // if (isLoggedIn) return true;
-            // return false; // Redirect unauthenticated users to login page
+            const isOnApi = nextUrl.pathname.startsWith("/api");
+            // API routes are always allowed (handled by their own logic if needed)
+            if (isOnApi) return true;
+            if (isOnLogin || isOnRegister) {
+                if (isLoggedIn) {
+                    return Response.redirect(new URL("/", nextUrl));
+                }
+                return true;
             }
-            return true;
+            // Default: require login for all other pages
+            return isLoggedIn;
         }
     },
     providers: []
@@ -161,7 +163,7 @@ const { handlers, signIn, signOut, auth } = (0, __TURBOPACK__imported__module__$
 "[project]/app/actions/auth.ts [app-rsc] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-/* __next_internal_action_entry_do_not_use__ [{"001e3cc76ef726934145ae979abf15ac3cb47ec90f":"logout"},"",""] */ __turbopack_context__.s([
+/* __next_internal_action_entry_do_not_use__ [{"001665b23cff1fa91a632e7017465f2495605c362c":"logout"},"",""] */ __turbopack_context__.s([
     "logout",
     ()=>logout
 ]);
@@ -179,12 +181,12 @@ async function logout() {
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ensureServerEntryExports"])([
     logout
 ]);
-(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(logout, "001e3cc76ef726934145ae979abf15ac3cb47ec90f", null);
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(logout, "001665b23cff1fa91a632e7017465f2495605c362c", null);
 }),
 "[project]/app/actions/profile.ts [app-rsc] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-/* __next_internal_action_entry_do_not_use__ [{"408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e":"updateProfile"},"",""] */ __turbopack_context__.s([
+/* __next_internal_action_entry_do_not_use__ [{"4033e192e82ddbe2713f58e10f1aad13036c007715":"updateProfile"},"",""] */ __turbopack_context__.s([
     "updateProfile",
     ()=>updateProfile
 ]);
@@ -276,7 +278,7 @@ async function updateProfile(formData) {
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ensureServerEntryExports"])([
     updateProfile
 ]);
-(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(updateProfile, "408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e", null);
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(updateProfile, "4033e192e82ddbe2713f58e10f1aad13036c007715", null);
 }),
 "[project]/.next-internal/server/app/profile/page/actions.js { ACTIONS_MODULE0 => \"[project]/app/actions/auth.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/app/actions/profile.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript) <locals>", ((__turbopack_context__) => {
 "use strict";
@@ -291,9 +293,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$profile$2e
 "use strict";
 
 __turbopack_context__.s([
-    "001e3cc76ef726934145ae979abf15ac3cb47ec90f",
+    "001665b23cff1fa91a632e7017465f2495605c362c",
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$auth$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["logout"],
-    "408cb6f0d7d334db3a4c2c968bf6303dd11de81f3e",
+    "4033e192e82ddbe2713f58e10f1aad13036c007715",
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$app$2f$actions$2f$profile$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["updateProfile"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$internal$2f$server$2f$app$2f$profile$2f$page$2f$actions$2e$js__$7b$__ACTIONS_MODULE0__$3d3e$__$225b$project$5d2f$app$2f$actions$2f$auth$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29222c$__ACTIONS_MODULE1__$3d3e$__$225b$project$5d2f$app$2f$actions$2f$profile$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$2922$__$7d$__$5b$app$2d$rsc$5d$__$28$server__actions__loader$2c$__ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i('[project]/.next-internal/server/app/profile/page/actions.js { ACTIONS_MODULE0 => "[project]/app/actions/auth.ts [app-rsc] (ecmascript)", ACTIONS_MODULE1 => "[project]/app/actions/profile.ts [app-rsc] (ecmascript)" } [app-rsc] (server actions loader, ecmascript) <locals>');
