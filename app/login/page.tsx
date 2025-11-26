@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,13 +24,13 @@ export default function LoginPage() {
 
     try {
       const result = await signIn("credentials", {
-        username,
+        email,
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError("ログインに失敗しました。IDかパスワードが違います。");
+        setError("ログインに失敗しました。メールアドレスかパスワードが違います。");
       } else {
         router.push("/");
         router.refresh();
@@ -80,25 +80,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ display: "flex", alignItems: "center", margin: "20px 0" }}>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-          <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>または電話番号で</span>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-        </div>
-
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>電話番号</label>
-            <input
-              type="tel"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="09012345678"
-            />
-          </div>
-          
           <div>
             <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>パスワード</label>
             <input

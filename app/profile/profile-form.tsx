@@ -24,21 +24,7 @@ export default function ProfileForm({ user }: { user: any }) {
   }
 
   return (
-    <div className="neo-card" style={{ maxWidth: "500px", margin: "0 auto" }}>
-      <div style={{ textAlign: "center", marginBottom: "24px" }}>
-        {user.image && (
-          <img 
-            src={user.image} 
-            alt="Profile" 
-            style={{ width: "80px", height: "80px", borderRadius: "50%", marginBottom: "16px" }} 
-          />
-        )}
-        <h2 style={{ margin: 0 }}>{user.name}</h2>
-        <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
-          {user.email || "メールアドレス未設定"}
-        </p>
-      </div>
-
+    <div style={{ maxWidth: "100%", margin: "0 auto" }}>
       <form action={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>

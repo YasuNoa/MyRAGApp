@@ -1,2 +1,26 @@
 [00:00:02.625] Server  WARN     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 [00:00:02.746] Server  LOG      ✓ Ready in 2.4s
+[00:00:51.199] Server  LOG      ○ Compiling / ...
+[00:00:52.352] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:03:16.148] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:03:16.689] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:03:17.922] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:00.908] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:57.156] Server  LOG      ✓ Compiled in 101ms
+[00:06:06.357] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:09.037] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:21.905] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:08:51.942] Server  LOG      ✓ Compiled in 98ms
+[00:09:09.586] Server  LOG      ✓ Compiled in 111ms
+[00:09:09.668] Browser ERROR   uncaughtError: ReferenceError: username is not defined
+[00:09:19.493] Server  LOG      ✓ Compiled in 118ms
+[00:09:19.707] Server  ERROR    ⨯ ReferenceError: username is not defined
+[00:09:19.856] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:09:19.966] Browser ERROR   uncaughtError: ReferenceError: username is not defined
+[00:11:19.402] Server  LOG      ✓ Compiled in 155ms
+[00:11:19.496] Server  ERROR    ⨯ ReferenceError: username is not defined
+[00:11:19.633] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:11:19.749] Browser ERROR   uncaughtError: ReferenceError: username is not defined
+[00:11:43.601] Server  WARN     ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:11:43.613] Server  LOG      ✓ Compiled in 86ms
+[00:11:43.932] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
