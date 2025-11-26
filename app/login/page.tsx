@@ -58,7 +58,7 @@ export default function LoginPage() {
         {/* LINE Login Button */}
         <form
           action={async () => {
-            await signIn("line");
+            await signIn("line", { callbackUrl: "/" });
           }}
           style={{ marginBottom: "20px" }}
         >
