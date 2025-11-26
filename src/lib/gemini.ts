@@ -1,10 +1,5 @@
 // Googleの生成AI（Gemini）を利用するためのライブラリをインポートします。
 import { GoogleGenerativeAI } from "@google/generative-ai";
-// 環境変数を読み込むためのライブラリです。
-import dotenv from "dotenv";
-
-// .envファイルの設定を読み込みます。
-dotenv.config();
 
 // 環境変数からGoogleのAPIキーを取得します。
 const apiKey = process.env.GOOGLE_API_KEY;
