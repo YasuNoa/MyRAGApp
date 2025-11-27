@@ -30,7 +30,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
 
 // ユーザーの意図を分類する関数
 export async function classifyIntent(text: string): Promise<"STORE" | "SEARCH"> {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
     あなたはユーザーの意図を分類するAIです。
@@ -59,7 +59,7 @@ export async function classifyIntent(text: string): Promise<"STORE" | "SEARCH"> 
 export async function generateAnswer(query: string, context: string[]): Promise<string> {
     // "gemini-flash-latest" という、高速で安価なモデルを使います。
     // 用途に応じて "gemini-pro" などに変更することも可能です。
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // AIへの命令文（プロンプト）を作成します。
     // ここで「コンテキスト」と「質問」をセットで渡すのがポイントです。

@@ -5,29 +5,38 @@ dotenv.config();
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
-    console.error("GOOGLE_API_KEY is not set");
+    console.error("GOOGLE_API_KEY not set");
     process.exit(1);
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-async function listModels() {
+async function main() {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Dummy
-        // Actually we need to use the model manager if available, or just try to list.
-        // The SDK doesn't have a direct listModels on the instance?
-        // It seems currently the SDK might not expose listModels directly on the main class easily in all versions.
-        // But let's check if we can use the API directly or if the SDK has it.
-        // Looking at the error message: "Call ListModels to see the list of available models"
+        console.log("Fetching available models...");
+        // モデル一覧を取得するための特別なメソッドはないため、
+        // 既知のモデルで試すか、ドキュメントを参照する必要がありますが、
+        // ここではエラーメッセージにある通り ListModels API を叩きたいところです。
+        // しかしGoogleGenerativeAI SDKには listModels メソッドがなさそうなので、
+        // 直接REST APIを叩いてみます。
 
-        // Use fetch directly to list models
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const response = await fetch(url);
         const data = await response.json();
-        console.log(JSON.stringify(data, null, 2));
 
-    } catch (e) {
-        console.error(e);
+        if (data.models) {
+            console.log("Available Models:");
+            data.models.forEach((model: any) => {
+                console.log(`- ${model.name} (${model.displayName})`);
+                console.log(`  Supported methods: ${model.supportedGenerationMethods}`);
+            });
+        } else {
+            console.log("No models found or error:", data);
+        }
+
+    } catch (error) {
+        console.error("Error:", error);
     }
 }
 
-listModels();
+main();
