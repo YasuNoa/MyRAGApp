@@ -1,62 +1,74 @@
-# My Personal RAG Bot
+# じぶんAI (Jibun AI)
 
-自分専用のLLM Botのバックエンドプロトタイプです。
-LINEやSlackからテキストを受け取り、Pineconeに保存し、Geminiで回答を生成するフローを実装しています。
+## 概要
+「じぶんAI」は、LINEを通じてユーザーの日々の発言や思考を蓄積し、AIが「分身」として対話を行うパーソナルアシスタントアプリケーションです。
+RAG (Retrieval-Augmented Generation) 技術を活用し、過去の会話や記録に基づいた文脈理解と応答を実現しています。
 
-## 必要条件
+## 特徴
+*   **LINE Botインターフェース**: 普段使い慣れたLINEアプリから、自然な会話形式で利用可能。
+*   **長期記憶 (RAG)**: Pinecone (Vector DB) を使用し、過去の発言を半永久的に記憶・検索可能。
+*   **意図・カテゴリ自動分類**: Google Gemini APIにより、ユーザーの発言意図（保存/検索）やカテゴリ（仕事、趣味など）を自動で判別。
+*   **ユーザー管理**: LINEログイン認証と連携し、ユーザーごとのデータをセキュアに管理。
 
-- Node.js (v18以上推奨)
-- Google AI Studio API Key (Gemini)
-- Pinecone API Key & Index Name
+## 技術スタック
+*   **Frontend / Backend**: Next.js 15 (App Router), TypeScript
+*   **Database**: PostgreSQL (Prisma ORM)
+*   **Vector Database**: Pinecone
+*   **LLM**: Google Gemini API (gemini-2.0-flash)
+*   **Messaging Platform**: LINE Messaging API
+*   **Infrastructure**: Vercel, Docker (開発環境)
 
-## セットアップ
+## ディレクトリ構成
+*   `app/`: Next.js アプリケーションコード
+*   `src/lib/`: 外部サービス連携ロジック (Gemini, Pinecone, LINE)
+*   `prisma/`: データベーススキーマとマイグレーション
+*   `docs/`: 要件定義書および仕様書
 
-1. 依存関係のインストール
-   ```bash
-   npm install
-   ```
+## セットアップ手順 (開発環境)
 
-2. 環境変数の設定
-   `.env.example` をコピーして `.env` を作成し、APIキーを入力してください。
-   ```bash
-   cp .env.example .env
-   ```
-   
-   `.env`の中身:
-   ```
-   GOOGLE_API_KEY=your_google_api_key
-   PINECONE_API_KEY=your_pinecone_api_key
-   PINECONE_INDEX=your_index_name
-   ```
+### 1. 前提条件
+*   Node.js (v18以上)
+*   Docker / Docker Compose
+*   LINE Developers アカウント
+*   Google Cloud Platform アカウント (Gemini API)
+*   Pinecone アカウント
 
-## 実行方法
-
-サーバーを起動します:
-
+### 2. インストール
+リポジトリをクローンし、依存関係をインストールします。
 ```bash
-npx tsx src/index.ts
+git clone https://github.com/YasuNoa/MyRAGApp.git
+cd MyRAGApp
+npm install
 ```
 
-## 使い方 (APIエンドポイント)
-
-### 1. 知識を覚える (Add)
-
+### 3. 環境変数の設定
+`.env.example` をコピーして `.env` を作成し、各APIキーを設定します。
 ```bash
-curl -X POST http://localhost:3000/add \
-  -H "Content-Type: application/json" \
-  -d '{"text": "私の好きな食べ物は寿司です。"}'
+cp .env.example .env
 ```
 
-### 2. 質問する (Ask)
-
+### 4. データベースの起動
+Docker Composeを使用してPostgreSQLを起動します。
 ```bash
-curl -X POST http://localhost:3000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"query": "私の好きな食べ物は何？"}'
+docker compose up -d
 ```
 
-## 構成
+### 5. マイグレーションの適用
+Prismaを使用してデータベーススキーマを適用します。
+```bash
+npx prisma migrate dev
+```
 
-- `src/index.ts`: メインサーバー (Hono)
-- `src/lib/gemini.ts`: Gemini API クライアント (Embedding & Generation)
-- `src/lib/pinecone.ts`: Pinecone API クライアント (Vector DB)
+### 6. アプリケーションの起動
+開発サーバーを起動します。
+```bash
+npm run dev
+```
+
+## ドキュメント
+詳細な要件や仕様については、以下のドキュメントを参照してください。
+*   [要件定義書](docs/requirements.md)
+*   [基本仕様書](docs/specifications.md)
+
+WebUI：https://jibunai.vercel.app/
+公式LINE：https://line.me/ti/p/@662awtth
