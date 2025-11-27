@@ -67,6 +67,52 @@ export async function POST(req: NextRequest) {
                         const id = uuidv4();
                         await upsertDocument(id, userMessage, vector);
                         replyText = "覚えました！🧠";
+                    } else if (intent === "REVIEW") {
+                        // === 振り返りモード ===
+                        // 今日の0時0分0秒 (JST) を取得
+                        const now = new Date();
+                        const jstOffset = 9 * 60; // JSTはUTC+9
+                        const todayJST = new Date(now.getTime() + (jstOffset * 60 * 1000));
+                        todayJST.setUTCHours(0, 0, 0, 0);
+                        const startOfDay = new Date(todayJST.getTime() - (jstOffset * 60 * 1000)); // UTCに戻す
+
+                        // 今日のユーザーメッセージを取得
+                        const messages = await prisma.message.findMany({
+                            where: {
+                                userId: account.userId,
+                                role: "user",
+                                createdAt: {
+                                    gte: startOfDay,
+                                },
+                            },
+                            orderBy: {
+                                createdAt: "asc",
+                            },
+                        });
+
+                        if (messages.length === 0) {
+                            replyText = "今日はまだ何も記録していません📝";
+                        } else {
+                            // カテゴリごとにグルーピング
+                            const grouped: { [key: string]: string[] } = {};
+                            messages.forEach((msg) => {
+                                const cat = msg.category || "その他";
+                                if (!grouped[cat]) grouped[cat] = [];
+                                grouped[cat].push(msg.content);
+                            });
+
+                            // テキスト整形
+                            let report = "📅 今日の振り返り\n\n";
+                            for (const [cat, msgs] of Object.entries(grouped)) {
+                                report += `【${cat}】\n`;
+                                msgs.forEach((msg) => {
+                                    report += `・${msg}\n`;
+                                });
+                                report += "\n";
+                            }
+                            report += `合計: ${messages.length}件`;
+                            replyText = report.trim();
+                        }
                     } else {
                         // === 検索・会話モード ===
                         const vector = await getEmbedding(userMessage);

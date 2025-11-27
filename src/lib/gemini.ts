@@ -29,7 +29,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
 }
 
 // ユーザーの意図を分類する関数
-export async function classifyIntent(text: string): Promise<{ intent: "STORE" | "SEARCH"; category: string; }> {
+export async function classifyIntent(text: string): Promise<{ intent: "STORE" | "SEARCH" | "REVIEW"; category: string; }> {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
@@ -39,6 +39,7 @@ export async function classifyIntent(text: string): Promise<{ intent: "STORE" | 
     1. intent (意図):
        - "STORE": ユーザーが自分の情報を教えてくれたり、覚えてほしいと言った場合（例：「私の趣味は〜」「〜が好き」「〜に行ってきた」）
        - "SEARCH": ユーザーが質問したり、雑談したり、挨拶した場合（例：「私の趣味は何？」「こんにちは」「おすすめは？」）
+       - "REVIEW": ユーザーが過去の記録を振り返りたい、日報を見たい、今日何をしたか知りたい場合（例：「今日何した？」「振り返り」「日報」）
 
     2. category (カテゴリ):
        以下のリストから最も適切なものを1つ選んでください。
@@ -50,7 +51,7 @@ export async function classifyIntent(text: string): Promise<{ intent: "STORE" | 
 
     出力フォーマット:
     {
-      "intent": "STORE" or "SEARCH",
+      "intent": "STORE" or "SEARCH" or "REVIEW",
       "category": "カテゴリ名"
     }
 
