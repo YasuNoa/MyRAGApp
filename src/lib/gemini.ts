@@ -29,26 +29,48 @@ export async function getEmbedding(text: string): Promise<number[]> {
 }
 
 // ユーザーの意図を分類する関数
-export async function classifyIntent(text: string): Promise<"STORE" | "SEARCH"> {
+export async function classifyIntent(text: string): Promise<{ intent: "STORE" | "SEARCH"; category: string; }> {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
-    あなたはユーザーの意図を分類するAIです。
-    以下のテキストが「知識として覚えるべき情報」なのか、「何かを尋ねている質問」なのかを判断してください。
-    
-    テキスト: "${text}"
-    
-    出力は以下のいずれかのみを返してください。余計な文字は一切含めないでください。
-    - STORE (情報の入力、知識の追加、宣言文など)
-    - SEARCH (質問、検索、挨拶、会話など)
+    あなたはユーザーのメッセージを分析するAIです。
+    以下の2つの情報をJSON形式で出力してください。
+
+    1. intent (意図):
+       - "STORE": ユーザーが自分の情報を教えてくれたり、覚えてほしいと言った場合（例：「私の趣味は〜」「〜が好き」「〜に行ってきた」）
+       - "SEARCH": ユーザーが質問したり、雑談したり、挨拶した場合（例：「私の趣味は何？」「こんにちは」「おすすめは？」）
+
+    2. category (カテゴリ):
+       以下のリストから最も適切なものを1つ選んでください。
+       - 仕事_本業, 仕事_副業, 学習_技術, 学習_語学
+       - 生活_食事, 生活_健康, 生活_家計, 生活_住まい
+       - 趣味_旅行, 趣味_エンタメ, 趣味_音楽, 趣味_スポーツ
+       - 関係_家族, 関係_友人, 関係_恋人
+       - スケジュール, アイデア, 日記, ニュース, その他
+
+    出力フォーマット:
+    {
+      "intent": "STORE" or "SEARCH",
+      "category": "カテゴリ名"
+    }
+
+    ユーザーのメッセージ: "${text}"
     `;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
-    const intent = response.text().trim().toUpperCase();
+    const textResponse = response.text().trim();
 
-    if (intent.includes("STORE")) return "STORE";
-    return "SEARCH";
+    // JSON部分だけを取り出す（Markdownのコードブロック記法 ```json ... ``` を除去）
+    const jsonString = textResponse.replace(/^```json\n|\n```$/g, "").trim();
+
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        console.error("Failed to parse JSON from Gemini:", textResponse);
+        // パース失敗時はデフォルト値を返す
+        return { intent: "SEARCH", category: "その他" };
+    }
 }
 
 // ユーザーの質問と、検索で見つかった情報（コンテキスト）を元に、回答を生成する関数です。

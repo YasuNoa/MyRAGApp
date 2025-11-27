@@ -35,22 +35,29 @@ export async function POST(req: NextRequest) {
                         },
                     });
 
-                    const userId = account?.userId;
-
-                    // 2. ユーザーのメッセージをDBに保存（ユーザーが特定できた場合のみ）
-                    if (userId) {
-                        await prisma.message.create({
-                            data: {
-                                content: userMessage,
-                                role: "user",
-                                userId: userId,
-                            },
-                        });
+                    // ユーザーが特定できた場合のみ処理を続行
+                    if (!account) {
+                        console.log(`[LINE] Unknown user: ${lineUserId}`);
+                        await replyMessage(replyToken, "ユーザー情報が見つかりません。ログインしてください。");
+                        continue; // 次のイベントへ
                     }
 
-                    // 3. 意図分類 (STORE or SEARCH)
-                    const intent = await classifyIntent(userMessage);
-                    console.log(`[LINE] 意図: ${intent}`);
+                    // 2. ユーザーの意図とカテゴリを分類
+                    const classification = await classifyIntent(userMessage);
+                    const intent = classification.intent;
+                    const category = classification.category;
+
+                    console.log(`[Gemini] Intent: ${intent}, Category: ${category}`);
+
+                    // 3. ユーザーのメッセージをDBに保存
+                    await prisma.message.create({
+                        data: {
+                            content: userMessage,
+                            role: "user",
+                            userId: account.userId,
+                            category: category, // カテゴリを保存
+                        },
+                    });
 
                     let replyText = "";
 
@@ -71,16 +78,15 @@ export async function POST(req: NextRequest) {
                     await replyMessage(replyToken, replyText);
                     console.log(`[LINE] 返信: ${replyText}`);
 
-                    // 5. AIの回答をDBに保存（ユーザーが特定できた場合のみ）
-                    if (userId) {
-                        await prisma.message.create({
-                            data: {
-                                content: replyText,
-                                role: "assistant",
-                                userId: userId,
-                            },
-                        });
-                    }
+                    // 5. AIの回答をDBに保存
+                    await prisma.message.create({
+                        data: {
+                            content: replyText,
+                            role: "assistant",
+                            userId: account.userId,
+                        },
+                    });
+
                 } catch (e: any) {
                     console.error("[LINE] Error:", e.response?.data || e);
                     await replyMessage(replyToken, "すみません、エラーが発生しました。");
