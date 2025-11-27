@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
                             },
                         });
                     }
-                } catch (e) {
-                    console.error("[LINE] Error:", e);
+                } catch (e: any) {
+                    console.error("[LINE] Error:", e.response?.data || e);
                     await replyMessage(replyToken, "すみません、エラーが発生しました。");
                 }
             }
