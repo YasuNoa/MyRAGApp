@@ -66,6 +66,17 @@ export async function POST(req: NextRequest) {
                         const vector = await getEmbedding(userMessage);
                         const id = uuidv4();
                         await upsertDocument(id, userMessage, vector);
+
+                        // DBにも保存 (リスト表示用)
+                        await prisma.document.create({
+                            data: {
+                                userId: account.userId,
+                                title: userMessage.slice(0, 20) + (userMessage.length > 20 ? "..." : ""),
+                                source: "line",
+                                externalId: id,
+                            },
+                        });
+
                         replyText = "覚えました！🧠";
                     } else if (intent === "REVIEW") {
                         // === 振り返りモード ===
