@@ -5,24 +5,80 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 import Line from "next-auth/providers/line";
+import Google from "next-auth/providers/google";
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./src/lib/prisma";
 
+async function refreshAccessToken(token: any) {
+    console.log("DEBUG: refreshAccessToken called");
+    try {
+        const url = "https://oauth2.googleapis.com/token";
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                client_id: process.env.AUTH_GOOGLE_ID!,
+                client_secret: process.env.AUTH_GOOGLE_SECRET!,
+                grant_type: "refresh_token",
+                refresh_token: token.refreshToken,
+            }),
+        });
+
+        const refreshedTokens = await response.json();
+
+        if (!response.ok) {
+            console.error("DEBUG: Failed to refresh token", refreshedTokens);
+            throw refreshedTokens;
+        }
+
+        console.log("DEBUG: Token refreshed successfully");
+        return {
+            ...token,
+            accessToken: refreshedTokens.access_token,
+            expiresAt: Date.now() + refreshedTokens.expires_in * 1000,
+            refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Fall back to old refresh token
+        };
+    } catch (error) {
+        console.error("RefreshAccessTokenError", error);
+        return {
+            ...token,
+            error: "RefreshAccessTokenError",
+        };
+    }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
+    trustHost: true,
     adapter: PrismaAdapter(prisma),
     session: { strategy: "jwt" },
     callbacks: {
         ...authConfig.callbacks,
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-                token.name = user.name;
-                token.email = user.email;
-                token.picture = user.image;
+        async jwt({ token, user, account }) {
+            // Initial sign in
+            if (account && user) {
+                console.log("DEBUG: Initial sign in. Got refresh token?", !!account.refresh_token);
+                return {
+                    ...token,
+                    accessToken: account.access_token,
+                    expiresAt: Date.now() + (account.expires_in as number * 1000),
+                    refreshToken: account.refresh_token,
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    picture: user.image,
+                };
             }
-            return token;
+
+            // Return previous token if the access token has not expired yet
+            if (Date.now() < (token.expiresAt as number)) {
+                return token;
+            }
+
+            // Access token has expired, try to update it
+            console.log("Token expired, refreshing...");
+            return await refreshAccessToken(token);
         },
         async session({ session, token }) {
             if (token.id && session.user) {
@@ -30,6 +86,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.name = token.name as string;
                 session.user.email = token.email as string;
                 session.user.image = token.picture as string;
+                session.accessToken = token.accessToken as string;
+                // @ts-ignore
+                session.error = token.error as string;
             }
             return session;
         },
@@ -39,6 +98,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.AUTH_LINE_ID,
             clientSecret: process.env.AUTH_LINE_SECRET,
             authorization: { params: { scope: "openid profile email" } },
+            allowDangerousEmailAccountLinking: true,
+        }),
+        Google({
+            clientId: process.env.AUTH_GOOGLE_ID,
+            clientSecret: process.env.AUTH_GOOGLE_SECRET,
+            authorization: {
+                params: {
+                    scope: "openid email profile https://www.googleapis.com/auth/drive.readonly",
+                    prompt: "consent",
+                    access_type: "offline",
+                    response_type: "code"
+                }
+            },
             allowDangerousEmailAccountLinking: true,
         }),
         Credentials({

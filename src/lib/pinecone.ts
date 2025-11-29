@@ -34,14 +34,17 @@ const index = pc.index(indexName || "quickstart");
 // id: ドキュメントの一意なID
 // text: 元のテキスト（検索結果として表示するため）
 // vector: テキストを数値化したベクトルデータ（検索のため）
-export async function upsertDocument(id: string, text: string, vector: number[]) {
+export async function upsertDocument(id: string, text: string, vector: number[], metadata: Record<string, any> = {}) {
     // index.upsert() を使ってデータを保存します。
     // Pineconeには、ID、ベクトル(values)、メタデータ(metadata)をセットで保存できます。
     await index.upsert([
         {
             id: id,
             values: vector,
-            metadata: { text }, // 元のテキストも一緒に保存しておかないと、検索しても「どの文章か」がわかりません。
+            metadata: {
+                text,
+                ...metadata
+            }, // 元のテキストも一緒に保存しておかないと、検索しても「どの文章か」がわかりません。
         },
     ]);
 }
@@ -55,6 +58,13 @@ export async function queryDocuments(vector: number[], topK: number = 3): Promis
         vector: vector,
         topK: topK,
         includeMetadata: true, // メタデータ（元のテキスト）も含めて取得します。
+    });
+
+    console.log(`[Pinecone] Query found ${queryResponse.matches.length} matches`);
+    queryResponse.matches.forEach((match, i) => {
+        const text = match.metadata?.text as string;
+        const snippet = text ? text.slice(0, 50).replace(/\n/g, " ") + "..." : "No text";
+        console.log(`[Pinecone] Match ${i + 1}: ID=${match.id}, Score=${match.score}, Text=${snippet}`);
     });
 
     // 検索結果から、元のテキストだけを取り出して配列として返します。
