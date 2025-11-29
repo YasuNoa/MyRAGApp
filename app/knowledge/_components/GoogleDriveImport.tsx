@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { FileText, File } from "lucide-react";
+import { useKnowledge } from "@/app/_context/KnowledgeContext";
 
 type DriveFile = {
   id: string;
@@ -12,7 +13,8 @@ type DriveFile = {
   iconLink: string;
 };
 
-export default function GoogleDriveImport({ onSuccess }: { onSuccess?: () => void }) {
+export default function GoogleDriveImport() {
+  const { triggerRefresh } = useKnowledge();
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,7 +65,7 @@ export default function GoogleDriveImport({ onSuccess }: { onSuccess?: () => voi
       }
 
       alert(`「${file.name}」をインポートしました！`);
-      if (onSuccess) onSuccess();
+      triggerRefresh(); // グローバル更新トリガー
     } catch (err) {
       console.error(err);
       alert("インポートに失敗しました");

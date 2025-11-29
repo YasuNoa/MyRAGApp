@@ -9,6 +9,10 @@ export const metadata: Metadata = {
 
 import "./globals.css"; // グローバルスタイルをインポート
 
+import { KnowledgeProvider } from "./_context/KnowledgeContext";
+import { SidebarProvider } from "./_context/SidebarContext";
+import LayoutWrapper from "./_components/LayoutWrapper";
+
 // RootLayoutコンポーネント
 export default function RootLayout({
   children,
@@ -18,31 +22,13 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        {/* ナビゲーションヘッダー */}
-        <nav style={{ 
-          padding: "16px 20px", 
-          borderBottom: "1px solid var(--border-color)", 
-          display: "flex", 
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: "var(--bg-color)",
-          marginBottom: "40px",
-          position: "sticky",
-          top: 0,
-          zIndex: 100
-        }}>
-          <div style={{ fontWeight: "bold", fontSize: "20px", color: "var(--text-color)" }}>じぶんAI</div>
-          <div style={{ display: "flex", gap: "16px" }}>
-            <a href="/" className="neo-nav-link">チャット</a>
-            <a href="/knowledge" className="neo-nav-link">知識登録</a>
-            <a href="/profile" className="neo-nav-link">設定</a>
-          </div>
-        </nav>
-        
-        {/* children には、各ページのコンテンツ（page.tsxなど）が差し込まれます */}
-        <main style={{ padding: "0 20px" }}>
-          {children}
-        </main>
+        <KnowledgeProvider>
+          <SidebarProvider>
+            <LayoutWrapper>
+              {children}
+            </LayoutWrapper>
+          </SidebarProvider>
+        </KnowledgeProvider>
       </body>
     </html>
   );

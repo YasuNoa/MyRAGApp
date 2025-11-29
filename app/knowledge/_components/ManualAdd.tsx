@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useKnowledge } from "@/app/_context/KnowledgeContext";
 
-export default function ManualAdd({ onSuccess }: { onSuccess?: () => void }) {
+export default function ManualAdd() {
+  const { triggerRefresh } = useKnowledge();
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -26,7 +28,7 @@ export default function ManualAdd({ onSuccess }: { onSuccess?: () => void }) {
       if (res.ok) {
         setMessage("成功！知識を覚えました。");
         setText("");
-        if (onSuccess) onSuccess();
+        triggerRefresh(); // グローバル更新トリガー
       } else {
         const errorData = await res.text();
         setMessage(`エラー: ${errorData}`);
