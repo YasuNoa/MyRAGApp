@@ -71,6 +71,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 };
             }
 
+            // Fetch latest user data from database to ensure name/email updates are reflected
+            if (token.id) {
+                try {
+                    const dbUser = await prisma.user.findUnique({
+                        where: { id: token.id as string }
+                    });
+                    if (dbUser) {
+                        token.name = dbUser.name;
+                        token.email = dbUser.email;
+                        token.picture = dbUser.image;
+                    }
+                } catch (error) {
+                    console.error("Error fetching user in JWT callback:", error);
+                }
+            }
+
             // Return previous token if the access token has not expired yet
             if (Date.now() < (token.expiresAt as number)) {
                 return token;

@@ -13,12 +13,17 @@ export async function updateProfile(formData: FormData) {
 
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
 
-    if (!email && !password) {
+    if (!email && !password && !name) {
         return { error: "変更内容を入力してください" };
     }
 
     const updateData: any = {};
+
+    if (name) {
+        updateData.name = name;
+    }
 
     if (email) {
         // Check if user already has an email
@@ -56,7 +61,9 @@ export async function updateProfile(formData: FormData) {
         });
         revalidatePath("/profile");
         let successMessage = "プロフィールを更新しました";
-        if (updateData.password && !updateData.email) {
+        if (updateData.name) {
+            successMessage = "名前を更新しました";
+        } else if (updateData.password && !updateData.email) {
             successMessage = "パスワードを更新しました";
         } else if (updateData.email && !updateData.password) {
             successMessage = "メールアドレスを更新しました";

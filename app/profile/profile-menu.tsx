@@ -3,10 +3,21 @@
 import { useState } from "react";
 import { logout } from "@/app/actions/auth";
 import ProfileForm from "./profile-form";
-import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack } from "lucide-react";
+import NameForm from "./name-form";
+import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe } from "lucide-react";
+import { signIn } from "next-auth/react";
 
-export default function ProfileMenu({ user }: { user: any }) {
+export default function ProfileMenu({ user, providers = [] }: { user: any, providers?: string[] }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const handleLinkLine = () => {
+    signIn("line", { callbackUrl: "/profile" });
+  };
+
+  const handleLinkGoogle = () => {
+    signIn("google", { callbackUrl: "/profile" });
+  };
 
   return (
     <div className="neo-card" style={{ width: "100%", maxWidth: "600px", margin: "0 auto", padding: "0", overflow: "hidden" }}>
@@ -45,7 +56,45 @@ export default function ProfileMenu({ user }: { user: any }) {
       {/* Menu List */}
       <div style={{ display: "flex", flexDirection: "column" }}>
         
-        {/* Account Settings Item */}
+        {/* Profile Settings Item (Name) */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <button 
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            style={{ 
+              width: "100%", 
+              padding: "20px 24px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              background: "none",
+              border: "none",
+              color: "var(--text-color)",
+              cursor: "pointer",
+              fontSize: "16px"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <User size={20} color="var(--primary-color)" />
+              <span>プロフィール設定（名前）</span>
+            </div>
+            {isProfileOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+          
+          {/* Collapsible Content */}
+          {isProfileOpen && (
+            <div style={{ padding: "0 24px 24px 24px", animation: "fadeIn 0.2s ease-in-out" }}>
+              <div style={{ 
+                backgroundColor: "rgba(0,0,0,0.2)", 
+                borderRadius: "8px", 
+                padding: "20px" 
+              }}>
+                <NameForm user={user} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Account Settings Item (Email/Password) */}
         <div style={{ borderBottom: "1px solid var(--border-color)" }}>
           <button 
             onClick={() => setIsAccountOpen(!isAccountOpen)}
@@ -98,6 +147,62 @@ export default function ProfileMenu({ user }: { user: any }) {
             <button className="neo-button secondary" style={{ fontSize: "12px", padding: "6px 16px" }}>
               連携する
             </button>
+          </div>
+        </div>
+
+        {/* LINE Integration Item */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <div style={{ 
+            padding: "20px 24px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <MessageSquare size={20} color="#06C755" />
+              <span>LINE連携</span>
+            </div>
+            {providers.includes("line") ? (
+              <span style={{ fontSize: "12px", color: "var(--primary-color)", fontWeight: "bold" }}>
+                連携済み
+              </span>
+            ) : (
+              <button 
+                onClick={() => handleLinkLine()}
+                className="neo-button secondary" 
+                style={{ fontSize: "12px", padding: "6px 16px" }}
+              >
+                連携する
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Google Integration Item */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <div style={{ 
+            padding: "20px 24px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Globe size={20} color="#4285F4" />
+              <span>Google連携</span>
+            </div>
+            {providers.includes("google") ? (
+              <span style={{ fontSize: "12px", color: "var(--primary-color)", fontWeight: "bold" }}>
+                連携済み
+              </span>
+            ) : (
+              <button 
+                onClick={() => handleLinkGoogle()}
+                className="neo-button secondary" 
+                style={{ fontSize: "12px", padding: "6px 16px" }}
+              >
+                連携する
+              </button>
+            )}
           </div>
         </div>
 
