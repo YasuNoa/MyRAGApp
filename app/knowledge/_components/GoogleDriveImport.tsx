@@ -12,7 +12,7 @@ type DriveFile = {
   iconLink: string;
 };
 
-export default function GoogleDriveImport() {
+export default function GoogleDriveImport({ onSuccess }: { onSuccess?: () => void }) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,6 +63,7 @@ export default function GoogleDriveImport() {
       }
 
       alert(`「${file.name}」をインポートしました！`);
+      if (onSuccess) onSuccess();
     } catch (err) {
       console.error(err);
       alert("インポートに失敗しました");

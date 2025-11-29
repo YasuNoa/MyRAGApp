@@ -4,6 +4,7 @@ import { getDriveFileContent, extractText } from "@/src/lib/google-drive";
 import { getEmbedding } from "@/src/lib/gemini";
 import { upsertDocument } from "@/src/lib/pinecone";
 import { chunkText } from "@/src/lib/chunker";
+import { KnowledgeService } from "@/src/services/knowledge";
 import { prisma } from "@/src/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -87,14 +88,12 @@ export async function POST(req: NextRequest) {
 
         // 5. Save to Database
         console.log(`[Import] Step 5: Saving metadata to Database...`);
-        await prisma.document.create({
-            data: {
-                userId: session.user.id,
-                title: fileName || fileId,
-                source: "google-drive",
-                externalId: fileId,
-            },
-        });
+        await KnowledgeService.registerDocument(
+            session.user.id,
+            fileName || fileId,
+            "drive",
+            fileId // Use fileId as externalId for Drive files
+        );
         console.log(`[Import] Step 5: Saved metadata to Database`);
 
         console.log(`[Import] Completed import for file: ${fileId}`);

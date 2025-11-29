@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function ManualAdd() {
+export default function ManualAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -26,6 +26,7 @@ export default function ManualAdd() {
       if (res.ok) {
         setMessage("成功！知識を覚えました。");
         setText("");
+        if (onSuccess) onSuccess();
       } else {
         const errorData = await res.text();
         setMessage(`エラー: ${errorData}`);

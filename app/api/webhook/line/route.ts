@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { getEmbedding, generateAnswer, classifyIntent } from "@/src/lib/gemini";
-import { upsertDocument, queryDocuments } from "@/src/lib/pinecone";
+import { queryDocuments } from "@/src/lib/pinecone";
 import { replyMessage } from "@/src/lib/line";
-import { v4 as uuidv4 } from "uuid";
+import { KnowledgeService } from "@/src/services/knowledge";
 
 export async function POST(req: NextRequest) {
     try {
@@ -63,20 +63,7 @@ export async function POST(req: NextRequest) {
 
                     if (intent === "STORE") {
                         // === 覚えるモード ===
-                        const vector = await getEmbedding(userMessage);
-                        const id = uuidv4();
-                        await upsertDocument(id, userMessage, vector);
-
-                        // DBにも保存 (リスト表示用)
-                        await prisma.document.create({
-                            data: {
-                                userId: account.userId,
-                                title: userMessage.slice(0, 20) + (userMessage.length > 20 ? "..." : ""),
-                                source: "line",
-                                externalId: id,
-                            },
-                        });
-
+                        await KnowledgeService.addTextKnowledge(account.userId, userMessage, "line");
                         replyText = "覚えました！🧠";
                     } else if (intent === "REVIEW") {
                         // === 振り返りモード ===

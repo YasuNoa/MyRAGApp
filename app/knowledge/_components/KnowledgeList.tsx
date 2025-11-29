@@ -10,14 +10,14 @@ type Document = {
   createdAt: string;
 };
 
-export default function KnowledgeList() {
+export default function KnowledgeList({ refreshTrigger }: { refreshTrigger?: number }) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchDocuments = async () => {
     setIsLoading(true);
