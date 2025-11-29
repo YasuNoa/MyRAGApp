@@ -78,9 +78,6 @@ export async function POST(req: NextRequest) {
             // Save to Pinecone
             // Add sourceFileId to metadata so we know which file this chunk belongs to
             // We append the chunk index to the ID to make it unique
-            // Note: upsertDocument signature needs to be updated to accept metadata or we pass it in a different way.
-            // Currently upsertDocument takes (id, text, vector).
-            // I need to update src/lib/pinecone.ts to accept arbitrary metadata.
             await upsertDocument(chunkId, chunk, vector, { sourceFileId: fileId });
         }
 

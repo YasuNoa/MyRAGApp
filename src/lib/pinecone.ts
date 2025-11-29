@@ -73,3 +73,24 @@ export async function queryDocuments(vector: number[], topK: number = 3): Promis
         .map((match) => match.metadata?.text as string)
         .filter((text) => text !== undefined);
 }
+
+// 指定された sourceFileId を持つドキュメント（ベクトル）を一括削除する関数です。
+// sourceFileId: 削除したいドキュメントのID
+export async function deleteDocumentsBySourceId(sourceFileId: string) {
+    console.log(`[Pinecone] Deleting vectors with sourceFileId=${sourceFileId}`);
+    try {
+        // deleteMany を使って、メタデータフィルタに一致するベクトルを削除します。
+        // これは Serverless Index でサポートされています。
+        // Starter (Pod-based) Index の場合はサポートされていない可能性がありますが、
+        // 現在の推奨環境（Serverless）を前提としています。
+        await index.deleteMany({
+            filter: {
+                sourceFileId: { $eq: sourceFileId },
+            },
+        });
+        console.log(`[Pinecone] Successfully deleted vectors for sourceFileId=${sourceFileId}`);
+    } catch (error) {
+        console.error(`[Pinecone] Failed to delete vectors for sourceFileId=${sourceFileId}:`, error);
+        throw error;
+    }
+}

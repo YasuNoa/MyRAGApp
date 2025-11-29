@@ -18,7 +18,7 @@ export const KnowledgeService = {
 
         // 2. Pineconeに保存
         const id = uuidv4();
-        await upsertDocument(id, text, vector);
+        await upsertDocument(id, text, vector, { sourceFileId: id });
 
         // 3. DBに保存
         // タイトルは本文の先頭20文字

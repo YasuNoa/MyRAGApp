@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, FileText, Database, MessageSquare, Settings, PlusCircle, ChevronRight, ChevronLeft } from "lucide-react";
+import { Trash2, FileText, Database, MessageSquare, Settings, PlusCircle, ChevronRight, ChevronLeft, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
@@ -70,6 +70,7 @@ export default function Sidebar() {
   const navItems = [
     { href: "/", label: "チャット", icon: <MessageSquare size={20} /> },
     { href: "/knowledge", label: "知識登録", icon: <PlusCircle size={20} /> },
+    { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
     { href: "/profile", label: "設定", icon: <Settings size={20} /> },
   ];
 
