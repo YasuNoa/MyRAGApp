@@ -6,20 +6,22 @@ import ReactMarkdown from "react-markdown";
 import TagInput from "@/app/_components/TagInput";
 import { useRouter } from "next/navigation";
 
+import { useNote } from "@/app/_context/NoteContext";
+
 export default function NotePage() {
     const router = useRouter();
     const [isRecording, setIsRecording] = useState(false);
-    const [transcript, setTranscript] = useState(""); // Real-time preview
-    const [finalResult, setFinalResult] = useState<{ 
-        transcript: string; 
-        summary: string; 
-        document: any; // Draft document
-    } | null>(null);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [tags, setTags] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    
+    const {
+        transcript, setTranscript,
+        finalResult, setFinalResult,
+        isProcessing, setIsProcessing,
+        error, setError,
+        tags, setTags,
+        selectedFile, setSelectedFile,
+        clearNote
+    } = useNote();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,9 +90,12 @@ export default function NotePage() {
         };
     }, []); // Initialize once on mount
 
+    const streamRef = useRef<MediaStream | null>(null); // Store stream to stop tracks
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream; // Store stream
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
@@ -105,12 +110,8 @@ export default function NotePage() {
             if (recognitionRef.current) recognitionRef.current.start();
 
             setIsRecording(true);
-            setTranscript("");
+            clearNote(); // Reset global state
             finalTranscriptRef.current = ""; // Reset final transcript
-            setFinalResult(null);
-            setError(null);
-            setTags([]);
-            setSelectedFile(null);
 
         } catch (err) {
             console.error("Error accessing microphone:", err);
@@ -123,6 +124,12 @@ export default function NotePage() {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             if (recognitionRef.current) recognitionRef.current.stop();
+
+            // Stop all tracks to release microphone
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
 
             mediaRecorderRef.current.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
@@ -201,6 +208,7 @@ export default function NotePage() {
                 if (!uploadRes.ok) throw new Error("Failed to upload attached file");
             }
 
+            clearNote(); // Clear state on successful save
             router.push("/knowledge/list");
         } catch (err) {
             console.error(err);
@@ -214,10 +222,7 @@ export default function NotePage() {
         if (!confirm("本当に削除しますか？\nこの操作は取り消せません。")) return;
 
         // No need to delete from DB as it wasn't saved yet
-        setFinalResult(null);
-        setTranscript("");
-        setSelectedFile(null);
-        setTags([]);
+        clearNote();
     };
 
     return (
@@ -279,7 +284,6 @@ export default function NotePage() {
                                     justifyContent: "center",
                                     cursor: "pointer",
                                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                                    animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
                                 }}
                             >
                                 <Square size={40} style={{ marginBottom: "8px", fill: "currentColor" }} />
@@ -305,7 +309,7 @@ export default function NotePage() {
                             <Loader2 size={48} className="animate-spin" style={{ color: "var(--primary-color)" }} />
                             <div style={{ textAlign: "center" }}>
                                 <p style={{ fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>AI解析中...</p>
-                                <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Gemini 2.0 Flash が文字起こしと要約を生成しています</p>
+                                <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>AIが文字起こしと要約を生成しています</p>
                             </div>
                         </div>
                     ) : null}

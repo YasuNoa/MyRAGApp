@@ -141,6 +141,8 @@ export default function Sidebar() {
           </button>
         </div>
 
+
+
         {/* メインナビゲーション */}
         <nav style={{ padding: "20px 10px" }}>
           {navItems.map((item) => (

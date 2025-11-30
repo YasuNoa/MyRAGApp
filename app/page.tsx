@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useChat } from "@/app/_context/ChatContext";
+import { PlusCircle } from "lucide-react";
 
 export default function Home() {
   const [tags, setTags] = useState<string[]>([]);
-  const [selectedTag, setSelectedTag] = useState<string>("");
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { 
+    messages, setMessages, 
+    input, setInput, 
+    isLoading, setIsLoading, 
+    selectedTag, setSelectedTag,
+    clearChat
+  } = useChat();
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -61,8 +66,32 @@ export default function Home() {
   };
 
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "40px" }}>
-      <div style={{ textAlign: "center", marginBottom: "40px" }}>
+    <div style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "40px", position: "relative" }}>
+      {/* New Chat Button (Top Right) */}
+      <button
+        onClick={clearChat}
+        style={{
+          position: "absolute",
+          top: "0",
+          right: "0",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "8px 12px",
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          color: "var(--text-secondary)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "20px",
+          cursor: "pointer",
+          fontSize: "12px",
+          transition: "all 0.2s"
+        }}
+      >
+        <PlusCircle size={14} />
+        新規チャット
+      </button>
+
+      <div style={{ textAlign: "center", marginBottom: "40px", paddingTop: "40px" }}>
         <h1 style={{ 
           margin: "0 0 10px 0", 
           fontSize: "2.5rem", 

@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
         fileId = body.fileId;
         const mimeType = body.mimeType;
         const fileName = body.fileName;
+        const tags = body.tags || []; // Extract tags
 
         if (!fileId || !mimeType) {
             return NextResponse.json(
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        console.log(`[Import] Starting import for file: ${fileId} (${mimeType})`);
+        console.log(`[Import] Starting import for file: ${fileId} (${mimeType}) with tags: ${tags}`);
 
         // 1. Download file content
         console.log(`[Import] Step 1: Downloading file...`);
@@ -50,7 +51,8 @@ export async function POST(req: NextRequest) {
             userId: session.user.id,
             fileId: fileId,
             mimeType: mimeType,
-            fileName: fileName
+            fileName: fileName,
+            tags: tags // Pass tags
         });
 
         console.log(`[Import] Step 2: Python processing complete. Result:`, result);
@@ -61,7 +63,8 @@ export async function POST(req: NextRequest) {
             session.user.id,
             fileName || fileId,
             "drive",
-            fileId
+            fileId,
+            tags // Pass tags
         );
         console.log(`[Import] Step 3: Saved metadata to Database`);
 

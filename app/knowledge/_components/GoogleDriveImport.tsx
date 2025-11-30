@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { FileText, File } from "lucide-react";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
+import TagInput from "@/app/_components/TagInput";
 
 type DriveFile = {
   id: string;
@@ -20,6 +21,7 @@ export default function GoogleDriveImport() {
   const [error, setError] = useState("");
   const [importingId, setImportingId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     fetchFiles();
@@ -57,7 +59,7 @@ export default function GoogleDriveImport() {
       const res = await fetch("/api/drive/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: file.id, mimeType: file.mimeType, fileName: file.name }),
+        body: JSON.stringify({ fileId: file.id, mimeType: file.mimeType, fileName: file.name, tags: tags }),
       });
 
       if (!res.ok) {
@@ -98,11 +100,19 @@ export default function GoogleDriveImport() {
 
   return (
     <div className="neo-card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h3 style={{ margin: 0 }}>Google Drive からインポート</h3>
-        <button onClick={fetchFiles} className="neo-button" style={{ padding: "5px 10px", fontSize: "12px" }}>
-          更新
-        </button>
+      <div style={{ marginBottom: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", marginBottom: "8px" }}>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: "0 0 12px 0" }}>Google Drive からインポート</h3>
+            <TagInput tags={tags} onChange={setTags} placeholder="インポートするファイルに付与するタグ (例: 議事録, 企画書)" />
+          </div>
+          <button onClick={fetchFiles} className="neo-button" style={{ padding: "8px 16px", fontSize: "14px", whiteSpace: "nowrap" }}>
+            更新
+          </button>
+        </div>
+        <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+          ※ ここで設定したタグは、インポートする全てのファイルに適用されます。
+        </p>
       </div>
 
       {error && <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>}
