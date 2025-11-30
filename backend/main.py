@@ -60,13 +60,13 @@ app.add_middleware(
 # --- Startup ---
 @app.on_event("startup")
 async def startup_event():
-    try:
-        print("Listing available Gemini models...")
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                print(f"Available model: {m.name}")
-    except Exception as e:
-        print(f"Error listing models: {e}")
+    # try:
+    #     print("Listing available Gemini models...")
+    #     for m in genai.list_models():
+    #         if 'generateContent' in m.supported_generation_methods:
+    #             print(f"Available model: {m.name}")
+    # except Exception as e:
+    #     print(f"Error listing models: {e}")
 
     global db_pool
     try:
@@ -305,9 +305,12 @@ async def import_file(
                 "fileName": file.filename,
                 "text": chunk,
                 "chunkIndex": i,
-                "dbId": meta_dict.get("dbId"), # Save dbId if available
                 "tags": tags # Save tags
             }
+            
+            # Only add dbId if it exists (Pinecone doesn't accept null)
+            if meta_dict.get("dbId"):
+                metadata_payload["dbId"] = meta_dict.get("dbId")
             
             vectors.append({
                 "id": vector_id,
@@ -485,7 +488,7 @@ async def query_knowledge(request: QueryRequest):
         query_embedding = get_embedding(request.query)
         
         # 2. Search Pinecone
-        index = pc.Index(PINECONE_INDEX)
+        index = pc.Index(PINECONE_INDEX_NAME)
         
         # Build filter if tags are provided
         filter_dict = {"userId": request.userId}
@@ -553,17 +556,23 @@ async def query_knowledge(request: QueryRequest):
             full_content = None
             if doc_id:
                 if doc_id not in seen_doc_ids:
+                    print(f"Attempting to fetch content for doc_id: {doc_id}")
                     full_content = await get_document_content(doc_id)
                     if full_content:
+                        print(f"Successfully fetched full content for {doc_id} (Length: {len(full_content)})")
                         context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')}\n\n{full_content}")
                         seen_doc_ids.add(doc_id)
+                    else:
+                        print(f"Full content not found for {doc_id}, falling back to chunk.")
             
             # Fallback to chunk text if full content not found
             if not full_content:
                 chunk_text = metadata.get('text', '')
+                print(f"Using chunk text fallback (Length: {len(chunk_text)})")
                 context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')} (Excerpt)\n\n{chunk_text}")
 
         context = "\n\n---\n\n".join(context_parts)
+        print(f"Final Context Length: {len(context)}")
         
         # 4. Generate Answer with Gemini
         model = genai.GenerativeModel('gemini-2.0-flash')
@@ -586,4 +595,4 @@ async def query_knowledge(request: QueryRequest):
     except Exception as e:
         print(f"Error querying: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-```
+

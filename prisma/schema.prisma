@@ -42,7 +42,7 @@ model Document {
   type       String   @default("knowledge") // 種類: "knowledge" (ファイル) or "note" (ノート)
   tags       String[] @default([])         // タグ: 複数カテゴリ対応
   source     String                        // 情報源: "google-drive" や "manual"
-  externalId String?                       // 外部ID: GoogleドライブのファイルIDなど
+  externalId String?                       // Pinecone（ベクトルDB）と PostgreSQL（リレーショナルDB）を紐付けるための共通ID
   createdAt  DateTime @default(now())      // 作成日時
   
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定

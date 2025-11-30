@@ -128,8 +128,18 @@ export default function NotesPage() {
                     <h3 className="font-bold text-lg">{note.title}</h3>
                     <div className="flex gap-2 mt-2 text-sm text-gray-400">
                       <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                      {note.tags && note.tags.map(tag => (
-                        <span key={tag} className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full text-xs">
+                      {note.tags && note.tags.map((tag: string, index: number) => (
+                        <span 
+                          key={index}
+                          style={{
+                            fontSize: "10px",
+                            padding: "2px 8px",
+                            borderRadius: "10px",
+                            backgroundColor: "rgba(66, 133, 244, 0.1)",
+                            color: "var(--primary-color)",
+                            border: "1px solid rgba(66, 133, 244, 0.2)"
+                          }}
+                        >
                           {tag}
                         </span>
                       ))}

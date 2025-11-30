@@ -72,7 +72,6 @@ export default function Sidebar() {
     { href: "/knowledge", label: "知識登録", icon: <PlusCircle size={20} /> },
     { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
     { href: "/feedback", label: "フィードバック", icon: <MessageSquarePlus size={20} /> },
-    { href: "/notes", label: "授業ノート", icon: <BookOpen size={20} /> },
     { href: "/profile", label: "設定", icon: <Settings size={20} /> },
   ];
 

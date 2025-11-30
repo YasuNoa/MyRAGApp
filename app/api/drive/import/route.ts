@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDriveFileContent } from "@/src/lib/google-drive";
-
 import { KnowledgeService } from "@/src/services/knowledge";
-import { prisma } from "@/src/lib/prisma";
+import { PythonBackendService } from "@/src/services/python-backend";
 
 export async function POST(req: NextRequest) {
     const session = await auth();
@@ -45,31 +44,15 @@ export async function POST(req: NextRequest) {
 
         // 2. Send to Python Backend
         console.log(`[Import] Step 2: Sending to Python Backend...`);
-
-        const formData = new FormData();
         const blob = new Blob([buffer], { type: mimeType });
-        formData.append("file", blob, fileName || "file");
 
-        const metadata = JSON.stringify({
+        const result = await PythonBackendService.importFile(blob, {
             userId: session.user.id,
             fileId: fileId,
-            mimeType: mimeType
-        });
-        formData.append("metadata", metadata);
-
-        const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
-        const response = await fetch(`${pythonUrl}/import-file`, {
-            method: "POST",
-            body: formData,
+            mimeType: mimeType,
+            fileName: fileName
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[Import] Python Backend Error: ${response.status} ${errorText}`);
-            throw new Error(`Python Backend failed: ${errorText}`);
-        }
-
-        const result = await response.json();
         console.log(`[Import] Step 2: Python processing complete. Result:`, result);
 
         // 3. Save to Database
