@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
             tags = [];
         }
 
-        console.log(`[Upload] Received file: ${file.name} (${file.type}), Tags: ${tags}`);
+        const source = formData.get("source") as string || "manual"; // Default to manual if not provided
+
+        console.log(`[Upload] Received file: ${file.name} (${file.type}), Tags: ${tags}, Source: ${source}`);
 
         // Generate a UUID for the fileId (externalId)
         const fileId = uuidv4();
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
         const document = await KnowledgeService.registerDocument(
             session.user.id,
             file.name,
-            "manual",
+            source,
             fileId,
             tags
         );

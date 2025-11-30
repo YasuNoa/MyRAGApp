@@ -199,6 +199,7 @@ export default function NotePage() {
                 const formData = new FormData();
                 formData.append("file", selectedFile);
                 formData.append("tags", JSON.stringify(tags)); // Use same tags
+                formData.append("source", "voice_memo"); // Set source to voice_memo
 
                 const uploadRes = await fetch("/api/upload", {
                     method: "POST",

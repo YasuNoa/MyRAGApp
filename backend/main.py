@@ -492,16 +492,24 @@ async def update_tags(request: UpdateTagsRequest):
         # We can try to fetch IDs 0 to N until we find no more?
         # That seems reasonable for < 1000 chunks.
         
-        # Let's try to fetch the first 1000 IDs.
-        ids_to_update = []
-        # Check up to 1000 chunks.
-        potential_ids = [f"{request.userId}#{request.fileId}#{i}" for i in range(1000)]
-        # Also check summary
-        potential_ids.append(f"{request.userId}#{request.fileId}#summary")
+        # Fetch to see which exist (in batches to avoid 414 Request-URI Too Large)
+        existing_ids = []
+        batch_size = 100
         
-        # Fetch to see which exist
-        fetch_response = index.fetch(ids=potential_ids)
-        existing_ids = list(fetch_response['vectors'].keys())
+        # Check up to 1000 chunks + summary
+        all_potential_ids = [f"{request.userId}#{request.fileId}#{i}" for i in range(1000)]
+        all_potential_ids.append(f"{request.userId}#{request.fileId}#summary")
+
+        for i in range(0, len(all_potential_ids), batch_size):
+            batch_ids = all_potential_ids[i:i+batch_size]
+            try:
+                fetch_response = index.fetch(ids=batch_ids)
+                if fetch_response and 'vectors' in fetch_response:
+                    existing_ids.extend(list(fetch_response['vectors'].keys()))
+            except Exception as e:
+                print(f"Error fetching batch {i}: {e}")
+                # Continue to next batch even if one fails
+                continue
         
         if not existing_ids:
             return {"status": "warning", "message": "No vectors found to update"}

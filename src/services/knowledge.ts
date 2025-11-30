@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { prisma } from "@/src/lib/prisma";
 
 
-export type KnowledgeSource = "manual" | "line" | "drive";
+export type KnowledgeSource = "manual" | "line" | "google-drive" | "voice_memo";
 
 export const KnowledgeService = {
     /**

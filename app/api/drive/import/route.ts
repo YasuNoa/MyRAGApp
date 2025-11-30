@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         await KnowledgeService.registerDocument(
             session.user.id,
             fileName || fileId,
-            "drive",
+            "google-drive",
             fileId,
             tags // Pass tags
         );
