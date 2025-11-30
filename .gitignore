@@ -16,3 +16,7 @@ tsconfig.tsbuildinfo
 # Backup
 node_modules_backup
 terraform.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+.env.local
