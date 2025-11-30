@@ -61,6 +61,7 @@ export const PythonBackendService = {
         const fileName = (file as File).name || "voice_memo.webm";
         formData.append("file", file, fileName);
         formData.append("metadata", JSON.stringify(metadata));
+        formData.append("save", "false"); // Don't save to DB/Pinecone yet
 
         console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/process-voice-memo`, metadata);
 
@@ -81,6 +82,45 @@ export const PythonBackendService = {
             return result;
         } catch (error) {
             console.error(`[PythonService] Network or Server Error:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Imports text to the Python backend for processing (chunking, embedding, etc.).
+     */
+    async importText(
+        text: string,
+        metadata: {
+            userId: string;
+            dbId?: string;
+            tags?: string[];
+            summary?: string;
+        }
+    ) {
+        console.log(`[PythonService] Importing text for user ${metadata.userId}`);
+        try {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/import-text`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    text: text,
+                    userId: metadata.userId,
+                    dbId: metadata.dbId,
+                    tags: metadata.tags || [],
+                    summary: metadata.summary,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[PythonService] Import Text Error: ${response.status} ${errorText}`);
+                throw new Error(`Python Backend import text failed: ${errorText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`[PythonService] Import Text Network Error:`, error);
             throw error;
         }
     },

@@ -195,7 +195,8 @@ async def get_document_content(doc_id: str) -> str:
 @app.post("/process-voice-memo")
 async def process_voice_memo(
     file: UploadFile = File(...),
-    metadata: str = Form(...)
+    metadata: str = Form(...),
+    save: bool = Form(True)
 ):
     """
     Transcribes audio, generates summary, and saves to Pinecone/DB.
@@ -230,12 +231,12 @@ async def process_voice_memo(
         prompt = """
         You are a professional secretary. 
         1. Transcribe the audio file verbatim (word-for-word).
-        2. Create a concise summary of the content (bullet points).
+        2. Create a concise summary of the content in Japanese (bullet points).
         
         Output strictly in JSON format:
         {
             "transcript": "Full text here...",
-            "summary": "Summary here..."
+            "summary": "Summary in Japanese here..."
         }
         """
         
@@ -299,7 +300,7 @@ async def process_voice_memo(
             })
 
         # Batch upsert
-        if vectors:
+        if save and vectors:
             # Pinecone limit is usually 100-1000 vectors per request
             batch_size = 100
             for i in range(0, len(vectors), batch_size):
@@ -315,7 +316,7 @@ async def process_voice_memo(
         # So we should have dbId in metadata if we follow that pattern.
         
         db_id = meta_dict.get("dbId")
-        if db_id:
+        if save and db_id:
              await save_document_content(db_id, transcript, summary=summary)
         
         return {
@@ -527,6 +528,7 @@ class TextImportRequest(BaseModel):
     source: str = "manual"
     dbId: Optional[str] = None
     tags: List[str] = [] # Changed from category to tags list
+    summary: Optional[str] = None
 
 @app.post("/import-text")
 async def import_text(request: TextImportRequest):
@@ -563,17 +565,35 @@ async def import_text(request: TextImportRequest):
                     "tags": request.tags # Add tags to metadata
                 }
             })
-        # So Backend generates ID. Frontend uses it to create Document.
-        # So Backend CANNOT save to Postgres because the row doesn't exist.
-        # UNLESS Backend creates the row? But Backend doesn't know about User relation fully (Prisma handles it).
-        # So for /import-text, we might need to return the content and let Frontend save it,
-        # OR Frontend creates Document first, passes ID to /import-text.
-        # Let's stick to: Backend returns text, Frontend updates DB.
-        # Wait, for /import-file, we did `save_document_content`.
-        # Because for /import-file, Frontend creates Document BEFORE calling backend.
-        # So for /import-text, we should change Frontend to create Document BEFORE calling backend.
-        # I will assume I will update Frontend later.
-        # So I will add `dbId` to TextImportRequest.
+
+        # 2. Summary Vector (if provided)
+        if request.summary:
+            summary_id = f"{request.userId}#{file_id}#summary"
+            summary_embedding = get_embedding(request.summary)
+            vectors.append({
+                "id": summary_id,
+                "values": summary_embedding,
+                "metadata": {
+                    "userId": request.userId,
+                    "fileId": file_id,
+                    "fileName": "Text Entry",
+                    "text": request.summary,
+                    "chunkIndex": -1,
+                    "tags": request.tags,
+                    "type": "summary"
+                }
+            })
+
+        # Batch upsert
+        if vectors:
+            batch_size = 100
+            for i in range(0, len(vectors), batch_size):
+                batch = vectors[i:i+batch_size]
+                index.upsert(vectors=batch)
+
+        # Save full content to DB if dbId is provided
+        if request.dbId:
+             await save_document_content(request.dbId, request.text, summary=request.summary)
         
         return {
             "status": "success", 

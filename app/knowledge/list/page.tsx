@@ -65,41 +65,51 @@ export default function KnowledgeListPage() {
 
   return (
     <LayoutWrapper>
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 rounded-full bg-blue-500/10 text-blue-400">
+      <div className="container" style={{ padding: "24px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "32px" }}>
+          <div style={{ padding: "12px", borderRadius: "50%", backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Database size={24} />
           </div>
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+          <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "var(--text-color)", margin: 0 }}>
             学習済みデータ一覧
           </h1>
         </div>
 
-        <div className="neo-card p-6">
+        <div className="neo-card" style={{ padding: "24px" }}>
           {isLoading ? (
-            <p className="text-center text-gray-400 py-8">読み込み中...</p>
+            <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: "32px 0" }}>読み込み中...</p>
           ) : documents.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">学習済みのデータはありません</p>
+            <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: "32px 0" }}>学習済みのデータはありません</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "auto 1fr auto",
+                    alignItems: "center",
+                    gap: "16px",
+                    padding: "16px",
+                    borderRadius: "12px",
+                    backgroundColor: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
+                    transition: "background-color 0.2s"
+                  }}
                 >
-                  <div className="p-2 rounded-lg bg-gray-700/50 text-gray-300">
+                  <div style={{ padding: "8px", borderRadius: "8px", backgroundColor: "rgba(55, 65, 81, 0.5)", color: "#d1d5db", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <FileText size={20} />
                   </div>
                   
-                  <div className="min-w-0">
-                    <h3 className="font-medium truncate text-gray-200">{doc.title}</h3>
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-400 mt-1">
-                      <span className="bg-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        {doc.source === "google-drive" ? "Google Drive" : "手動アップロード"}
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontWeight: "500", color: "#e5e7eb", margin: "0 0 4px 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.title}</h3>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", fontSize: "12px", color: "#9ca3af" }}>
+                      <span style={{ backgroundColor: "#374151", padding: "2px 8px", borderRadius: "9999px", whiteSpace: "nowrap" }}>
+                        {doc.source === "google-drive" ? "Google Drive" : doc.source === "voice_memo" ? "Voice Memo" : "手動アップロード"}
                       </span>
-                      <span className="whitespace-nowrap">{new Date(doc.createdAt).toLocaleDateString()}</span>
+                      <span style={{ whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>{new Date(doc.createdAt).toLocaleDateString()}</span>
                       {doc.tags && doc.tags.map(tag => (
-                        <span key={tag} className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        <span key={tag} style={{ backgroundColor: "rgba(59, 130, 246, 0.2)", color: "#93c5fd", padding: "2px 8px", borderRadius: "9999px", whiteSpace: "nowrap" }}>
                           {tag}
                         </span>
                       ))}
@@ -109,11 +119,23 @@ export default function KnowledgeListPage() {
                   <button
                     onClick={() => handleDelete(doc.id)}
                     disabled={deletingId === doc.id}
-                    className="p-2 text-gray-500 hover:text-red-400 transition-colors bg-transparent border-none cursor-pointer"
+                    style={{
+                      padding: "8px",
+                      color: "#6b7280",
+                      backgroundColor: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "color 0.2s"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = "#f87171"}
+                    onMouseLeave={(e) => e.currentTarget.style.color = "#6b7280"}
                     title="削除"
                   >
                     {deletingId === doc.id ? (
-                      <span className="loading loading-spinner loading-xs">...</span>
+                      <span style={{ display: "inline-block", width: "16px", height: "16px", border: "2px solid currentColor", borderRightColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
                     ) : (
                       <Trash2 size={20} />
                     )}
@@ -123,6 +145,12 @@ export default function KnowledgeListPage() {
             </div>
           )}
         </div>
+        <style jsx>{`
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `}</style>
       </div>
     </LayoutWrapper>
   );
