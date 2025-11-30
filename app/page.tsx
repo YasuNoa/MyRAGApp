@@ -1,11 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
+  const [tags, setTags] = useState<string[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string>("");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const res = await fetch("/api/knowledge/categories");
+        if (res.ok) {
+          const data = await res.json();
+          setTags(data.tags);
+        }
+      } catch (error) {
+        console.error("Failed to fetch tags:", error);
+      }
+    };
+    fetchTags();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +37,10 @@ export default function Home() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userMessage.content }),
+        body: JSON.stringify({ 
+          query: userMessage.content,
+          tags: selectedTag ? [selectedTag] : [] 
+        }),
       });
 
       const contentType = res.headers.get("content-type");
@@ -118,22 +138,54 @@ export default function Home() {
         display: "flex",
         alignItems: "center",
         boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-        margin: "0 10px" // Add margin for mobile
+        margin: "0 10px",
+        gap: "8px"
       }}>
-        <input
-          type="text"
+          <select
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
+            style={{
+              backgroundColor: "transparent",
+              color: "var(--text-secondary)",
+              border: "none",
+              outline: "none",
+              fontSize: "14px",
+              padding: "0 8px",
+              cursor: "pointer",
+              maxWidth: "100px",
+              textOverflow: "ellipsis"
+            }}
+          >
+            <option value="" style={{ color: "black" }}>すべて</option>
+            {tags.map(tag => (
+              <option key={tag} value={tag} style={{ color: "black" }}>{tag}</option>
+            ))}
+          </select>
+        <div style={{ width: "1px", height: "24px", backgroundColor: "var(--border-color)" }}></div>
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
           placeholder="メッセージを入力..."
           style={{ 
             flex: 1, 
             backgroundColor: "transparent", 
             border: "none", 
             color: "var(--text-color)",
-            padding: "10px 16px",
+            padding: "10px 8px",
             fontSize: "16px",
             outline: "none",
-            minWidth: 0 // Prevent overflow
+            minWidth: 0,
+            resize: "none",
+            height: "44px",
+            lineHeight: "24px",
+            maxHeight: "200px",
+            overflowY: "auto"
           }}
           disabled={isLoading}
         />

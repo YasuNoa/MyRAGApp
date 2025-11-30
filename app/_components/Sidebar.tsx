@@ -70,6 +70,7 @@ export default function Sidebar() {
   const navItems = [
     { href: "/", label: "チャット", icon: <MessageSquare size={20} /> },
     { href: "/knowledge", label: "知識登録", icon: <PlusCircle size={20} /> },
+    { href: "/knowledge/list", label: "学習済みデータ", icon: <Database size={20} /> },
     { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
     { href: "/feedback", label: "フィードバック", icon: <MessageSquarePlus size={20} /> },
     { href: "/profile", label: "設定", icon: <Settings size={20} /> },
@@ -166,69 +167,6 @@ export default function Sidebar() {
             </Link>
           ))}
         </nav>
-
-        {/* 学習済みデータ一覧 */}
-        <div style={{ padding: "20px 10px", borderTop: "1px solid var(--border-color)", flex: 1 }}>
-          <h3 style={{ 
-            fontSize: "14px", 
-            color: "var(--text-secondary)", 
-            padding: "0 10px", 
-            marginBottom: "10px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}>
-            <Database size={16} />
-            学習済みデータ
-          </h3>
-
-          {isLoading ? (
-            <div style={{ padding: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>読み込み中...</div>
-          ) : documents.length === 0 ? (
-            <div style={{ padding: "10px", fontSize: "12px", color: "var(--text-secondary)" }}>データがありません</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "8px 10px",
-                    borderRadius: "var(--radius)",
-                    fontSize: "13px",
-                    backgroundColor: "var(--input-bg)",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-                    <FileText size={14} color="var(--text-secondary)" style={{ minWidth: "14px" }} />
-                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {doc.title}
-                    </span>
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(doc.id, e)}
-                    disabled={deletingId === doc.id}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      cursor: "pointer",
-                      padding: "4px",
-                      color: "var(--text-secondary)",
-                      opacity: 0.6,
-                      display: "flex",
-                      alignItems: "center"
-                    }}
-                    title="削除"
-                  >
-                    {deletingId === doc.id ? "..." : <Trash2 size={12} />}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </aside>
     </>
   );

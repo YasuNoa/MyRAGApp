@@ -12,16 +12,20 @@ interface TagInputProps {
 export default function TagInput({ tags, onChange, placeholder = "タグを入力 (Enterで追加)" }: TagInputProps) {
   const [input, setInput] = useState("");
 
+  const addTag = () => {
+    const trimmed = input.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      onChange([...tags, trimmed]);
+      setInput("");
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const trimmed = input.trim();
-      if (trimmed && !tags.includes(trimmed)) {
-        onChange([...tags, trimmed]);
-        setInput("");
-      }
+      if (e.nativeEvent.isComposing) return;
+      addTag();
     } else if (e.key === "Backspace" && !input && tags.length > 0) {
-      // Remove last tag if input is empty
       onChange(tags.slice(0, -1));
     }
   };
@@ -78,6 +82,7 @@ export default function TagInput({ tags, onChange, placeholder = "タグを入�
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ""}
         style={{
           flex: 1,
