@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { KnowledgeService } from "@/src/services/knowledge";
+import { KnowledgeService, KnowledgeSource } from "@/src/services/knowledge";
 import { PythonBackendService } from "@/src/services/python-backend";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         const document = await KnowledgeService.registerDocument(
             session.user.id,
             file.name,
-            source,
+            source as KnowledgeSource,
             fileId,
             tags
         );

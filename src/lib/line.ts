@@ -3,14 +3,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// ビルド時などに環境変数がなくてもエラーにならないようにする
+// 実際に使うタイミングでエラーが出るのはOK
+const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || "dummy_token_for_build";
+const channelSecret = process.env.LINE_CHANNEL_SECRET || "dummy_secret_for_build";
+
 const config: MiddlewareConfig = {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || "",
-    channelSecret: process.env.LINE_CHANNEL_SECRET || "",
+    channelAccessToken,
+    channelSecret,
 };
 
 export const lineClient = new Client({
-    channelAccessToken: config.channelAccessToken || "",
-    channelSecret: config.channelSecret,
+    channelAccessToken,
+    channelSecret,
 });
 export const lineConfig = config;
 

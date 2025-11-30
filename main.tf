@@ -1,0 +1,130 @@
+provider "google" {
+  project = "myragapp-479606"
+  region  = "asia-northeast1"
+}
+
+# --- Backend Service (Python) ---
+resource "google_cloud_run_service" "backend" {
+  name     = "myragapp-backend"
+  location = "asia-northeast1"
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/myragapp-479606/myragapp-backend"
+        env {
+          name  = "DATABASE_URL"
+          value = var.database_url
+        }
+        env {
+          name  = "GOOGLE_API_KEY"
+          value = var.google_api_key
+        }
+        env {
+          name  = "PINECONE_API_KEY"
+          value = var.pinecone_api_key
+        }
+        env {
+          name  = "PINECONE_INDEX"
+          value = var.pinecone_index
+        }
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+
+# Allow public access to Backend
+resource "google_cloud_run_service_iam_member" "backend_public" {
+  service  = google_cloud_run_service.backend.name
+  location = google_cloud_run_service.backend.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# --- Frontend Service (Next.js) ---
+resource "google_cloud_run_service" "frontend" {
+  name     = "myragapp-frontend"
+  location = "asia-northeast1"
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/myragapp-479606/myragapp-frontend"
+        env {
+          name  = "NEXT_PUBLIC_API_URL"
+          value = google_cloud_run_service.backend.status[0].url
+        }
+        env {
+          name  = "DATABASE_URL"
+          value = var.database_url
+        }
+        env {
+          name  = "NEXTAUTH_SECRET"
+          value = var.nextauth_secret
+        }
+        # NEXTAUTH_URL will be set after the first deploy or via custom domain
+        env {
+            name = "NEXTAUTH_URL"
+            value = "http://localhost:3000" # Placeholder for initial deploy
+        }
+        
+        # Google OAuth
+        env {
+          name = "AUTH_GOOGLE_ID"
+          value = var.auth_google_id
+        }
+        env {
+          name = "AUTH_GOOGLE_SECRET"
+          value = var.auth_google_secret
+        }
+
+        # LINE Login
+        env {
+          name = "AUTH_LINE_ID"
+          value = var.auth_line_id
+        }
+        env {
+          name = "AUTH_LINE_SECRET"
+          value = var.auth_line_secret
+        }
+
+        # LINE Messaging API
+        env {
+          name = "LINE_CHANNEL_ACCESS_TOKEN"
+          value = var.line_channel_access_token
+        }
+        env {
+          name = "LINE_CHANNEL_SECRET"
+          value = var.line_channel_secret
+        }
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+
+# Allow public access to Frontend
+resource "google_cloud_run_service_iam_member" "frontend_public" {
+  service  = google_cloud_run_service.frontend.name
+  location = google_cloud_run_service.frontend.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# --- Outputs ---
+output "backend_url" {
+  value = google_cloud_run_service.backend.status[0].url
+}
+
+output "frontend_url" {
+  value = google_cloud_run_service.frontend.status[0].url
+}
