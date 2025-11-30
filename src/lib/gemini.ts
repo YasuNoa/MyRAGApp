@@ -29,7 +29,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
 }
 
 // ユーザーの意図を分類する関数
-export async function classifyIntent(text: string): Promise<{ intent: "STORE" | "SEARCH" | "REVIEW"; category: string; }> {
+export async function classifyIntent(text: string): Promise<{ intent: "STORE" | "SEARCH" | "REVIEW"; tags: string[]; }> {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
@@ -41,18 +41,16 @@ export async function classifyIntent(text: string): Promise<{ intent: "STORE" | 
        - "SEARCH": ユーザーが質問したり、雑談したり、挨拶した場合（例：「私の趣味は何？」「こんにちは」「おすすめは？」）
        - "REVIEW": ユーザーが過去の記録を振り返りたい、日報を見たい、今日何をしたか知りたい場合（例：「今日何した？」「振り返り」「日報」）
 
-    2. category (カテゴリ):
-       以下のリストから最も適切なものを1つ選んでください。
-       - 仕事_本業, 仕事_副業, 学習_技術, 学習_語学
-       - 生活_食事, 生活_健康, 生活_家計, 生活_住まい
-       - 趣味_旅行, 趣味_エンタメ, 趣味_音楽, 趣味_スポーツ
-       - 関係_家族, 関係_友人, 関係_恋人
-       - スケジュール, アイデア, 日記, ニュース, その他
+    2. tags (タグ):
+       メッセージの内容に関連するタグを1つ以上、配列で抽出してください。
+       例: ["仕事", "Python"], ["趣味", "旅行"], ["生活", "食事"]
+       以下のキーワードを参考にしてください（これ以外でも可）:
+       - 仕事, 学習, 生活, 趣味, 関係, スケジュール, アイデア, 日記, ニュース
 
     出力フォーマット:
     {
       "intent": "STORE" or "SEARCH" or "REVIEW",
-      "category": "カテゴリ名"
+      "tags": ["タグ1", "タグ2"]
     }
 
     ユーザーのメッセージ: "${text}"
@@ -70,7 +68,7 @@ export async function classifyIntent(text: string): Promise<{ intent: "STORE" | 
     } catch (e) {
         console.error("Failed to parse JSON from Gemini:", textResponse);
         // パース失敗時はデフォルト値を返す
-        return { intent: "SEARCH", category: "その他" };
+        return { intent: "SEARCH", tags: ["その他"] };
     }
 }
 

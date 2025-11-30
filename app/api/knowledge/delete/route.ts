@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/src/lib/prisma";
-import { Pinecone } from "@pinecone-database/pinecone";
-import { deleteDocumentsBySourceId } from "@/src/lib/pinecone";
+
 
 export async function DELETE(req: NextRequest) {
     const session = await auth();
@@ -30,17 +29,28 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // 3. Delete vectors from Pinecone
-        // We use the externalId (which is the sourceFileId) to delete all related vectors.
+        // 3. Delete vectors from Pinecone via Python Backend
         if (document.externalId) {
             try {
-                await deleteDocumentsBySourceId(document.externalId);
+                const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
+                const response = await fetch(`${pythonUrl}/delete-file`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        fileId: document.externalId,
+                        userId: session.user.id
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`[Delete] Python Backend Error: ${response.status} ${errorText}`);
+                    // We log but continue to delete from DB to keep UI consistent
+                } else {
+                    console.log(`[Delete] Successfully requested vector deletion for ${document.externalId}`);
+                }
             } catch (e) {
-                console.error("Failed to delete vectors from Pinecone:", e);
-                // We continue to delete from DB even if Pinecone delete fails, 
-                // or should we stop? 
-                // Better to continue so the user doesn't see the file in the list anymore.
-                // But we log the error.
+                console.error("Failed to call Python backend for deletion:", e);
             }
         }
 

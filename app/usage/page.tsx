@@ -12,20 +12,20 @@ export default function UsagePage() {
       <section style={{ marginBottom: "40px" }}>
         <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "15px", display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ backgroundColor: "var(--primary-color)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>1</span>
-          知識を登録する
+          授業ノート・文字起こし
         </h2>
         <div style={{ padding: "20px", backgroundColor: "var(--input-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border-color)" }}>
           <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
             <div style={{ padding: "10px", backgroundColor: "rgba(66, 133, 244, 0.1)", borderRadius: "8px", color: "var(--primary-color)" }}>
-              <Database size={32} />
+              <BookOpen size={32} />
             </div>
             <div>
               <p style={{ marginBottom: "10px", lineHeight: "1.6" }}>
-                まずはAIに覚えさせたい情報を登録しましょう。サイドバーの<strong>「知識登録」</strong>メニューから行えます。
+                授業や会議の音声をアップロードして、自動で文字起こし・要約ができます。サイドバーの<strong>「授業ノート」</strong>メニューから行えます。
               </p>
               <ul style={{ listStyle: "disc", paddingLeft: "20px", color: "var(--text-secondary)", lineHeight: "1.8" }}>
-                <li><strong>テキスト入力</strong>: メモや議事録などを直接貼り付けて登録できます。</li>
-                <li><strong>Googleドライブ連携</strong>: Googleドライブ内のドキュメントを直接インポートできます。</li>
+                <li><strong>音声アップロード</strong>: mp3, wav, m4aなどの音声ファイルをアップロードすると、AIが全文を書き起こします。</li>
+                <li><strong>カテゴリ管理</strong>: 「数学」「英語」などのカテゴリを付けて整理できます。</li>
               </ul>
             </div>
           </div>
@@ -35,20 +35,21 @@ export default function UsagePage() {
       <section style={{ marginBottom: "40px" }}>
         <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "15px", display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ backgroundColor: "var(--primary-color)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>2</span>
-          チャットで質問する
+          知識を登録する
         </h2>
         <div style={{ padding: "20px", backgroundColor: "var(--input-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border-color)" }}>
           <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
             <div style={{ padding: "10px", backgroundColor: "rgba(66, 133, 244, 0.1)", borderRadius: "8px", color: "var(--primary-color)" }}>
-              <MessageSquare size={32} />
+              <Database size={32} />
             </div>
             <div>
               <p style={{ marginBottom: "10px", lineHeight: "1.6" }}>
-                登録した知識に基づいて、AIと会話ができます。サイドバーの<strong>「チャット」</strong>メニューから開始します。
+                PDFやテキストデータも登録できます。サイドバーの<strong>「知識登録」</strong>メニューから行えます。
               </p>
-              <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
-                「〇〇について教えて」「先週の会議の決定事項は？」など、登録したデータにある内容を質問してみましょう。AIが関連する情報を検索して回答します。
-              </p>
+              <ul style={{ listStyle: "disc", paddingLeft: "20px", color: "var(--text-secondary)", lineHeight: "1.8" }}>
+                <li><strong>カテゴリ機能</strong>: 登録時にカテゴリを指定することで、検索精度が向上します。</li>
+                <li><strong>Googleドライブ連携</strong>: Googleドライブ内のドキュメントを直接インポートできます。</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -57,6 +58,28 @@ export default function UsagePage() {
       <section style={{ marginBottom: "40px" }}>
         <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "15px", display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ backgroundColor: "var(--primary-color)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>3</span>
+          高精度チャット (ロングコンテキスト)
+        </h2>
+        <div style={{ padding: "20px", backgroundColor: "var(--input-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border-color)" }}>
+          <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+            <div style={{ padding: "10px", backgroundColor: "rgba(66, 133, 244, 0.1)", borderRadius: "8px", color: "var(--primary-color)" }}>
+              <MessageSquare size={32} />
+            </div>
+            <div>
+              <p style={{ marginBottom: "10px", lineHeight: "1.6" }}>
+                登録した知識に基づいて、AIと会話ができます。
+              </p>
+              <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
+                <strong>新機能:</strong> 従来の「要約検索」に加え、ドキュメントの<strong>「全文」</strong>を読み込んで回答するようになりました。これにより、授業の細かいニュアンスや、長い文脈を理解した正確な回答が可能になっています。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: "40px" }}>
+        <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "15px", display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ backgroundColor: "var(--primary-color)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>4</span>
           LINEで使う
         </h2>
         <div style={{ padding: "20px", backgroundColor: "var(--input-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border-color)" }}>
@@ -66,10 +89,7 @@ export default function UsagePage() {
             </div>
             <div>
               <p style={{ marginBottom: "10px", lineHeight: "1.6" }}>
-                このAIはLINEからも利用できます。
-              </p>
-              <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
-                外出先からでも、LINEで友達に話しかけるように質問すれば、同じ知識ベースを使って回答してくれます。
+                このAIはLINEからも利用できます。外出先からでも、LINEで友達に話しかけるように質問すれば、同じ知識ベースを使って回答してくれます。
               </p>
             </div>
           </div>

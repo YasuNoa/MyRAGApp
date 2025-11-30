@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getDriveFileContent, extractText } from "@/src/lib/google-drive";
-import { getEmbedding } from "@/src/lib/gemini";
-import { upsertDocument } from "@/src/lib/pinecone";
-import { chunkText } from "@/src/lib/chunker";
+import { getDriveFileContent } from "@/src/lib/google-drive";
+
 import { KnowledgeService } from "@/src/services/knowledge";
 import { prisma } from "@/src/lib/prisma";
 
@@ -45,66 +43,52 @@ export async function POST(req: NextRequest) {
         const buffer = await getDriveFileContent(accessToken, fileId);
         console.log(`[Import] Step 1: Downloaded ${buffer.length} bytes`);
 
-        // 2. Extract text
-        console.log(`[Import] Step 2: Extracting text...`);
-        const text = await extractText(buffer, mimeType);
-        console.log(`[Import] Step 2: Extracted text length: ${text.length}`);
+        // 2. Send to Python Backend
+        console.log(`[Import] Step 2: Sending to Python Backend...`);
 
-        if (!text.trim()) {
-            console.warn(`[Import] Warning: Extracted text is empty for file ${fileId}`);
-            return NextResponse.json(
-                { error: "No text content found in file" },
-                { status: 400 }
-            );
+        const formData = new FormData();
+        const blob = new Blob([buffer], { type: mimeType });
+        formData.append("file", blob, fileName || "file");
+
+        const metadata = JSON.stringify({
+            userId: session.user.id,
+            fileId: fileId,
+            mimeType: mimeType
+        });
+        formData.append("metadata", metadata);
+
+        const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
+        const response = await fetch(`${pythonUrl}/import-file`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Import] Python Backend Error: ${response.status} ${errorText}`);
+            throw new Error(`Python Backend failed: ${errorText}`);
         }
 
-        // 3. Chunking
-        console.log(`[Import] Step 3: Chunking text...`);
-        const chunks = chunkText(text);
-        console.log(`[Import] Step 3: Created ${chunks.length} chunks`);
+        const result = await response.json();
+        console.log(`[Import] Step 2: Python processing complete. Result:`, result);
 
-        // 4. Vectorize and Save each chunk
-        console.log(`[Import] Step 4: Vectorizing and saving chunks...`);
-
-        for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            const chunkId = `${fileId}_${i}`;
-
-            console.log(`[Import] Processing chunk ${i + 1}/${chunks.length} (Length: ${chunk.length})`);
-
-            // Vectorize
-            const vector = await getEmbedding(chunk);
-
-            // Save to Pinecone
-            // Add sourceFileId to metadata so we know which file this chunk belongs to
-            // We append the chunk index to the ID to make it unique
-            await upsertDocument(chunkId, chunk, vector, { sourceFileId: fileId });
-        }
-
-        console.log(`[Import] Step 4: Saved all ${chunks.length} chunks to Pinecone`);
-
-        // 5. Save to Database
-        console.log(`[Import] Step 5: Saving metadata to Database...`);
+        // 3. Save to Database
+        console.log(`[Import] Step 3: Saving metadata to Database...`);
         await KnowledgeService.registerDocument(
             session.user.id,
             fileName || fileId,
             "drive",
-            fileId // Use fileId as externalId for Drive files
+            fileId
         );
-        console.log(`[Import] Step 5: Saved metadata to Database`);
+        console.log(`[Import] Step 3: Saved metadata to Database`);
 
         console.log(`[Import] Completed import for file: ${fileId}`);
 
-        return NextResponse.json({ success: true, id: fileId, chunks: chunks.length });
-    } catch (error) {
+        return NextResponse.json({ success: true, id: fileId, chunks: result.chunks_count });
+    } catch (error: any) {
         console.error(`[Import] FATAL ERROR for file ${fileId || 'unknown'}:`, error);
-        // @ts-ignore
-        if (error.response) {
-            // @ts-ignore
-            console.error(`[Import] Error Response Data:`, JSON.stringify(error.response.data));
-        }
         return NextResponse.json(
-            { error: "Failed to import file", details: String(error) },
+            { error: error.message || "Internal Server Error" },
             { status: 500 }
         );
     }

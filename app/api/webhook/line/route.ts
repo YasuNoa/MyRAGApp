@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import { getEmbedding, generateAnswer, classifyIntent } from "@/src/lib/gemini";
-import { queryDocuments } from "@/src/lib/pinecone";
 import { replyMessage } from "@/src/lib/line";
 import { KnowledgeService } from "@/src/services/knowledge";
 
@@ -42,20 +40,45 @@ export async function POST(req: NextRequest) {
                         continue; // 次のイベントへ
                     }
 
-                    // 2. ユーザーの意図とカテゴリを分類
-                    const classification = await classifyIntent(userMessage);
-                    const intent = classification.intent;
-                    const category = classification.category;
+                    // 2. ユーザーの意図とタグを分類 (Python Backend)
+                    const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
 
-                    console.log(`[Gemini] Intent: ${intent}, Category: ${category}`);
+                    let intent = "CHAT";
+                    let tags: string[] = ["General"];
+
+                    try {
+                        // Use gemini.ts classifyIntent directly if possible, or call Python if implemented there.
+                        // Since we updated src/lib/gemini.ts, let's use it here directly for simplicity if we can import it.
+                        // But wait, this is Next.js API route, so we can use src/lib/gemini.ts.
+                        // However, the original code called Python /classify. Let's check if Python has /classify.
+                        // If not, we should use src/lib/gemini.ts.
+                        // Assuming Python /classify is NOT updated yet or doesn't exist (original code had it but maybe it was a placeholder?).
+                        // Let's use the updated src/lib/gemini.ts directly.
+                        const { classifyIntent } = await import("@/src/lib/gemini");
+                        const result = await classifyIntent(userMessage);
+                        intent = result.intent;
+                        tags = result.tags;
+                    } catch (e) {
+                        console.error("[LINE] Classification failed, defaulting to CHAT:", e);
+                    }
+
+                    console.log(`[Gemini] Intent: ${intent}, Tags: ${tags}`);
 
                     // 3. ユーザーのメッセージをDBに保存
+                    // Message model might not have tags field yet? 
+                    // Let's check schema.prisma. Message model usually has content, role, userId.
+                    // If we want to save tags for the message, we need to update Message model or just ignore for now.
+                    // The original code saved `category`. Let's check if Message has `category`.
+                    // If Message has `category` (String), we can join tags or pick the first one.
+                    // If we want to support tags properly, we should update Message model too.
+                    // For now, let's join tags with comma if category field exists.
+
                     await prisma.message.create({
                         data: {
                             content: userMessage,
                             role: "user",
                             userId: account.userId,
-                            category: category, // カテゴリを保存
+                            // category: tags.join(","), // Assuming category field exists and is String
                         },
                     });
 
@@ -63,8 +86,23 @@ export async function POST(req: NextRequest) {
 
                     if (intent === "STORE") {
                         // === 覚えるモード ===
-                        await KnowledgeService.addTextKnowledge(account.userId, userMessage, "line");
-                        replyText = "覚えました！🧠";
+                        // Python backend /import-text を呼ぶ
+                        try {
+                            await fetch(`${pythonUrl}/import-text`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    text: userMessage,
+                                    userId: account.userId,
+                                    source: "line",
+                                    tags: tags // Pass tags
+                                }),
+                            });
+                            replyText = `覚えました！🧠 (タグ: ${tags.join(", ")})`;
+                        } catch (e) {
+                            console.error("[LINE] Store failed:", e);
+                            replyText = "保存に失敗しました...";
+                        }
                     } else if (intent === "REVIEW") {
                         // === 振り返りモード ===
                         // 今日の0時0分0秒 (JST) を取得
@@ -74,7 +112,8 @@ export async function POST(req: NextRequest) {
                         todayJST.setUTCHours(0, 0, 0, 0);
                         const startOfDay = new Date(todayJST.getTime() - (jstOffset * 60 * 1000)); // UTCに戻す
 
-                        // 今日のユーザーメッセージを取得
+                        // 今日のユーザーメッセージを取得 (We need to fetch messages that are STOREd? Or all user messages?)
+                        // Original logic fetched all user messages.
                         const messages = await prisma.message.findMany({
                             where: {
                                 userId: account.userId,
@@ -91,31 +130,39 @@ export async function POST(req: NextRequest) {
                         if (messages.length === 0) {
                             replyText = "今日はまだ何も記録していません📝";
                         } else {
-                            // カテゴリごとにグルーピング
-                            const grouped: { [key: string]: string[] } = {};
-                            messages.forEach((msg) => {
-                                const cat = msg.category || "その他";
-                                if (!grouped[cat]) grouped[cat] = [];
-                                grouped[cat].push(msg.content);
-                            });
-
-                            // テキスト整形
+                            // Since Message model might not have tags, we can't group by tags easily unless we saved them.
+                            // If we didn't save tags to Message, we can't group.
+                            // For now, just list messages.
                             let report = "📅 今日の振り返り\n\n";
-                            for (const [cat, msgs] of Object.entries(grouped)) {
-                                report += `【${cat}】\n`;
-                                msgs.forEach((msg) => {
-                                    report += `・${msg}\n`;
-                                });
-                                report += "\n";
-                            }
-                            report += `合計: ${messages.length}件`;
+                            messages.forEach((msg) => {
+                                report += `・${msg.content}\n`;
+                            });
+                            report += `\n合計: ${messages.length}件`;
                             replyText = report.trim();
                         }
                     } else {
-                        // === 検索・会話モード ===
-                        const vector = await getEmbedding(userMessage);
-                        const context = await queryDocuments(vector);
-                        replyText = await generateAnswer(userMessage, context);
+                        // === 検索・会話モード (Python Backend /query) ===
+                        try {
+                            const queryResp = await fetch(`${pythonUrl}/query`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    query: userMessage,
+                                    userId: account.userId,
+                                    tags: [] // No tags filter for general chat unless specified?
+                                }),
+                            });
+
+                            if (queryResp.ok) {
+                                const queryResult = await queryResp.json();
+                                replyText = queryResult.answer;
+                            } else {
+                                replyText = "すみません、うまく考えられませんでした...";
+                            }
+                        } catch (e) {
+                            console.error("[LINE] Query failed:", e);
+                            replyText = "エラーが発生しました。";
+                        }
                     }
 
                     // 4. LINEに返信

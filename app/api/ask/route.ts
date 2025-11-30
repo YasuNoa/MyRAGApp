@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/src/lib/prisma";
-import { getEmbedding, generateAnswer } from "@/src/lib/gemini";
-import { queryDocuments } from "@/src/lib/pinecone";
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,12 +12,12 @@ export async function POST(req: NextRequest) {
         const userId = session.user.id;
 
         // リクエストボディ取得
-        const { query } = await req.json();
+        const { query, tags } = await req.json();
         if (!query) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        console.log(`[検索中] 質問: ${query}`);
+        console.log(`[検索中] 質問: ${query}, タグ: ${tags}`);
 
         // 1. ユーザーのメッセージをDBに保存
         await prisma.message.create({
@@ -30,14 +28,31 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // 2. ベクトル化 & 検索
-        const vector = await getEmbedding(query);
-        const context = await queryDocuments(vector);
+        // 2. Pythonバックエンドに問い合わせ
+        const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
+        const response = await fetch(`${pythonUrl}/query`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                query: query,
+                userId: userId,
+                tags: tags || [], // Pass tags to backend
+            }),
+        });
 
-        // 3. 回答生成
-        const answer = await generateAnswer(query, context);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Ask] Python Backend Error: ${response.status} ${errorText}`);
+            throw new Error(`Python Backend failed: ${errorText}`);
+        }
 
-        // 4. AIの回答をDBに保存
+        const result = await response.json();
+        const answer = result.answer;
+        const sources = result.sources;
+
+        // 3. AIの回答をDBに保存
         await prisma.message.create({
             data: {
                 content: answer,
@@ -47,9 +62,9 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(`[回答] ${answer}`);
-        return NextResponse.json({ answer, context });
-    } catch (e) {
+        return NextResponse.json({ answer, sources });
+    } catch (e: any) {
         console.error(e);
-        return NextResponse.json({ error: "Failed to get answer" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to get answer", details: e.message }, { status: 500 });
     }
 }

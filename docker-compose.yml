@@ -11,8 +11,21 @@ services:
       - /app/node_modules
     env_file:
       - .env
+    depends_on:
+      - db
     # 起動時に npm install を実行してから開発サーバーを起動
     command: sh -c "npm install && npm run dev"
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
 
   # データベース (PostgreSQL)
   db:

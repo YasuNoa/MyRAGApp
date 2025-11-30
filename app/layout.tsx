@@ -9,8 +9,7 @@ export const metadata: Metadata = {
 
 import "./globals.css"; // グローバルスタイルをインポート
 
-import { KnowledgeProvider } from "./_context/KnowledgeContext";
-import { SidebarProvider } from "./_context/SidebarContext";
+import Providers from "./_components/Providers";
 import LayoutWrapper from "./_components/LayoutWrapper";
 
 // RootLayoutコンポーネント
@@ -22,13 +21,11 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        <KnowledgeProvider>
-          <SidebarProvider>
+        <Providers>
             <LayoutWrapper>
               {children}
             </LayoutWrapper>
-          </SidebarProvider>
-        </KnowledgeProvider>
+        </Providers>
       </body>
     </html>
   );

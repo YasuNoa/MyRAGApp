@@ -1,13 +1,5 @@
 import { google } from "googleapis";
 
-// Polyfill for pdf-parse dependencies
-if (typeof global.DOMMatrix === 'undefined') {
-    // @ts-ignore
-    global.DOMMatrix = class DOMMatrix { };
-}
-
-const pdfParse = require("pdf-parse");
-
 export async function listDriveFiles(accessToken: string) {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
@@ -57,24 +49,6 @@ export async function getDriveFileContent(accessToken: string, fileId: string) {
         }
     } catch (error) {
         console.error("Error getting Drive file content:", error);
-        throw error;
-    }
-}
-
-export async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
-    try {
-        if (mimeType === "application/pdf") {
-            // Robustly handle pdf-parse import
-            const parser = pdfParse.default || pdfParse;
-            const data = await parser(buffer);
-            return data.text;
-        } else if (mimeType === "text/plain" || mimeType === "application/vnd.google-apps.document") {
-            return buffer.toString("utf-8");
-        } else {
-            throw new Error(`Unsupported mimeType: ${mimeType}`);
-        }
-    } catch (error) {
-        console.error("Error extracting text:", error);
         throw error;
     }
 }

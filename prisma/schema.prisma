@@ -38,6 +38,9 @@ model Document {
   id         String   @id @default(cuid()) // ID
   userId     String                        // 誰のドキュメントか
   title      String                        // タイトル: ファイル名など
+  content    String?                       // 本文: 全文検索・ロングコンテキスト用
+  type       String   @default("knowledge") // 種類: "knowledge" (ファイル) or "note" (ノート)
+  tags       String[] @default([])         // タグ: 複数カテゴリ対応
   source     String                        // 情報源: "google-drive" や "manual"
   externalId String?                       // 外部ID: GoogleドライブのファイルIDなど
   createdAt  DateTime @default(now())      // 作成日時

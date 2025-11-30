@@ -75,7 +75,7 @@ export default function GoogleDriveImport() {
   };
 
   if (isLoading) {
-    return <div style={{ padding: "20px", textAlign: "center" }}>読み込み中...</div>;
+    return <div style={{ padding: "20px", textAlign: "center" }}>GoogleDriveからファイルを読み込み中...</div>;
   }
 
   if (!isConnected) {
