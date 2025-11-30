@@ -35,11 +35,17 @@
     - [ ] Frontendのコンポーネントテスト (Jest/Vitest)。
 
 ## 完了済みタスク (直近)
+- [x] **UI/UX改善**
+    - [x] サイドバーの再構成 (「学習済みデータ」の独立ページ化)。
+    - [x] 学習済みデータ一覧ページ (`/knowledge/list`) の実装 (Gridレイアウト, 削除機能)。
+    - [x] チャット画面へのタグフィルタリング機能 (プルダウン) 追加。
+    - [x] 使い方ガイド (`/usage`) の更新。
 - [x] **マルチタグ (Category -> Tags) への移行**
     - [x] DBスキーマ変更。
-    - [x] Frontend `TagInput` コンポーネント実装。
+    - [x] Frontend `TagInput` コンポーネント実装 (IME対応, onBlur対応)。
     - [x] Backend `/query`, `/import` のタグ対応。
-- [x] **バグ修正**
+- [x] **バグ修正・安定化**
+    - [x] 削除処理のアトミック化 (PostgreSQL + Pinecone)。
     - [x] `backend/main.py` のSyntax Error修正。
     - [x] 依存ライブラリ (`@google/generative-ai` 等) の追加。
 - [x] **整合性チェック**

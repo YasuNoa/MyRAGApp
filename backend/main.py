@@ -141,8 +141,8 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
     )
     return text_splitter.split_text(text)
 
-async def save_document_content(doc_id: str, content: str, category: Optional[str] = None):
-    """Saves full text content and category to PostgreSQL."""
+async def save_document_content(doc_id: str, content: str, category: Optional[str] = None, summary: Optional[str] = None):
+    """Saves full text content, category, and summary to PostgreSQL."""
     if not db_pool:
         print("DB Pool not initialized, skipping content save.")
         return
@@ -153,19 +153,19 @@ async def save_document_content(doc_id: str, content: str, category: Optional[st
             result = await conn.execute(
                 """
                 UPDATE "Document"
-                SET content = $1, category = $2
-                WHERE id = $3
+                SET content = $1, category = $2, summary = $3
+                WHERE id = $4
                 """,
-                content, category, doc_id
+                content, category, summary, doc_id
             )
             if result == "UPDATE 0":
                  await conn.execute(
                     """
                     UPDATE "Document"
-                    SET content = $1, category = $2
-                    WHERE "externalId" = $3
+                    SET content = $1, category = $2, summary = $3
+                    WHERE "externalId" = $4
                     """,
-                    content, category, doc_id
+                    content, category, summary, doc_id
                 )
             print(f"Saved content for document {doc_id}")
     except Exception as e:
@@ -192,19 +192,27 @@ async def get_document_content(doc_id: str) -> str:
 
 # --- Endpoints ---
 
-@app.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+@app.post("/process-voice-memo")
+async def process_voice_memo(
+    file: UploadFile = File(...),
+    metadata: str = Form(...)
+):
     """
-    Transcribes audio file using Gemini 2.0 Flash.
+    Transcribes audio, generates summary, and saves to Pinecone/DB.
     """
     try:
-        print(f"Received transcription request for: {file.filename}")
-        content = await file.read()
+        print(f"Received voice memo request for: {file.filename}")
         
-        # Gemini requires file upload for audio? Or can we pass bytes?
-        # For audio, it's best to use the File API.
-        # We need to save it temporarily or pass it if supported.
-        # Gemini 1.5/2.0 supports audio.
+        # Parse metadata
+        meta_dict = json.loads(metadata)
+        user_id = meta_dict.get("userId")
+        file_id = meta_dict.get("fileId")
+        tags = meta_dict.get("tags", [])
+        
+        if not user_id or not file_id:
+            raise HTTPException(status_code=400, detail="Missing userId or fileId")
+
+        content = await file.read()
         
         # Save temp file
         temp_filename = f"/tmp/{uuid.uuid4()}_{file.filename}"
@@ -215,21 +223,110 @@ async def transcribe_audio(file: UploadFile = File(...)):
         print("Uploading to Gemini...")
         uploaded_file = genai.upload_file(temp_filename, mime_type=file.content_type)
         
-        # Generate Content
-        print("Generating transcript...")
+        # Generate Content (Transcript + Summary)
+        print("Generating transcript and summary...")
         model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        prompt = """
+        You are a professional secretary. 
+        1. Transcribe the audio file verbatim (word-for-word).
+        2. Create a concise summary of the content (bullet points).
+        
+        Output strictly in JSON format:
+        {
+            "transcript": "Full text here...",
+            "summary": "Summary here..."
+        }
+        """
+        
         response = model.generate_content(
-            ["Generate a verbatim transcription of this audio.", uploaded_file]
+            [prompt, uploaded_file],
+            generation_config={"response_mime_type": "application/json"}
         )
+        
+        result = json.loads(response.text)
+        transcript = result.get("transcript", "")
+        summary = result.get("summary", "")
         
         # Cleanup
         os.remove(temp_filename)
-        # genai.delete_file(uploaded_file.name) # Optional: cleanup remote file
         
-        return {"status": "success", "transcript": response.text}
+        if not transcript:
+             raise HTTPException(status_code=500, detail="Failed to generate transcript")
+
+        # Chunk Text
+        chunks = chunk_text(transcript)
+        print(f"Generated {len(chunks)} chunks")
+
+        # Embed and Upsert to Pinecone
+        vectors = []
+        
+        # 1. Transcript Chunks
+        for i, chunk in enumerate(chunks):
+            vector_id = f"{user_id}#{file_id}#{i}"
+            embedding = get_embedding(chunk)
+            
+            vectors.append({
+                "id": vector_id,
+                "values": embedding,
+                "metadata": {
+                    "userId": user_id,
+                    "fileId": file_id,
+                    "fileName": file.filename,
+                    "text": chunk,
+                    "chunkIndex": i,
+                    "tags": tags,
+                    "type": "transcript"
+                }
+            })
+            
+        # 2. Summary Vector (for Overview Search)
+        if summary:
+            summary_id = f"{user_id}#{file_id}#summary"
+            summary_embedding = get_embedding(summary)
+            vectors.append({
+                "id": summary_id,
+                "values": summary_embedding,
+                "metadata": {
+                    "userId": user_id,
+                    "fileId": file_id,
+                    "fileName": file.filename,
+                    "text": summary, # Store summary as text
+                    "chunkIndex": -1, # Special index
+                    "tags": tags,
+                    "type": "summary"
+                }
+            })
+
+        # Batch upsert
+        if vectors:
+            # Pinecone limit is usually 100-1000 vectors per request
+            batch_size = 100
+            for i in range(0, len(vectors), batch_size):
+                batch = vectors[i:i+batch_size]
+                index.upsert(vectors=batch)
+
+        # Save to DB (if dbId is provided, otherwise Frontend will do it? 
+        # Plan says: Backend returns text, Frontend updates DB. 
+        # BUT we also said "Backend for High Quality Processing... Result to DB".
+        # Let's return the result and let Frontend save to DB to keep consistency with /import-text flow 
+        # OR save here if we have dbId.
+        # Frontend will create the Document record FIRST (to get ID), then call this.
+        # So we should have dbId in metadata if we follow that pattern.
+        
+        db_id = meta_dict.get("dbId")
+        if db_id:
+             await save_document_content(db_id, transcript, summary=summary)
+        
+        return {
+            "status": "success", 
+            "transcript": transcript,
+            "summary": summary,
+            "chunks_count": len(chunks)
+        }
 
     except Exception as e:
-        print(f"Error transcribing: {e}")
+        print(f"Error processing voice memo: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
@@ -362,6 +459,66 @@ async def delete_file(request: DeleteRequest):
 
     except Exception as e:
         print(f"Error deleting file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class UpdateTagsRequest(BaseModel):
+    fileId: str
+    userId: str
+    tags: List[str]
+
+@app.post("/update-tags")
+async def update_tags(request: UpdateTagsRequest):
+    """
+    Updates tags in Pinecone metadata for a specific file.
+    """
+    try:
+        print(f"Received update tags request for file: {request.fileId} user: {request.userId} tags: {request.tags}")
+        
+        # Pinecone doesn't support "update by filter". We must fetch vectors or know IDs.
+        # But we constructed IDs as "{userId}#{fileId}#{chunkIndex}".
+        # We can list vectors by prefix? No.
+        # We can query? No, we want to update ALL chunks.
+        # Best way: Fetch vectors first? Or just iterate?
+        # Pinecone's `list` is paginated.
+        # Actually, for a specific file, we might have 10-100 chunks.
+        # We can try to fetch them if we know the count. But we don't know the count here.
+        # Alternative: Delete and Re-insert? No, that requires the text.
+        # Alternative: We saved "chunks_count" in DB? No.
+        
+        # Wait, Pinecone allows updating metadata by ID.
+        # If we don't know the IDs, we are stuck.
+        # BUT, we used a predictable ID format: f"{user_id}#{file_id}#{i}"
+        # We can try to fetch IDs 0 to N until we find no more?
+        # That seems reasonable for < 1000 chunks.
+        
+        # Let's try to fetch the first 1000 IDs.
+        ids_to_update = []
+        # Check up to 1000 chunks.
+        potential_ids = [f"{request.userId}#{request.fileId}#{i}" for i in range(1000)]
+        # Also check summary
+        potential_ids.append(f"{request.userId}#{request.fileId}#summary")
+        
+        # Fetch to see which exist
+        fetch_response = index.fetch(ids=potential_ids)
+        existing_ids = list(fetch_response['vectors'].keys())
+        
+        if not existing_ids:
+            return {"status": "warning", "message": "No vectors found to update"}
+
+        print(f"Found {len(existing_ids)} vectors to update.")
+        
+        # Update metadata for each
+        # Pinecone update is per vector.
+        for vector_id in existing_ids:
+            index.update(
+                id=vector_id,
+                set_metadata={"tags": request.tags}
+            )
+            
+        return {"status": "success", "message": f"Updated tags for {len(existing_ids)} vectors"}
+
+    except Exception as e:
+        print(f"Error updating tags: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class TextImportRequest(BaseModel):

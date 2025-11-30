@@ -69,10 +69,10 @@ graph TD
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| POST | `/import-file` | ファイル(PDF/画像)を受け取り、OCR/Embedding処理を行いPineconeとDBに保存。 |
-| POST | `/import-text` | テキストを受け取り、Embedding処理を行いPineconeに保存。 |
+| POST | `/import-file` | ファイル(PDF/画像)を受け取り、OCR/Embedding処理を行いPineconeとDBに保存。タグ対応。 |
+| POST | `/import-text` | テキストを受け取り、Embedding処理を行いPineconeに保存。タグ対応。 |
 | POST | `/transcribe` | 音声ファイルを受け取り、文字起こしテキストを返す。 |
-| POST | `/query` | クエリを受け取り、RAG検索を実行して回答を返す。 |
+| POST | `/query` | クエリとタグを受け取り、RAG検索を実行して回答を返す。 |
 | POST | `/classify` | テキストの意図(STORE/REVIEW/CHAT)とタグを分類する。 |
 | POST | `/delete-file` | 指定されたファイルIDのベクトルデータを削除する。 |
 

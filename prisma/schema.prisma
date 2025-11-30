@@ -39,9 +39,10 @@ model Document {
   userId     String                        // 誰のドキュメントか
   title      String                        // タイトル: ファイル名など
   content    String?                       // 本文: 全文検索・ロングコンテキスト用
+  summary    String?                       // 要約: 一覧表示・概要検索用
   type       String   @default("knowledge") // 種類: "knowledge" (ファイル) or "note" (ノート)
   tags       String[] @default([])         // タグ: 複数カテゴリ対応
-  source     String                        // 情報源: "google-drive" や "manual"
+  source     String                        // 情報源: "google-drive" や "manual",voicememo
   externalId String?                       // Pinecone（ベクトルDB）と PostgreSQL（リレーショナルDB）を紐付けるための共通ID
   createdAt  DateTime @default(now())      // 作成日時
   

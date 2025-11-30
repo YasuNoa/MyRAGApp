@@ -45,6 +45,74 @@ export const PythonBackendService = {
     },
 
     /**
+     * Processes a voice memo: Transcribes, summarizes, and saves to Pinecone/DB.
+     */
+    async processVoiceMemo(
+        file: Blob | File,
+        metadata: {
+            userId: string;
+            fileId: string;
+            dbId?: string;
+            tags?: string[];
+        }
+    ) {
+        const formData = new FormData();
+        // Ensure filename has extension for backend detection if needed, though we use mime type
+        const fileName = (file as File).name || "voice_memo.webm";
+        formData.append("file", file, fileName);
+        formData.append("metadata", JSON.stringify(metadata));
+
+        console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/process-voice-memo`, metadata);
+
+        try {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/process-voice-memo`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[PythonService] Error: ${response.status} ${errorText}`);
+                throw new Error(`Python Backend failed: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log(`[PythonService] Success:`, result);
+            return result;
+        } catch (error) {
+            console.error(`[PythonService] Network or Server Error:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Updates tags for a file in Pinecone.
+     */
+    async updateTags(userId: string, fileId: string, tags: string[]) {
+        console.log(`[PythonService] Updating tags for file ${fileId}`);
+        try {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/update-tags`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, fileId, tags }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[PythonService] Update Tags Error: ${response.status} ${errorText}`);
+                // Don't throw error here, just log it. Pinecone update failure shouldn't block DB update?
+                // But we want consistency. Let's throw.
+                throw new Error(`Python Backend update tags failed: ${errorText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`[PythonService] Update Tags Network Error:`, error);
+            throw error;
+        }
+    },
+
+    /**
      * Deletes vectors associated with a file from Pinecone.
      */
     async deleteFile(userId: string, fileId: string) {
