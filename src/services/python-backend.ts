@@ -6,6 +6,10 @@ export const PythonBackendService = {
     /**
      * Imports a file to the Python backend for processing (chunking, embedding, etc.).
      */
+    /**
+     * Imports a file to the Python backend.
+     * The backend's /import-file endpoint now handles dispatching based on MIME type.
+     */
     async importFile(
         file: Blob | File,
         metadata: {
@@ -17,6 +21,11 @@ export const PythonBackendService = {
             dbId?: string;
         }
     ) {
+        // Special handling for audio (Voice Memo) - keep separate for now as it returns transcript/summary
+        if (metadata.mimeType.startsWith("audio/")) {
+            return this.processVoiceMemo(file, metadata);
+        }
+
         const formData = new FormData();
         formData.append("file", file, metadata.fileName || "file");
         formData.append("metadata", JSON.stringify(metadata));
@@ -25,6 +34,62 @@ export const PythonBackendService = {
 
         try {
             const response = await fetch(`${PYTHON_BACKEND_URL}/import-file`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[PythonService] Error: ${response.status} ${errorText}`);
+                throw new Error(`Python Backend failed: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log(`[PythonService] Success:`, result);
+            return result;
+        } catch (error) {
+            console.error(`[PythonService] Network or Server Error:`, error);
+            throw error;
+        }
+    },
+
+    async importPdf(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-pdf", file, metadata);
+    },
+
+    async importImage(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-image", file, metadata);
+    },
+
+    async importPptx(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-pptx", file, metadata);
+    },
+
+    async importDocx(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-docx", file, metadata);
+    },
+
+    async importXlsx(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-xlsx", file, metadata);
+    },
+
+    async importCsv(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-csv", file, metadata);
+    },
+
+    async importTextFile(file: Blob | File, metadata: any) {
+        return this._uploadToEndpoint("/process-text", file, metadata);
+    },
+
+    async _uploadToEndpoint(endpoint: string, file: Blob | File, metadata: any) {
+        const formData = new FormData();
+        formData.append("file", file, metadata.fileName || "file");
+        formData.append("metadata", JSON.stringify(metadata));
+
+        console.log(`[PythonService] Sending file to ${PYTHON_BACKEND_URL}${endpoint}`, metadata);
+
+        try {
+            const response = await fetch(`${PYTHON_BACKEND_URL}${endpoint}`, {
                 method: "POST",
                 body: formData,
             });

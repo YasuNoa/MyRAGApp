@@ -19,7 +19,7 @@ export default function NotePage() {
         isProcessing, setIsProcessing,
         error, setError,
         tags, setTags,
-        selectedFile, setSelectedFile,
+        selectedFiles, setSelectedFiles,
         clearNote
     } = useNote();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,8 +171,8 @@ export default function NotePage() {
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
+        if (e.target.files) {
+            setSelectedFiles(Array.from(e.target.files));
         }
     };
 
@@ -194,19 +194,21 @@ export default function NotePage() {
 
             if (!res.ok) throw new Error("Failed to save voice memo");
             
-            // 2. Upload File (if selected)
-            if (selectedFile) {
-                const formData = new FormData();
-                formData.append("file", selectedFile);
-                formData.append("tags", JSON.stringify(tags)); // Use same tags
-                formData.append("source", "voice_memo"); // Set source to voice_memo
+            // 2. Upload Files (if selected)
+            if (selectedFiles.length > 0) {
+                for (const file of selectedFiles) {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("tags", JSON.stringify(tags)); // Use same tags
+                    formData.append("source", "voice_memo"); // Set source to voice_memo
 
-                const uploadRes = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData,
-                });
+                    const uploadRes = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
 
-                if (!uploadRes.ok) throw new Error("Failed to upload attached file");
+                    if (!uploadRes.ok) console.error(`Failed to upload attached file: ${file.name}`);
+                }
             }
 
             clearNote(); // Clear state on successful save
@@ -349,6 +351,7 @@ export default function NotePage() {
                                         ref={fileInputRef} 
                                         onChange={handleFileSelect} 
                                         style={{ display: "none" }} 
+                                        multiple
                                         accept=".pdf,.txt,.md"
                                     />
                                     <button 
@@ -367,16 +370,20 @@ export default function NotePage() {
                                         }}
                                     >
                                         <FileText size={16} />
-                                        {selectedFile ? "変更" : "資料を追加 (PDF/Text)"}
+                                        {selectedFiles.length > 0 ? "変更" : "資料を追加 (PDF/Text)"}
                                     </button>
-                                    {selectedFile && (
-                                        <span style={{ fontSize: "14px", color: "var(--text-color)" }}>
-                                            {selectedFile.name}
-                                        </span>
+                                    {selectedFiles.length > 0 && (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                            {selectedFiles.map((f, i) => (
+                                                <span key={i} style={{ fontSize: "14px", color: "var(--text-color)" }}>
+                                                    {f.name}
+                                                </span>
+                                            ))}
+                                        </div>
                                     )}
-                                    {selectedFile && (
+                                    {selectedFiles.length > 0 && (
                                         <button 
-                                            onClick={() => setSelectedFile(null)}
+                                            onClick={() => setSelectedFiles([])}
                                             style={{
                                                 background: "none",
                                                 border: "none",

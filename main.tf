@@ -12,6 +12,12 @@ resource "google_cloud_run_service" "backend" {
     spec {
       containers {
         image = "gcr.io/myragapp-479606/myragapp-backend"
+        resources {
+          limits = {
+            memory = "2Gi"
+            cpu    = "1000m"
+          }
+        }
         env {
           name  = "DATABASE_URL"
           value = var.database_url
@@ -27,6 +33,10 @@ resource "google_cloud_run_service" "backend" {
         env {
           name  = "PINECONE_INDEX"
           value = var.pinecone_index
+        }
+        env {
+          name  = "TZ"
+          value = "Asia/Tokyo"
         }
       }
     }
@@ -70,7 +80,11 @@ resource "google_cloud_run_service" "frontend" {
         # NEXTAUTH_URL will be set after the first deploy or via custom domain
         env {
             name = "NEXTAUTH_URL"
-            value = "http://localhost:3000" # Placeholder for initial deploy
+            value = "https://jibun-ai.com" # Placeholder for initial deploy
+        }
+        env {
+          name = "AUTH_TRUST_HOST"
+          value = "true"
         }
         
         # Google OAuth
@@ -101,6 +115,20 @@ resource "google_cloud_run_service" "frontend" {
         env {
           name = "LINE_CHANNEL_SECRET"
           value = var.line_channel_secret
+        }
+        
+        # Public vars for Google Picker
+        env {
+          name = "NEXT_PUBLIC_GOOGLE_API_KEY"
+          value = var.google_picker_api_key
+        }
+        env {
+          name  = "NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+          value = var.auth_google_id
+        }
+        env {
+          name  = "TZ"
+          value = "Asia/Tokyo"
         }
       }
     }

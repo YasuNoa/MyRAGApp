@@ -11,6 +11,8 @@ services:
       - /app/node_modules
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Tokyo
     depends_on:
       - db
     # 起動時に npm install を実行してから開発サーバーを起動
@@ -24,6 +26,8 @@ services:
       - ./backend:/app
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Tokyo
     depends_on:
       - db
 

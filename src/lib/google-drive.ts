@@ -39,6 +39,20 @@ export async function getDriveFileContent(accessToken: string, fileId: string) {
                 { responseType: "arraybuffer" }
             );
             return Buffer.from(response.data as ArrayBuffer);
+        } else if (mimeType === "application/vnd.google-apps.presentation") {
+            // Export Google Slides as PPTX
+            const response = await drive.files.export(
+                { fileId, mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+                { responseType: "arraybuffer" }
+            );
+            return Buffer.from(response.data as ArrayBuffer);
+        } else if (mimeType === "application/vnd.google-apps.spreadsheet") {
+            // Export Google Sheets as XLSX
+            const response = await drive.files.export(
+                { fileId, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+                { responseType: "arraybuffer" }
+            );
+            return Buffer.from(response.data as ArrayBuffer);
         } else {
             // Download binary file (PDF, etc.)
             const response = await drive.files.get(

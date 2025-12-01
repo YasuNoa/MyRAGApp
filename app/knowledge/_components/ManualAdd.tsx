@@ -9,7 +9,7 @@ export default function ManualAdd() {
   const { triggerRefresh } = useKnowledge();
   const [mode, setMode] = useState<"text" | "file">("text");
   const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,24 +33,48 @@ export default function ManualAdd() {
         });
         if (!res.ok) throw new Error(await res.text());
       } else {
-        if (!file) {
+        if (files.length === 0) {
           setMessage("ファイルを選択してください");
           setIsLoading(false);
           return;
         }
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("tags", JSON.stringify(tags));
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (!res.ok) throw new Error(await res.text());
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          setMessage(`アップロード中 (${i + 1}/${files.length}): ${file.name}...`);
+          
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("tags", JSON.stringify(tags));
+            const res = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+            if (!res.ok) throw new Error(await res.text());
+            successCount++;
+          } catch (e) {
+            console.error(`Failed to upload ${file.name}:`, e);
+            failCount++;
+          }
+        }
+
+        if (failCount > 0) {
+          setMessage(`完了: ${successCount}件成功, ${failCount}件失敗`);
+        } else {
+          setMessage(`成功！${successCount}件のファイルを保存しました。`);
+        }
       }
 
-      setMessage("成功！知識を覚えました。");
+      if (mode === "text") {
+         setMessage("成功！知識を覚えました。");
+      }
+      
       setText("");
-      setFile(null);
+      setFiles([]);
       setTags([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       triggerRefresh();
@@ -137,9 +161,14 @@ export default function ManualAdd() {
           <input
             type="file"
             ref={fileInputRef}
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => {
+              if (e.target.files) {
+                setFiles(Array.from(e.target.files));
+              }
+            }}
             style={{ display: "none" }}
-            accept=".pdf,.txt,.md,.csv"
+            multiple
+            accept=".pdf,.txt,.md,.csv,.pptx,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.mp3,.wav,.m4a,.webm"
           />
           <div style={{ fontSize: "24px", marginBottom: "8px" }}>📄</div>
           <div style={{ 
@@ -152,10 +181,19 @@ export default function ManualAdd() {
             marginBottom: "8px",
             boxShadow: "0 2px 5px rgba(0,0,0,0.2)"
           }}>
-            {file ? file.name : "ファイルを選択"}
+            {files.length > 0 ? `${files.length}個のファイルを選択中` : "ファイルを選択"}
           </div>
+          {files.length > 0 && (
+            <div style={{ fontSize: "12px", color: "var(--text-primary)", marginBottom: "8px", textAlign: "left", display: "inline-block" }}>
+              <ul style={{ margin: 0, paddingLeft: "20px" }}>
+                {files.map((f, i) => (
+                  <li key={i}>{f.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
-            PDF, Text, Markdown, CSV
+            PDF, Office, Image, Text, CSV, Audio
           </div>
         </div>
       )}

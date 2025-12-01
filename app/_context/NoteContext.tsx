@@ -19,8 +19,8 @@ type NoteContextType = {
     setError: React.Dispatch<React.SetStateAction<string | null>>;
     tags: string[];
     setTags: React.Dispatch<React.SetStateAction<string[]>>;
-    selectedFile: File | null;
-    setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
+    selectedFiles: File[];
+    setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
     clearNote: () => void;
 };
 
@@ -32,7 +32,7 @@ export function NoteProvider({ children }: { children: ReactNode }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [tags, setTags] = useState<string[]>([]);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
     const clearNote = () => {
         setTranscript("");
@@ -40,7 +40,7 @@ export function NoteProvider({ children }: { children: ReactNode }) {
         setIsProcessing(false);
         setError(null);
         setTags([]);
-        setSelectedFile(null);
+        setSelectedFiles([]);
     };
 
     return (
@@ -56,8 +56,8 @@ export function NoteProvider({ children }: { children: ReactNode }) {
                 setError,
                 tags,
                 setTags,
-                selectedFile,
-                setSelectedFile,
+                selectedFiles,
+                setSelectedFiles,
                 clearNote,
             }}
         >

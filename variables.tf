@@ -60,3 +60,9 @@ variable "auth_line_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "google_picker_api_key" {
+  description = "Google Cloud API Key for Picker (Browser key)"
+  type        = string
+  sensitive   = true
+}

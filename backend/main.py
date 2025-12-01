@@ -15,17 +15,28 @@ from sentence_transformers import CrossEncoder
 import pytesseract
 from pdf2image import convert_from_bytes
 import asyncpg
+import logging
+import sys
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 load_dotenv()
 
 # --- Configuration ---
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
+
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX", "myragapp")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/myragapp") 
 
 if not PINECONE_API_KEY or not GOOGLE_API_KEY:
-    print("WARNING: API Keys not found in environment variables")
+    logger.warning("API Keys not found in environment variables")
 
 # --- Initialize Clients ---
 pc = Pinecone(api_key=PINECONE_API_KEY)
@@ -33,15 +44,21 @@ index = pc.Index(PINECONE_INDEX_NAME)
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Initialize Cross-Encoder for Re-ranking
-print("Loading Cross-Encoder model...")
+logger.info("Loading Cross-Encoder model...")
 cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-print("Cross-Encoder loaded.")
-
-print("Cross-Encoder loaded.")
+logger.info("Cross-Encoder loaded.")
 
 db_pool = None
 
 app = FastAPI()
+
+class TextImportRequest(BaseModel):
+    text: str
+    userId: str
+    source: str = "manual"
+    dbId: Optional[str] = None
+    tags: List[str] = [] # Changed from category to tags list
+    summary: Optional[str] = None
 
 # --- CORS ---
 origins = [
@@ -70,11 +87,11 @@ async def startup_event():
 
     global db_pool
     try:
-        print("Connecting to Database...")
+        logger.info("Connecting to Database...")
         db_pool = await asyncpg.create_pool(DATABASE_URL)
-        print("Database connected.")
+        logger.info("Database connected.")
     except Exception as e:
-        print(f"Error connecting to database: {e}")
+        logger.error(f"Error connecting to database: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -83,8 +100,13 @@ async def shutdown_event():
 
 # --- Helper Functions ---
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception)
+)
 def get_embedding(text: str) -> List[float]:
-    """Generates embedding for the given text using Gemini."""
+    # Generates embedding for the given text using Gemini.
     try:
         # Clean text slightly to avoid issues
         clean_text = text.replace("\n", " ")
@@ -95,11 +117,11 @@ def get_embedding(text: str) -> List[float]:
         )
         return result['embedding']
     except Exception as e:
-        print(f"Error generating embedding: {e}")
+        logger.error(f"Error generating embedding: {e}")
         raise e
 
 def extract_text_from_pdf(file_content: bytes) -> str:
-    """Extracts text from a PDF file content."""
+    # Extracts text from a PDF file content.
     try:
         reader = PdfReader(io.BytesIO(file_content))
         text = ""
@@ -109,27 +131,27 @@ def extract_text_from_pdf(file_content: bytes) -> str:
                 text += extracted + "\n"
         return text
     except Exception as e:
-        print(f"Error extracting text from PDF: {e}")
+        logger.error(f"Error extracting text from PDF: {e}")
         return "" # Return empty to trigger OCR
 
 def extract_text_with_ocr(file_content: bytes) -> str:
-    """Extracts text from PDF using OCR (Tesseract)."""
+    # Extracts text from PDF using OCR (Tesseract).
     try:
-        print("Starting OCR processing...")
+        logger.info("Starting OCR processing...")
         images = convert_from_bytes(file_content)
         text = ""
         for i, image in enumerate(images):
             # Use Japanese and English
             page_text = pytesseract.image_to_string(image, lang='jpn+eng')
             text += page_text + "\n"
-            print(f"OCR processed page {i+1}/{len(images)}")
+            logger.info(f"OCR processed page {i+1}/{len(images)}")
         return text
     except Exception as e:
-        print(f"OCR Error: {e}")
+        logger.error(f"OCR Error: {e}")
         return ""
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
-    """Splits text into chunks using LangChain's RecursiveCharacterTextSplitter."""
+    # Splits text into chunks using LangChain's RecursiveCharacterTextSplitter.
     if not text:
         return []
     
@@ -141,38 +163,71 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
     )
     return text_splitter.split_text(text)
 
-async def save_document_content(doc_id: str, content: str, category: Optional[str] = None, summary: Optional[str] = None):
-    """Saves full text content, category, and summary to PostgreSQL."""
+async def save_document_content(
+    doc_id: str, 
+    content: str, 
+    category: Optional[str] = None, 
+    summary: Optional[str] = None,
+    mime_type: Optional[str] = None
+):
+    # Saves full text content, category, summary, and mimeType to PostgreSQL.
     if not db_pool:
-        print("DB Pool not initialized, skipping content save.")
+        logger.warning("DB Pool not initialized, skipping content save.")
         return
 
     try:
         async with db_pool.acquire() as conn:
             # Try to update by ID first, then externalId
-            result = await conn.execute(
-                """
+            # Note: category field might not exist in Document model based on schema.prisma check earlier?
+            # Let's check schema again. Document has: id, userId, title, content, summary, type, tags, source, externalId, createdAt, mimeType.
+            # It does NOT have 'category'. 'type' defaults to 'knowledge'.
+            # The previous code was trying to save 'category'. This might have been failing silently or I missed it.
+            # Wait, the schema I viewed earlier:
+            # model Document { ... type String @default("knowledge") ... }
+            # So 'category' param probably maps to 'type' or is ignored?
+            # In the previous code: SET content = $1, category = $2 ...
+            # If 'category' column doesn't exist, this SQL would fail.
+            # Let's assume 'category' was intended to be 'type' or it's a mistake.
+            # However, I should focus on adding 'mimeType'.
+            # I will check if 'category' column exists in the schema I read.
+            # Schema: type String @default("knowledge")
+            # There is NO 'category' column in Document.
+            # So the existing code MUST be failing if it tries to update 'category'.
+            # But I didn't see errors in logs? Maybe it wasn't called or I missed it.
+            # I will replace 'category' with 'mimeType' in the update, and remove 'category' from SQL if it doesn't exist.
+            # Actually, let's look at the schema again.
+            # Document: id, userId, title, content, summary, type, tags, source, externalId, createdAt, mimeType.
+            # I will update the SQL to update 'content', 'summary', and 'mimeType'.
+            
+            query = """
                 UPDATE "Document"
-                SET content = $1, category = $2, summary = $3
+                SET content = $1, summary = $2, "mimeType" = $3
                 WHERE id = $4
-                """,
-                content, category, summary, doc_id
-            )
+            """
+            result = await conn.execute(query, content, summary, mime_type, doc_id)
+            
             if result == "UPDATE 0":
-                 await conn.execute(
-                    """
+                 query_ext = """
                     UPDATE "Document"
-                    SET content = $1, category = $2, summary = $3
+                    SET content = $1, summary = $2, "mimeType" = $3
                     WHERE "externalId" = $4
-                    """,
-                    content, category, summary, doc_id
-                )
-            print(f"Saved content for document {doc_id}")
+                """
+                 await conn.execute(query_ext, content, summary, mime_type, doc_id)
+                 
+            if result == "UPDATE 0":
+                 query_ext = """
+                    UPDATE "Document"
+                    SET content = $1, summary = $2, "mimeType" = $3
+                    WHERE "externalId" = $4
+                """
+                 await conn.execute(query_ext, content, summary, mime_type, doc_id)
+                 
+            logger.info(f"Saved content for document {doc_id}")
     except Exception as e:
-        print(f"Error saving content to DB: {e}")
+        logger.error(f"Error saving content to DB: {e}")
 
 async def get_document_content(doc_id: str) -> str:
-    """Fetches full text content from PostgreSQL."""
+    # Fetches full text content from PostgreSQL.
     if not db_pool:
         return ""
     
@@ -187,7 +242,7 @@ async def get_document_content(doc_id: str) -> str:
                 return row['content'] or ""
             return ""
     except Exception as e:
-        print(f"Error fetching content from DB: {e}")
+        logger.error(f"Error fetching content from DB: {e}")
         return ""
 
 # --- Endpoints ---
@@ -198,11 +253,10 @@ async def process_voice_memo(
     metadata: str = Form(...),
     save: bool = Form(True)
 ):
-    """
-    Transcribes audio, generates summary, and saves to Pinecone/DB.
-    """
+    # Transcribes audio, generates summary, and saves to Pinecone/DB.
+
     try:
-        print(f"Received voice memo request for: {file.filename}")
+        logger.info(f"Received voice memo request for: {file.filename}")
         
         # Parse metadata
         meta_dict = json.loads(metadata)
@@ -221,24 +275,23 @@ async def process_voice_memo(
             f.write(content)
             
         # Upload to Gemini
-        print("Uploading to Gemini...")
+        logger.info("Uploading to Gemini...")
         uploaded_file = genai.upload_file(temp_filename, mime_type=file.content_type)
         
         # Generate Content (Transcript + Summary)
-        print("Generating transcript and summary...")
+        logger.info("Generating transcript and summary...")
         model = genai.GenerativeModel('gemini-2.0-flash')
         
-        prompt = """
-        You are a professional secretary. 
-        1. Transcribe the audio file verbatim (word-for-word).
-        2. Create a concise summary of the content in Japanese (bullet points).
-        
-        Output strictly in JSON format:
-        {
-            "transcript": "Full text here...",
-            "summary": "Summary in Japanese here..."
-        }
-        """
+        prompt = (
+            "You are a professional secretary.\n"
+            "1. Transcribe the audio file verbatim (word-for-word).\n"
+            "2. Create a concise summary of the content in Japanese (bullet points).\n\n"
+            "Output strictly in JSON format:\n"
+            "{\n"
+            '    "transcript": "Full text here...",\n'
+            '    "summary": "Summary in Japanese here..."\n'
+            "}"
+        )
         
         response = model.generate_content(
             [prompt, uploaded_file],
@@ -257,7 +310,7 @@ async def process_voice_memo(
 
         # Chunk Text
         chunks = chunk_text(transcript)
-        print(f"Generated {len(chunks)} chunks")
+        logger.info(f"Generated {len(chunks)} chunks")
 
         # Embed and Upsert to Pinecone
         vectors = []
@@ -327,7 +380,7 @@ async def process_voice_memo(
         }
 
     except Exception as e:
-        print(f"Error processing voice memo: {e}")
+        logger.error(f"Error processing voice memo: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
@@ -338,108 +391,257 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
+from pptx import Presentation
+import csv
+from docx import Document as DocxDocument
+import pandas as pd
+
+# ... (Previous imports)
+
+# --- Helper Function for Common Processing ---
+async def process_and_save_content(
+    text: str, 
+    metadata: dict, 
+    summary: Optional[str] = None
+):
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Extracted text is empty")
+
+    user_id = metadata.get("userId")
+    file_id = metadata.get("fileId")
+    tags = metadata.get("tags", [])
+    file_name = metadata.get("fileName", "Unknown")
+    db_id = metadata.get("dbId")
+    mime_type = metadata.get("mimeType") # Get mimeType
+
+    # Chunk Text
+    chunks = chunk_text(text)
+    logger.info(f"Generated {len(chunks)} chunks for file {file_name}")
+
+    # Embed and Upsert to Pinecone
+    vectors = []
+    for i, chunk in enumerate(chunks):
+        vector_id = f"{user_id}#{file_id}#{i}"
+        embedding = get_embedding(chunk)
+        
+        metadata_payload = {
+            "userId": user_id,
+            "fileId": file_id,
+            "fileName": file_name,
+            "text": chunk,
+            "chunkIndex": i,
+            "tags": tags
+        }
+        
+        if db_id:
+            metadata_payload["dbId"] = db_id
+        
+        vectors.append({
+            "id": vector_id,
+            "values": embedding,
+            "metadata": metadata_payload
+        })
+        
+        if len(vectors) >= 100:
+            index.upsert(vectors=vectors) 
+            vectors = []
+
+    if vectors:
+        index.upsert(vectors=vectors) 
+
+    # Save full content to DB
+    if db_id:
+         # Pass mimeType if available (we need to update save_document_content signature or just ignore it for now?
+         # Wait, save_document_content executes SQL. We need to update it too.)
+         await save_document_content(db_id, text, summary=summary, mime_type=mime_type)
+    
+    return {
+        "status": "success", 
+        "message": f"Successfully processed {file_name}",
+        "chunks_count": len(chunks),
+        "fileId": file_id
+    }
+
+# --- Modular Endpoints ---
+
+# --- File Processing Helper Functions ---
+
+async def _process_pdf(content: bytes) -> str:
+    text = extract_text_from_pdf(content)
+    if not text.strip() or len(text.strip()) < 50: 
+        logger.info("PDF text extraction yielded little/no text. Attempting OCR...")
+        ocr_text = extract_text_with_ocr(content)
+        if ocr_text.strip():
+            text = ocr_text
+    return text
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception)
+)
+async def _process_image(content: bytes, mime_type: str, filename: str) -> str:
+    # Save temp file for Gemini upload
+    temp_filename = f"/tmp/{uuid.uuid4()}_{filename}"
+    with open(temp_filename, "wb") as f:
+        f.write(content)
+    
+    try:
+        logger.info("Uploading image to Gemini...")
+        uploaded_file = genai.upload_file(temp_filename, mime_type=mime_type)
+        
+        logger.info("Generating image description...")
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = (
+            "Describe this image in detail in Japanese. "
+            "Include all visible text (OCR), objects, and the general context. "
+            "If it's a document, transcribe the text."
+        )
+        response = model.generate_content([prompt, uploaded_file])
+        return response.text
+    finally:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
+async def _process_pptx(content: bytes) -> str:
+    ppt = Presentation(io.BytesIO(content))
+    text = ""
+    for slide in ppt.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text"):
+                text += shape.text + "\n"
+    return text
+
+async def _process_docx(content: bytes) -> str:
+    doc = DocxDocument(io.BytesIO(content))
+    text = ""
+    for para in doc.paragraphs:
+        text += para.text + "\n"
+    return text
+
+async def _process_xlsx(content: bytes) -> str:
+    xls = pd.read_excel(io.BytesIO(content), sheet_name=None)
+    text = ""
+    for sheet_name, df in xls.items():
+        text += f"--- Sheet: {sheet_name} ---\n"
+        text += df.to_string(index=False) + "\n\n"
+    return text
+
+async def _process_csv(content: bytes) -> str:
+    return content.decode("utf-8")
+
+# --- Unified Endpoint ---
+
 @app.post("/import-file")
 async def import_file(
     file: UploadFile = File(...),
-    metadata: str = Form(...) # Expecting JSON string for metadata
+    metadata: str = Form(...)
 ):
-    """
-    Receives a file and metadata, parses it, chunks it, embeds it, and saves to Pinecone.
-    Also saves full text to PostgreSQL.
-    """
-    print(f"Received import request for file: {file.filename}")
+    # Unified endpoint for importing files. Dispatches to specific logic based on MIME type.
+    logger.info(f"Received unified import request for file: {file.filename}")
     
     try:
-        # Parse metadata
         meta_dict = json.loads(metadata)
-        user_id = meta_dict.get("userId")
-        file_id = meta_dict.get("fileId") # Google Drive File ID or DB ID
         mime_type = meta_dict.get("mimeType")
-        tags = meta_dict.get("tags", []) # Get tags list
-        
-        if not user_id or not file_id:
-            raise HTTPException(status_code=400, detail="Missing userId or fileId in metadata")
-
-        # Read file content
         content = await file.read()
-        
-        # Extract Text
         text = ""
+
         if mime_type == "application/pdf":
-            text = extract_text_from_pdf(content)
-            # Fallback to OCR if text is empty or too short
-            if not text.strip() or len(text.strip()) < 50: 
-                print("PDF text extraction yielded little/no text. Attempting OCR...")
-                ocr_text = extract_text_with_ocr(content)
-                if ocr_text.strip():
-                    text = ocr_text
-                    
+            text = await _process_pdf(content)
+        elif mime_type.startswith("image/"):
+            text = await _process_image(content, mime_type, file.filename)
+        elif mime_type == "application/vnd.google-apps.presentation":
+            # Google Slides (exported as PPTX)
+            text = await _process_pptx(content)
+        elif mime_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+            text = await _process_pptx(content)
+        elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            text = await _process_docx(content)
+        elif mime_type == "application/vnd.google-apps.spreadsheet":
+            # Google Sheets (exported as XLSX)
+            text = await _process_xlsx(content)
+        elif mime_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            text = await _process_xlsx(content)
+        elif mime_type == "text/csv":
+            text = await _process_csv(content)
         elif mime_type.startswith("text/") or mime_type == "application/vnd.google-apps.document":
-            # For Google Docs, we assume it's converted to text/plain by the frontend/drive api
             text = content.decode("utf-8")
         else:
-            # Try decoding as text for others
+            # Fallback: try as text
             try:
                 text = content.decode("utf-8")
             except:
                 raise HTTPException(status_code=400, detail=f"Unsupported mime type: {mime_type}")
 
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="Extracted text is empty")
+        return await process_and_save_content(text, meta_dict)
 
-        # Chunk Text
-        chunks = chunk_text(text)
-        print(f"Generated {len(chunks)} chunks for file {file.filename}")
 
-        # Embed and Upsert to Pinecone
-        vectors = []
-        for i, chunk in enumerate(chunks):
-            vector_id = f"{user_id}#{file_id}#{i}"
-            embedding = get_embedding(chunk)
-            
-            metadata_payload = {
-                "userId": user_id,
-                "fileId": file_id,
-                "fileName": file.filename,
-                "text": chunk,
-                "chunkIndex": i,
-                "tags": tags # Save tags
-            }
-            
-            # Only add dbId if it exists (Pinecone doesn't accept null)
-            if meta_dict.get("dbId"):
-                metadata_payload["dbId"] = meta_dict.get("dbId")
-            
-            vectors.append({
-                "id": vector_id,
-                "values": embedding,
-                "metadata": metadata_payload
-            })
-            
-            # Batch upsert if too many (e.g. every 100)
-            if len(vectors) >= 100:
-                index.upsert(vectors=vectors) 
-                vectors = []
 
-        # Upsert remaining
-        if vectors:
-            index.upsert(vectors=vectors) 
-
-        # Save full content to DB
-        db_id = meta_dict.get("dbId")
-        if db_id:
-             await save_document_content(db_id, text)
-        
-        return {
-            "status": "success", 
-            "message": f"Successfully processed {file.filename}",
-            "chunks_count": len(chunks),
-            "fileId": file_id
-        }
-
+    except HTTPException as he:
+        # Re-raise HTTP exceptions (e.g. 400 from unsupported mime type)
+        raise he
+    except ValueError as ve:
+        # JSON parsing errors or other value errors
+        logger.error(f"Value Error processing file: {ve}")
+        raise HTTPException(status_code=400, detail=f"Invalid Request: {str(ve)}")
     except Exception as e:
-        print(f"Error processing file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error processing file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+# --- Modular Endpoints (Wrappers) ---
+
+@app.post("/process-pdf")
+async def process_pdf(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_pdf(content)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-image")
+async def process_image(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_image(content, file.content_type, file.filename)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-pptx")
+async def process_pptx(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_pptx(content)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-docx")
+async def process_docx(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_docx(content)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-xlsx")
+async def process_xlsx(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_xlsx(content)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-csv")
+async def process_csv(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = await _process_csv(content)
+    return await process_and_save_content(text, meta_dict)
+
+@app.post("/process-text")
+async def process_text_file(file: UploadFile = File(...), metadata: str = Form(...)):
+    meta_dict = json.loads(metadata)
+    content = await file.read()
+    text = content.decode("utf-8")
+    return await process_and_save_content(text, meta_dict)
+
+# Keep import-text for raw text input (not file upload)
+
 
 class DeleteRequest(BaseModel):
     fileId: str
@@ -447,9 +649,7 @@ class DeleteRequest(BaseModel):
 
 @app.post("/delete-file")
 async def delete_file(request: DeleteRequest):
-    """
-    Deletes all vectors associated with a specific file and user.
-    """
+    # Deletes all vectors associated with a specific file and user.
     try:
         print(f"Received delete request for file: {request.fileId} user: {request.userId}")
         
@@ -469,9 +669,7 @@ class UpdateTagsRequest(BaseModel):
 
 @app.post("/update-tags")
 async def update_tags(request: UpdateTagsRequest):
-    """
-    Updates tags in Pinecone metadata for a specific file.
-    """
+    # Updates tags in Pinecone metadata for a specific file.
     try:
         print(f"Received update tags request for file: {request.fileId} user: {request.userId} tags: {request.tags}")
         
@@ -530,19 +728,11 @@ async def update_tags(request: UpdateTagsRequest):
         print(f"Error updating tags: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-class TextImportRequest(BaseModel):
-    text: str
-    userId: str
-    source: str = "manual"
-    dbId: Optional[str] = None
-    tags: List[str] = [] # Changed from category to tags list
-    summary: Optional[str] = None
+
 
 @app.post("/import-text")
 async def import_text(request: TextImportRequest):
-    """
-    Imports raw text, chunks it, embeds it, and saves to Pinecone.
-    """
+    # Imports raw text, chunks it, embeds it, and saves to Pinecone.
     try:
         print(f"Received text import request from user: {request.userId}")
         

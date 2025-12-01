@@ -43,30 +43,34 @@ export async function POST(req: NextRequest) {
         const buffer = await getDriveFileContent(accessToken, fileId);
         console.log(`[Import] Step 1: Downloaded ${buffer.length} bytes`);
 
-        // 2. Send to Python Backend
-        console.log(`[Import] Step 2: Sending to Python Backend...`);
+
+        // 2. Create Document record in DB FIRST
+        console.log(`[Import] Step 2: Saving metadata to Database...`);
+        const document = await KnowledgeService.registerDocument(
+            session.user.id,
+            fileName || fileId,
+            "google-drive",
+            fileId,
+            tags, // Pass tags
+            mimeType // Pass mimeType
+        );
+        console.log(`[Import] Step 2: Saved metadata to Database`);
+
+        // 3. Send to Python Backend
+        console.log(`[Import] Step 3: Sending to Python Backend...`);
         const blob = new Blob([buffer], { type: mimeType });
 
+        // Unified Import: The service handles dispatching based on MIME type
         const result = await PythonBackendService.importFile(blob, {
             userId: session.user.id,
             fileId: fileId,
             mimeType: mimeType,
             fileName: fileName,
-            tags: tags // Pass tags
+            tags: tags,
+            dbId: document.id // Pass dbId so Python can update content
         });
 
-        console.log(`[Import] Step 2: Python processing complete. Result:`, result);
-
-        // 3. Save to Database
-        console.log(`[Import] Step 3: Saving metadata to Database...`);
-        await KnowledgeService.registerDocument(
-            session.user.id,
-            fileName || fileId,
-            "google-drive",
-            fileId,
-            tags // Pass tags
-        );
-        console.log(`[Import] Step 3: Saved metadata to Database`);
+        console.log(`[Import] Step 3: Python processing complete. Result:`, result);
 
         console.log(`[Import] Completed import for file: ${fileId}`);
 

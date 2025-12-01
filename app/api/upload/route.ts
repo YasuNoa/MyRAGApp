@@ -31,23 +31,25 @@ export async function POST(req: NextRequest) {
         // Generate a UUID for the fileId (externalId)
         const fileId = uuidv4();
 
-        // 1. Send to Python Backend FIRST
-        await PythonBackendService.importFile(file, {
-            userId: session.user.id,
-            fileId: fileId,
-            mimeType: file.type,
-            fileName: file.name,
-            tags: tags
-        });
-
-        // 2. Create Document record in DB AFTER success
+        // 1. Create Document record in DB FIRST
         const document = await KnowledgeService.registerDocument(
             session.user.id,
             file.name,
             source as KnowledgeSource,
             fileId,
-            tags
+            tags,
+            file.type
         );
+
+        // 2. Send to Python Backend with dbId
+        await PythonBackendService.importFile(file, {
+            userId: session.user.id,
+            fileId: fileId,
+            mimeType: file.type,
+            fileName: file.name,
+            tags: tags,
+            dbId: document.id // Pass dbId so Python can update content
+        });
 
         return NextResponse.json({ success: true, id: document.id });
 

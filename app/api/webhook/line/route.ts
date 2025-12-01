@@ -86,18 +86,45 @@ export async function POST(req: NextRequest) {
 
                     if (intent === "STORE") {
                         // === 覚えるモード ===
-                        // Python backend /import-text を呼ぶ
                         try {
-                            await fetch(`${pythonUrl}/import-text`, {
+                            // 1. Create Document record in DB FIRST
+                            const title = userMessage.slice(0, 20) + (userMessage.length > 20 ? "..." : "");
+                            const document = await prisma.document.create({
+                                data: {
+                                    userId: account.userId,
+                                    title: title,
+                                    source: "line",
+                                    externalId: `line-${Date.now()}`, // Temporary ID
+                                    content: userMessage, // Save content immediately
+                                    tags: tags
+                                },
+                            });
+
+                            // 2. Call Python Backend with dbId
+                            const res = await fetch(`${pythonUrl}/import-text`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                     text: userMessage,
                                     userId: account.userId,
                                     source: "line",
-                                    tags: tags // Pass tags
+                                    tags: tags, // Pass tags
+                                    dbId: document.id // Pass dbId
                                 }),
                             });
+
+                            if (!res.ok) throw new Error(await res.text());
+
+                            const result = await res.json();
+
+                            // Update externalId with fileId from Python
+                            if (result.fileId) {
+                                await prisma.document.update({
+                                    where: { id: document.id },
+                                    data: { externalId: result.fileId }
+                                });
+                            }
+
                             replyText = `覚えました！🧠 (タグ: ${tags.join(", ")})`;
                         } catch (e) {
                             console.error("[LINE] Store failed:", e);
