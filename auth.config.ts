@@ -28,7 +28,7 @@ export const authConfig = {
                 return true;
             }
 
-            // Default: require login for all other pages
+            // Default: require login for all other pages!
             return isLoggedIn;
         },
     },
