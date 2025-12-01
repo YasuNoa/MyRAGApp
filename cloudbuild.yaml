@@ -1,0 +1,69 @@
+steps:
+  # --- 1. Build Frontend Image (with Cache) ---
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --destination=gcr.io/myragapp-479606/myragapp-frontend:latest
+      - --cache=true
+      - --cache-ttl=24h
+    id: 'Build Frontend'
+
+  # --- 2. Build Backend Image (with Cache) ---
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --destination=gcr.io/myragapp-479606/myragapp-backend:latest
+      - --context=dir://backend
+      - --cache=true
+      - --cache-ttl=24h
+    id: 'Build Backend'
+
+  # --- 3. DB Migration ---
+  - name: 'gcr.io/myragapp-479606/myragapp-frontend:latest'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - 'npx prisma db push'
+    secretEnv: ['DATABASE_URL']
+    id: 'DB Migration'
+    waitFor: ['Build Frontend']
+
+  # --- 4. Deploy Frontend to Cloud Run ---
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'services'
+      - 'update'
+      - 'myragapp-frontend'
+      - '--image'
+      - 'gcr.io/myragapp-479606/myragapp-frontend:latest'
+      - '--region'
+      - 'asia-northeast1'
+    id: 'Deploy Frontend'
+    waitFor: ['Build Frontend']
+
+  # --- 4. Deploy Backend to Cloud Run ---
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'services'
+      - 'update'
+      - 'myragapp-backend'
+      - '--image'
+      - 'gcr.io/myragapp-479606/myragapp-backend:latest'
+      - '--region'
+      - 'asia-northeast1'
+    id: 'Deploy Backend'
+    waitFor: ['Build Backend']
+
+images:
+  - 'gcr.io/myragapp-479606/myragapp-frontend:latest'
+  - 'gcr.io/myragapp-479606/myragapp-backend:latest'
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/myragapp-479606/secrets/database_url/versions/latest
+    env: 'DATABASE_URL'
+
+options:
+  machineType: 'E2_HIGHCPU_8'

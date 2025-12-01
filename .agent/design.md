@@ -4,15 +4,20 @@
 
 ```mermaid
 graph TD
-    User[User] -->|Browser| Frontend[Next.js Frontend]
+    User[User] -->|Browser| Cloudflare[Cloudflare (DNS/CDN)]
+    Cloudflare -->|HTTPS| CloudRun[Google Cloud Run]
+    
+    subgraph "Cloud Run Services"
+        CloudRun --> Frontend[Next.js Frontend]
+        CloudRun --> Backend[Python FastAPI Backend]
+    end
+    
     User -->|LINE App| LINE[LINE Platform]
     LINE -->|Webhook| Frontend
     
-    subgraph "Application Server (Docker)"
-        Frontend -->|API Call| Backend[Python FastAPI Backend]
-        Frontend -->|ORM| DB[(PostgreSQL)]
-        Backend -->|SQL| DB
-    end
+    Frontend -->|API Call| Backend
+    Frontend -->|ORM| DB[(PostgreSQL)]
+    Backend -->|SQL| DB
     
     subgraph "External Services"
         Backend -->|Embedding/Chat| Gemini[Google Gemini API]
@@ -69,12 +74,11 @@ graph TD
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| POST | `/import-file` | ファイル(PDF/画像)を受け取り、OCR/Embedding処理を行いPineconeとDBに保存。タグ対応。 |
+| POST | `/import-file` | ファイル(PDF/画像/Office)を受け取り、OCR/Embedding処理を行いPineconeとDBに保存。タグ対応。 |
 | POST | `/import-text` | テキストを受け取り、Embedding処理を行いPineconeに保存。タグ対応。 |
-| POST | `/transcribe` | 音声ファイルを受け取り、文字起こしテキストを返す。 |
-| POST | `/query` | クエリとタグを受け取り、RAG検索を実行して回答を返す。 |
-| POST | `/classify` | テキストの意図(STORE/REVIEW/CHAT)とタグを分類する。 |
+| POST | `/process-voice-memo` | 音声ファイルを受け取り、文字起こし・要約・ベクトル化を行う。 |
 | POST | `/delete-file` | 指定されたファイルIDのベクトルデータを削除する。 |
+| POST | `/update-tags` | 指定されたファイルIDのタグを更新する。 |
 
 ## 4. ディレクトリ構造
 ```

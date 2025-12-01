@@ -156,3 +156,25 @@ output "backend_url" {
 output "frontend_url" {
   value = google_cloud_run_service.frontend.status[0].url
 }
+
+# --- Secret Manager ---
+resource "google_secret_manager_secret" "database_url" {
+  secret_id = "database_url"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "database_url_version" {
+  secret = google_secret_manager_secret.database_url.id
+  secret_data = var.database_url
+}
+
+# Grant Cloud Build access to secrets
+data "google_project" "project" {}
+
+resource "google_project_iam_member" "cloudbuild_secrets" {
+  project = data.google_project.project.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}

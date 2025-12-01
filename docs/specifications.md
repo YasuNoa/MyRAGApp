@@ -4,22 +4,30 @@
 ### 1.1 全体構成
 ```mermaid
 graph LR
-    User[User (Browser/LINE)] -->|HTTPS/Webhook| Vercel[Next.js App (Vercel)]
-    Vercel -->|Auth| DB[(PostgreSQL)]
-    Vercel -->|Vector Search| Pinecone[(Pinecone Vector DB)]
-    Vercel -->|LLM| Gemini[Google Gemini API]
-    Vercel -->|Import| Drive[Google Drive API]
+    User[User (Browser/LINE)] -->|HTTPS/Webhook| Cloudflare[Cloudflare (DNS/CDN)]
+    Cloudflare --> CloudRun[Google Cloud Run]
+    subgraph CloudRun
+        Frontend[Next.js App]
+        Backend[Python FastAPI]
+    end
+    Frontend -->|Auth| DB[(PostgreSQL)]
+    Frontend -->|API Call| Backend
+    Backend -->|Vector Search| Pinecone[(Pinecone Vector DB)]
+    Backend -->|LLM| Gemini[Google Gemini API]
+    Frontend -->|Import| Drive[Google Drive API]
 ```
 
 ### 1.2 技術スタック
-- **Frontend/Backend**: Next.js 15+ (App Router)
-- **Language**: TypeScript
+- **Frontend**: Next.js 15+ (App Router)
+- **Backend**: Python 3.11+ (FastAPI)
+- **Language**: TypeScript, Python
 - **Database**: PostgreSQL (Prisma ORM)
 - **Auth**: NextAuth.js (v5) - Google / LINE Login
 - **Vector DB**: Pinecone (Serverless)
 - **LLM**: Google Gemini API (gemini-2.0-flash-exp)
 - **Messaging**: LINE Messaging API
-- **Infrastructure**: Vercel, Docker (開発環境)
+- **Infrastructure**: Google Cloud Run, Terraform, Docker
+- **DNS**: Cloudflare (jibun-ai.com)
 
 ## 2. データモデル (ER図)
 ### 2.1 主要テーブル
@@ -48,8 +56,15 @@ erDiagram
         String id PK
         String userId FK
         String title
-        String source "manual/drive"
-        String externalId "Google Drive File ID"
+        String content "Full Text"
+        String summary
+        String type "knowledge/note"
+        String[] tags
+        String source "manual/drive/line/voice_memo"
+        String mimeType
+        String externalId "Pinecone/File ID"
+        DateTime fileCreatedAt
+        DateTime createdAt
     }
 
     Message {
@@ -106,3 +121,4 @@ erDiagram
 | `AUTH_GOOGLE_SECRET` | Google OAuth Client Secret |
 | `AUTH_LINE_ID` | LINE Login Channel ID |
 | `AUTH_LINE_SECRET` | LINE Login Channel Secret |
+| `PYTHON_BACKEND_URL` | Python Backend URL (Internal/External) |

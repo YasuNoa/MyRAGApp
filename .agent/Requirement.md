@@ -56,4 +56,7 @@
 *   **Database**: PostgreSQL (Prisma) - ユーザー情報, ドキュメント原本, メッセージ履歴
 *   **Vector DB**: Pinecone - ベクトルインデックス
 *   **LLM**: Google Gemini 2.0 Flash / Pro
-*   **Auth**: NextAuth.js
+*   **Auth**: NextAuth.js (Google, LINE)
+*   **Infrastructure**: Google Cloud Run (Docker), Terraform
+*   **DNS/CDN**: Cloudflare (Domain: jibun-ai.com)
+

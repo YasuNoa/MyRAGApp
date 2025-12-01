@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+backend/__pycache__
+backend/venv
+backend/.venv
+.env
+.env.local
+terraform.tfstate
+terraform.tfstate.backup
+.terraform
