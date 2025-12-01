@@ -50,6 +50,9 @@ export default function ManualAdd() {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("tags", JSON.stringify(tags));
+            if (file.lastModified) {
+              formData.append("fileCreatedAt", file.lastModified.toString());
+            }
             const res = await fetch("/api/upload", {
               method: "POST",
               body: formData,

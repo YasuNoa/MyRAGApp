@@ -31,6 +31,15 @@ export async function POST(req: NextRequest) {
         // Generate a UUID for the fileId (externalId)
         const fileId = uuidv4();
 
+        const fileCreatedAtStr = formData.get("fileCreatedAt") as string;
+        let fileCreatedAt: Date | undefined = undefined;
+        if (fileCreatedAtStr) {
+            const timestamp = parseInt(fileCreatedAtStr);
+            if (!isNaN(timestamp)) {
+                fileCreatedAt = new Date(timestamp);
+            }
+        }
+
         // 1. Create Document record in DB FIRST
         const document = await KnowledgeService.registerDocument(
             session.user.id,
@@ -38,7 +47,8 @@ export async function POST(req: NextRequest) {
             source as KnowledgeSource,
             fileId,
             tags,
-            file.type
+            file.type,
+            fileCreatedAt
         );
 
         // 2. Send to Python Backend with dbId

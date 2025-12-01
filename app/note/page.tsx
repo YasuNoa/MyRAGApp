@@ -201,6 +201,9 @@ export default function NotePage() {
                     formData.append("file", file);
                     formData.append("tags", JSON.stringify(tags)); // Use same tags
                     formData.append("source", "voice_memo"); // Set source to voice_memo
+                    if (file.lastModified) {
+                        formData.append("fileCreatedAt", file.lastModified.toString());
+                    }
 
                     const uploadRes = await fetch("/api/upload", {
                         method: "POST",

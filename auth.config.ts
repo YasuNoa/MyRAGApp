@@ -18,11 +18,12 @@ export const authConfig = {
             const isOnLogin = nextUrl.pathname.startsWith("/login");
             const isOnRegister = nextUrl.pathname.startsWith("/register");
             const isOnApi = nextUrl.pathname.startsWith("/api");
+            const isPublicPage = nextUrl.pathname.startsWith("/privacy") || nextUrl.pathname.startsWith("/terms");
 
             // API routes are always allowed (handled by their own logic if needed)
             if (isOnApi) return true;
 
-            if (isOnLogin || isOnRegister) {
+            if (isOnLogin || isOnRegister || isPublicPage) {
                 // Already logged in, allow access (will redirect in page logic if needed)
                 return true;
             }

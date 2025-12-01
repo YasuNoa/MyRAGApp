@@ -454,7 +454,12 @@ async def process_and_save_content(
     if db_id:
          # Pass mimeType if available (we need to update save_document_content signature or just ignore it for now?
          # Wait, save_document_content executes SQL. We need to update it too.)
-         await save_document_content(db_id, text, summary=summary, mime_type=mime_type)
+         
+         # Sanitize text to remove null bytes (PostgreSQL doesn't allow them)
+         clean_text = text.replace("\x00", "")
+         clean_summary = summary.replace("\x00", "") if summary else None
+         
+         await save_document_content(db_id, clean_text, summary=clean_summary, mime_type=mime_type)
     
     return {
         "status": "success", 
