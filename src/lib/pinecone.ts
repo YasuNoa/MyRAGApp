@@ -52,7 +52,7 @@ export async function upsertDocument(id: string, text: string, vector: number[],
 // 類似するドキュメントを検索する関数です。
 // vector: 検索クエリ（質問文）のベクトル
 // topK: 上位何件を取得するか（デフォルトは3件）
-export async function queryDocuments(vector: number[], topK: number = 3): Promise<string[]> {
+export async function queryDocuments(vector: number[], topK: number = 20): Promise<string[]> {
     // index.query() を使って、渡されたベクトルに近いデータを検索します。
     const queryResponse = await index.query({
         vector: vector,

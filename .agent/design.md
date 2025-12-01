@@ -29,73 +29,88 @@ graph TD
 
 ### 1.1. コンポーネント役割
 *   **Next.js Frontend (App Router)**:
-    *   ユーザーインターフェースの提供。
-    *   認証 (NextAuth.js) の管理。
-    *   BFF (Backend for Frontend) として、DBへの直接アクセスや外部APIとの連携を行う。
-    *   LINE Webhookのエンドポイント (`/api/webhook/line`)。
+    *   UI/UX提供、認証 (NextAuth.js)、LINE Webhook処理。
+    *   BFFとしてBackend APIをコール。
 *   **Python FastAPI Backend**:
     *   **ポート**: 8000
-    *   **役割**: 計算リソースを要する処理、Pythonライブラリが豊富な処理を担当。
     *   **機能**:
-        *   PDF/画像からのテキスト抽出 (OCR含む)。
-        *   テキストのチャンク分割 (LangChain)。
-        *   Embedding生成 (Gemini API)。
-        *   PineconeへのUpsert / Query。
-        *   音声文字起こし。
+        *   **ファイル処理**: PDF, Office, 画像のテキスト抽出 (OCR含む)。
+        *   **音声処理**: Gemini 2.0 Flash による文字起こし・要約。
+        *   **RAG**: Embedding生成, Pinecone Upsert, Cross-Encoder Re-ranking。
 *   **PostgreSQL**:
-    *   ユーザーデータ、セッション、ドキュメントのメタデータと**全文コンテンツ**、チャット履歴を保存。
+    *   ユーザー情報, チャット履歴, ドキュメントのメタデータと全文。
 *   **Pinecone**:
-    *   ドキュメントのベクトルデータと検索用メタデータ（タグ、ファイルID等）を保存。
+    *   ドキュメントのベクトルデータ (Metadata: `userId`, `fileId`, `tags` 等)。
 
 ## 2. データベース設計 (Schema)
 
-### 2.1. ER図 (簡易)
-*   **User**: ユーザー情報。
-*   **Account**: OAuth連携情報 (Google, LINE)。
-*   **Document**: インポートされた知識データ。
-    *   `tags`: String[] (タグ配列)
-    *   `content`: String (全文テキスト)
-    *   `source`: "drive", "manual", "line"
-*   **Message**: チャット履歴。
-    *   `category`: String (※将来的にtagsへ移行検討)
+### 2.1. ER図
+```mermaid
+erDiagram
+    User ||--o{ Account : has
+    User ||--o{ Session : has
+    User ||--o{ Message : sends
+    User ||--o{ Document : owns
+    User ||--o{ Feedback : sends
+    
+    User {
+        String id PK
+        String name
+        String email
+        String image
+    }
 
-### 2.2. データフロー
-1.  **インポート時**:
-    *   Frontend -> (File/Text) -> Backend
-    *   Backend -> (Text Extraction) -> (Chunking) -> (Embedding) -> Pinecone
-    *   Backend/Frontend -> (Full Text) -> PostgreSQL ("Document" table)
-2.  **検索時 (RAG)**:
-    *   Frontend -> (Query) -> Backend
-    *   Backend -> (Embedding) -> Pinecone (Vector Search with Filters)
-    *   Backend -> (Fetch Full Content by ID) -> PostgreSQL
-    *   Backend -> (Context + Query) -> Gemini -> Answer
+    Document {
+        String id PK
+        String userId FK
+        String title
+        String content "Full Text"
+        String summary
+        String type "knowledge/note"
+        String[] tags
+        String source "manual/drive/line/voice_memo"
+        String mimeType
+        String externalId "Pinecone/File ID"
+        DateTime createdAt
+    }
+
+    Message {
+        String id PK
+        String content
+        String role "user/assistant"
+        String category
+        DateTime createdAt
+        String userId FK
+    }
+```
 
 ## 3. API インターフェース (Python Backend)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| POST | `/import-file` | ファイル(PDF/画像/Office)を受け取り、OCR/Embedding処理を行いPineconeとDBに保存。タグ対応。 |
-| POST | `/import-text` | テキストを受け取り、Embedding処理を行いPineconeに保存。タグ対応。 |
-| POST | `/process-voice-memo` | 音声ファイルを受け取り、文字起こし・要約・ベクトル化を行う。 |
-| POST | `/delete-file` | 指定されたファイルIDのベクトルデータを削除する。 |
-| POST | `/update-tags` | 指定されたファイルIDのタグを更新する。 |
+| POST | `/import-file` | 汎用インポート (PDF/画像/Office/CSV)。MIMEタイプで自動判別。 |
+| POST | `/import-text` | テキスト直接登録。 |
+| POST | `/process-voice-memo` | 音声ファイルの文字起こし・要約・保存。 |
+| POST | `/delete-file` | 指定ファイルのベクトル削除。 |
+| POST | `/update-tags` | 指定ファイルのタグ更新。 |
+| POST | `/process-pdf` | (Legacy) PDF専用処理。 |
+| POST | `/process-image` | (Legacy) 画像専用処理。 |
 
 ## 4. ディレクトリ構造
 ```
 /
 ├── app/                 # Next.js App Router
-│   ├── api/             # API Routes (BFF)
-│   ├── knowledge/       # 知識管理ページ
-│   ├── notes/           # ノートページ
+│   ├── api/             # API Routes (BFF, Webhook)
+│   ├── knowledge/       # 知識管理画面
+│   ├── profile/         # プロフィール画面
 │   └── ...
 ├── backend/             # Python FastAPI Application
-│   ├── main.py          # エントリーポイント
-│   ├── Dockerfile       # Python環境定義
-│   └── requirements.txt # Python依存ライブラリ
-├── prisma/              # Prisma Schema & Migrations
+│   ├── main.py          # エントリーポイント & ロジック
+│   └── Dockerfile       # Python環境定義
+├── prisma/              # Prisma Schema
 ├── src/
-│   ├── lib/             # ユーティリティ (gemini.ts, pinecone.ts, prisma.ts)
-│   └── services/        # ビジネスロジック (knowledge.ts)
+│   ├── lib/             # Utilities (gemini, pinecone, line)
+│   └── services/        # Service Layer
 ├── .agent/              # エージェント用ドキュメント (本ファイル等)
-└── docker-compose.yml   # コンテナ構成
+└── cloudbuild.yaml      # CI/CD設定
 ```

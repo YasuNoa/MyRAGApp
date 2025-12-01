@@ -166,12 +166,21 @@ export default function ManualAdd() {
             ref={fileInputRef}
             onChange={(e) => {
               if (e.target.files) {
-                setFiles(Array.from(e.target.files));
+                const selectedFiles = Array.from(e.target.files);
+                const invalidFiles = selectedFiles.filter(f => f.name.toLowerCase().endsWith(".wav"));
+                
+                if (invalidFiles.length > 0) {
+                  alert("WAV形式のファイルはアップロードできません。MP3またはWebM形式を使用してください。");
+                  // Filter out wav files
+                  setFiles(selectedFiles.filter(f => !f.name.toLowerCase().endsWith(".wav")));
+                } else {
+                  setFiles(selectedFiles);
+                }
               }
             }}
             style={{ display: "none" }}
             multiple
-            accept=".pdf,.txt,.md,.csv,.pptx,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.mp3,.wav,.m4a,.webm"
+            accept=".pdf,.txt,.md,.csv,.pptx,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.mp3,.m4a,.webm"
           />
           <div style={{ fontSize: "24px", marginBottom: "8px" }}>📄</div>
           <div style={{ 

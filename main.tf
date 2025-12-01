@@ -9,12 +9,18 @@ resource "google_cloud_run_service" "backend" {
   location = "asia-northeast1"
 
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/minScale" = "0"
+        "autoscaling.knative.dev/maxScale" = "5"
+      }
+    }
     spec {
       containers {
         image = "gcr.io/myragapp-479606/myragapp-backend"
         resources {
           limits = {
-            memory = "2Gi"
+            memory = "512Mi"
             cpu    = "1000m"
           }
         }

@@ -1,7 +1,8 @@
 // --- 設定周り ---
 
 generator client {
-  provider = "prisma-client-js" // JavaScript/TypeScript向けのものを使います
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

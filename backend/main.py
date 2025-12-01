@@ -11,9 +11,10 @@ from pinecone import Pinecone
 import google.generativeai as genai
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import CrossEncoder
-import pytesseract
-from pdf2image import convert_from_bytes
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+# from sentence_transformers import CrossEncoder # REMOVED for lightweight
+# import pytesseract # REMOVED for lightweight
+# from pdf2image import convert_from_bytes # REMOVED for lightweight
 import asyncpg
 import logging
 import sys
@@ -44,9 +45,9 @@ index = pc.Index(PINECONE_INDEX_NAME)
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Initialize Cross-Encoder for Re-ranking
-logger.info("Loading Cross-Encoder model...")
-cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-logger.info("Cross-Encoder loaded.")
+# logger.info("Loading Cross-Encoder model...")
+# cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+# logger.info("Cross-Encoder loaded.")
 
 db_pool = None
 
@@ -132,25 +133,31 @@ def extract_text_from_pdf(file_content: bytes) -> str:
         return text
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {e}")
-        return "" # Return empty to trigger OCR
+        return "" 
 
-def extract_text_with_ocr(file_content: bytes) -> str:
-    # Extracts text from PDF using OCR (Tesseract).
+async def _process_pdf_with_gemini(content: bytes) -> str:
+    # Uploads PDF to Gemini 2.0 Flash for text extraction (OCR).
+    temp_filename = f"/tmp/{uuid.uuid4()}.pdf"
     try:
-        logger.info("Starting OCR processing...")
-        images = convert_from_bytes(file_content)
-        text = ""
-        for i, image in enumerate(images):
-            # Use Japanese and English
-            page_text = pytesseract.image_to_string(image, lang='jpn+eng')
-            text += page_text + "\n"
-            logger.info(f"OCR processed page {i+1}/{len(images)}")
-        return text
+        with open(temp_filename, "wb") as f:
+            f.write(content)
+        
+        logger.info("Uploading PDF to Gemini for OCR...")
+        uploaded_file = genai.upload_file(temp_filename, mime_type="application/pdf")
+        
+        logger.info("Generating PDF transcript...")
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = "Transcribe all text in this document verbatim. Ignore layout, just output the text."
+        response = model.generate_content([prompt, uploaded_file])
+        return response.text
     except Exception as e:
-        logger.error(f"OCR Error: {e}")
+        logger.error(f"Error processing PDF with Gemini: {e}")
         return ""
+    finally:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
-def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
+def chunk_text(text: str, chunk_size: int = 1500, overlap: int = 150) -> List[str]:
     # Splits text into chunks using LangChain's RecursiveCharacterTextSplitter.
     if not text:
         return []
@@ -475,8 +482,8 @@ async def process_and_save_content(
 async def _process_pdf(content: bytes) -> str:
     text = extract_text_from_pdf(content)
     if not text.strip() or len(text.strip()) < 50: 
-        logger.info("PDF text extraction yielded little/no text. Attempting OCR...")
-        ocr_text = extract_text_with_ocr(content)
+        logger.info("PDF text extraction yielded little/no text. Attempting Gemini OCR...")
+        ocr_text = await _process_pdf_with_gemini(content)
         if ocr_text.strip():
             text = ocr_text
     return text
@@ -889,7 +896,7 @@ async def query_knowledge(request: QueryRequest):
             
         search_results = index.query(
             vector=query_embedding,
-            top_k=5,
+            top_k=20,
             include_metadata=True,
             filter=filter_dict
         )
@@ -955,7 +962,15 @@ async def query_knowledge(request: QueryRequest):
         print(f"Final Context Length: {len(context)}")
         
         # 4. Generate Answer with Gemini
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        system_instruction = """
+あなたはユーザー専用の知識管理アシスタントです。以下のルールを厳守してください。
+
+1. 提供された「参考資料（Context）」のみに基づいて回答してください。
+2. 参考資料に答えがない場合は、正直に「提供された情報の中には答えが見つかりませんでした」と答えてください。無理に捏造してはいけません。
+3. ユーザーの質問が、参考資料と無関係な場合（例：今日の天気は？）は、一般論として回答しても良いですが、区別がつくようにしてください。
+4. 回答は簡潔かつ論理的に行ってください。
+"""
+        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction)
         prompt = f"""
         You are a helpful AI assistant. Answer the user's question based ONLY on the provided context.
         If the answer is not in the context, say you don't know.
