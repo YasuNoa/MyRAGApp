@@ -1,10 +1,14 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useChat } from "@/app/_context/ChatContext";
 import { PlusCircle } from "lucide-react";
 
 export default function Home() {
+  const { data: session } = useSession();
+  const aiName = (session?.user as any)?.aiName || "じぶんAI";
+  
   const [tags, setTags] = useState<string[]>([]);
   const { 
     messages, setMessages, 
@@ -29,11 +33,12 @@ export default function Home() {
     fetchTags();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleSubmit = async (e?: React.FormEvent, textOverride?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = textOverride || input;
+    if (!textToSend.trim()) return;
 
-    const userMessage = { role: "user", content: input };
+    const userMessage = { role: "user", content: textToSend };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
@@ -67,29 +72,7 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "40px", position: "relative" }}>
-      {/* New Chat Button (Top Right) */}
-      <button
-        onClick={clearChat}
-        style={{
-          position: "absolute",
-          top: "0",
-          right: "0",
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          padding: "8px 12px",
-          backgroundColor: "rgba(255, 255, 255, 0.1)",
-          color: "var(--text-secondary)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "20px",
-          cursor: "pointer",
-          fontSize: "12px",
-          transition: "all 0.2s"
-        }}
-      >
-        <PlusCircle size={14} />
-        新規チャット
-      </button>
+      {/* ... (New Chat Button) */}
 
       <div style={{ textAlign: "center", marginBottom: "40px", paddingTop: "40px" }}>
         <h1 style={{ 
@@ -99,7 +82,7 @@ export default function Home() {
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent"
         }}>
-          じぶんAI
+          {aiName}
         </h1>
         <p style={{ color: "var(--text-secondary)" }}>あなたのためのAIアシスタント</p>
       </div>
@@ -112,18 +95,7 @@ export default function Home() {
         flexDirection: "column",
         gap: "24px"
       }}>
-        {messages.length === 0 && (
-          <div style={{ 
-            textAlign: "center", 
-            marginTop: "80px", 
-            color: "var(--text-secondary)",
-            padding: "40px",
-            border: "1px dashed var(--border-color)",
-            borderRadius: "var(--radius)"
-          }}>
-            <p>何でも聞いてください。</p>
-          </div>
-        )}
+        {/* ... (Empty state) */}
         {messages.map((msg, index) => (
           <div key={index} style={{ 
             display: "flex",
@@ -143,7 +115,7 @@ export default function Home() {
                 color: "var(--text-secondary)",
                 fontWeight: "bold"
               }}>
-                {msg.role === "assistant" ? "🤖 博士" : "あなた"}
+                {msg.role === "assistant" ? `🤖 ${aiName}` : "あなた"}
               </div>
               {msg.content}
             </div>
@@ -155,6 +127,42 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Prompt Chips */}
+      {messages.length === 0 && (
+        <div style={{
+          display: "flex",
+          gap: "10px",
+          justifyContent: "center",
+          marginBottom: "20px",
+          flexWrap: "wrap"
+        }}>
+          {[
+            { label: "テストに出そうな所は？", prompt: "この録音データの中で、先生が『重要』『テストに出す』『ここ覚えておいて』と言及した箇所をリストアップして" },
+            { label: "3行で要約して", prompt: "この授業の要点を3つの箇条書きでまとめて" },
+            { label: "出てきた専門用語の解説して", prompt: "この授業で出てきた聞き慣れない単語をピックアップして解説して" }
+          ].map((chip, i) => (
+            <button
+              key={i}
+              onClick={() => handleSubmit(undefined, chip.prompt)}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "20px",
+                backgroundColor: "rgba(138, 180, 248, 0.1)",
+                color: "#8ab4f8",
+                border: "1px solid rgba(138, 180, 248, 0.3)",
+                cursor: "pointer",
+                fontSize: "13px",
+                transition: "all 0.2s"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(138, 180, 248, 0.2)"}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = "rgba(138, 180, 248, 0.1)"}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 入力フォーム */}
       <div style={{
@@ -170,26 +178,29 @@ export default function Home() {
         margin: "0 10px",
         gap: "8px"
       }}>
-          <select
-            value={selectedTag}
-            onChange={(e) => setSelectedTag(e.target.value)}
-            style={{
-              backgroundColor: "transparent",
-              color: "var(--text-secondary)",
-              border: "none",
-              outline: "none",
-              fontSize: "14px",
-              padding: "0 8px",
-              cursor: "pointer",
-              maxWidth: "100px",
-              textOverflow: "ellipsis"
-            }}
-          >
-            <option value="" style={{ color: "black" }}>すべて</option>
-            {tags.map(tag => (
-              <option key={tag} value={tag} style={{ color: "black" }}>{tag}</option>
-            ))}
-          </select>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <span style={{ fontSize: "10px", color: "var(--text-secondary)", paddingLeft: "4px" }}>カテゴリ</span>
+            <select
+              value={selectedTag}
+              onChange={(e) => setSelectedTag(e.target.value)}
+              style={{
+                backgroundColor: "transparent",
+                color: "var(--text-secondary)",
+                border: "none",
+                outline: "none",
+                fontSize: "14px",
+                padding: "0 8px",
+                cursor: "pointer",
+                maxWidth: "100px",
+                textOverflow: "ellipsis"
+              }}
+            >
+              <option value="" style={{ color: "black" }}>すべて</option>
+              {tags.map(tag => (
+                <option key={tag} value={tag} style={{ color: "black" }}>{tag}</option>
+              ))}
+            </select>
+          </div>
         <div style={{ width: "1px", height: "24px", backgroundColor: "var(--border-color)" }}></div>
         <textarea
           value={input}

@@ -4,12 +4,14 @@ import { useState } from "react";
 import { logout } from "@/app/actions/auth";
 import ProfileForm from "./profile-form";
 import NameForm from "./name-form";
+import AiNameForm from "./ai-name-form";
 import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 export default function ProfileMenu({ user, providers = [] }: { user: any, providers?: string[] }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isAiProfileOpen, setIsAiProfileOpen] = useState(false);
 
   const handleLinkLine = () => {
     signIn("line", { callbackUrl: "/profile" });
@@ -127,6 +129,44 @@ export default function ProfileMenu({ user, providers = [] }: { user: any, provi
                 padding: "20px" 
               }}>
                 <ProfileForm user={user} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* AI Name Settings Item */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <button 
+            onClick={() => setIsAiProfileOpen(!isAiProfileOpen)}
+            style={{ 
+              width: "100%", 
+              padding: "20px 24px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              background: "none",
+              border: "none",
+              color: "var(--text-color)",
+              cursor: "pointer",
+              fontSize: "16px"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "20px" }}>🤖</span>
+              <span>AIの設定（名前変更）</span>
+            </div>
+            {isAiProfileOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+          
+          {/* Collapsible Content */}
+          {isAiProfileOpen && (
+            <div style={{ padding: "0 24px 24px 24px", animation: "fadeIn 0.2s ease-in-out" }}>
+              <div style={{ 
+                backgroundColor: "rgba(0,0,0,0.2)", 
+                borderRadius: "8px", 
+                padding: "20px" 
+              }}>
+                <AiNameForm user={user} />
               </div>
             </div>
           )}

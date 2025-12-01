@@ -25,6 +25,21 @@ export async function updateProfile(formData: FormData) {
         updateData.name = name;
     }
 
+    const aiName = formData.get("aiName") as string;
+    if (aiName) {
+        // Fetch current metadata to merge
+        const currentUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { metadata: true }
+        });
+
+        const currentMetadata = (currentUser?.metadata as Record<string, any>) || {};
+        updateData.metadata = {
+            ...currentMetadata,
+            aiName: aiName
+        };
+    }
+
     if (email) {
         // Check if user already has an email
         const currentUser = await prisma.user.findUnique({

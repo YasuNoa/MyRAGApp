@@ -81,6 +81,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         token.name = dbUser.name;
                         token.email = dbUser.email;
                         token.picture = dbUser.image;
+                        // Extract aiName from metadata
+                        const metadata = dbUser.metadata as Record<string, any> || {};
+                        token.aiName = metadata.aiName || "じぶんAI";
                     }
                 } catch (error) {
                     console.error("Error fetching user in JWT callback:", error);
@@ -103,6 +106,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.email = token.email as string;
                 session.user.image = token.picture as string;
                 session.accessToken = token.accessToken as string;
+                // @ts-ignore
+                session.user.aiName = token.aiName as string;
                 // @ts-ignore
                 session.error = token.error as string;
             }
