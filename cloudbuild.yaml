@@ -11,7 +11,7 @@ steps:
     entrypoint: 'bash'
     args: ['-c', 'docker pull gcr.io/myragapp-479606/myragapp-backend:latest || true && docker build --cache-from gcr.io/myragapp-479606/myragapp-backend:latest -t gcr.io/myragapp-479606/myragapp-backend:latest ./backend']
     id: 'Build Backend'
-    waitFor: ['-']
+    waitFor: ['Build Frontend'] # Wait for Frontend to finish
 
   # --- 3. Push Images ---
   - name: 'gcr.io/cloud-builders/docker'
@@ -24,12 +24,13 @@ steps:
     id: 'Push Backend'
     waitFor: ['Build Backend']
 
+
   # --- 4. DB Migration ---
   - name: 'gcr.io/myragapp-479606/myragapp-frontend:latest'
     entrypoint: 'sh'
     args:
       - '-c'
-      - 'npm_config_cache=/tmp/npm-cache npx prisma@5.22.0 migrate deploy'
+      - 'npm_config_cache=/tmp/npm-cache npx -y prisma@5.22.0 migrate deploy'
     secretEnv: ['DATABASE_URL']
     id: 'DB Migration'
     waitFor: ['Push Frontend']
@@ -47,7 +48,7 @@ steps:
       - '--region'
       - 'asia-northeast1'
     id: 'Deploy Frontend'
-    waitFor: ['Push Frontend']
+    waitFor: ['Push Frontend', 'DB Migration']
 
   # --- 6. Deploy Backend to Cloud Run ---
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'

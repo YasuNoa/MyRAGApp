@@ -1,4 +1,4 @@
-```
+
 # System Prompts for Gemini API
 
 CHAT_SYSTEM_PROMPT = """
