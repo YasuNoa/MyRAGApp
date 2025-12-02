@@ -13,6 +13,8 @@ export default function GoogleDriveImport() {
   
   const [importing, setImporting] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("");
 
   const handleOpenPicker = () => {
     if (!session?.accessToken) {
@@ -40,10 +42,17 @@ export default function GoogleDriveImport() {
 
   const handleImport = async (docs: any[]) => {
     setImporting(true);
+    setProgress(0);
+    setMessage("準備中...");
+    
     let successCount = 0;
     let failCount = 0;
 
-    for (const doc of docs) {
+    for (let i = 0; i < docs.length; i++) {
+      const doc = docs[i];
+      setMessage(`インポート中 (${i + 1}/${docs.length}): ${doc.name}...`);
+      setProgress(Math.round(((i) / docs.length) * 100));
+
       try {
         const res = await fetch("/api/drive/import", {
           method: "POST",
@@ -62,6 +71,7 @@ export default function GoogleDriveImport() {
         console.error(err);
         failCount++;
       }
+      setProgress(Math.round(((i + 1) / docs.length) * 100));
     }
 
     setImporting(false);
@@ -114,20 +124,33 @@ export default function GoogleDriveImport() {
             width: "100%", 
             padding: "12px", 
             display: "flex", 
+            flexDirection: "column",
             alignItems: "center", 
             justifyContent: "center", 
             gap: "10px",
             backgroundColor: importing ? "var(--border-color)" : "var(--primary-color)",
-            color: "white"
+            color: "white",
+            position: "relative",
+            overflow: "hidden"
           }}
         >
           {importing ? (
-            <span>インポート中...</span>
+            <div style={{ width: "100%", zIndex: 2 }}>
+              <div style={{ marginBottom: "4px" }}>{message}</div>
+              <div style={{ width: "100%", height: "4px", backgroundColor: "rgba(255,255,255,0.3)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ 
+                  width: `${progress}%`, 
+                  height: "100%", 
+                  backgroundColor: "white", 
+                  transition: "width 0.3s ease" 
+                }} />
+              </div>
+            </div>
           ) : (
-            <>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Drive" width="20" height="20" />
               <span>Google Driveからファイルを選択</span>
-            </>
+            </div>
           )}
         </button>
       </div>

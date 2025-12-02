@@ -1,15 +1,27 @@
 "use client";
 
 import { updateProfile } from "@/app/actions/profile";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 export default function AiNameForm({ user }: { user: any }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { data: session, update } = useSession();
 
-  // Get initial AI name from metadata
-  const initialAiName = (user.metadata as any)?.aiName || "じぶんAI";
+  // Get initial AI name from session or prop
+  const sessionAiName = (session?.user as any)?.aiName;
+  const initialAiName = sessionAiName || (user.metadata as any)?.aiName || "じぶんAI";
+  
+  const [name, setName] = useState(initialAiName);
+
+  // Sync state when session updates (e.g. after save)
+  useEffect(() => {
+    if (sessionAiName) {
+      setName(sessionAiName);
+    }
+  }, [sessionAiName]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -22,6 +34,8 @@ export default function AiNameForm({ user }: { user: any }) {
       setError(result.error);
     } else {
       setMessage("AIの名前を更新しました");
+      // Force session update to reflect changes immediately
+      await update();
     }
     setLoading(false);
   }
@@ -36,7 +50,8 @@ export default function AiNameForm({ user }: { user: any }) {
           <input 
             type="text" 
             name="aiName" 
-            defaultValue={initialAiName} 
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="じぶんAI"
             className="neo-input"
             style={{ width: "100%", boxSizing: "border-box" }}

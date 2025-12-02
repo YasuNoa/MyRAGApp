@@ -92,6 +92,8 @@ export default function NotePage() {
 
     const streamRef = useRef<MediaStream | null>(null); // Store stream to stop tracks
 
+    const startTimeRef = useRef<number>(0);
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -110,6 +112,7 @@ export default function NotePage() {
             mediaRecorder.start();
             if (recognitionRef.current) recognitionRef.current.start();
 
+            startTimeRef.current = Date.now(); // Record start time
             setIsRecording(true);
             clearNote(); // Reset global state
             finalTranscriptRef.current = ""; // Reset final transcript
@@ -134,21 +137,46 @@ export default function NotePage() {
 
             mediaRecorderRef.current.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                
+                // Check duration (3 seconds = 3000ms)
+                const duration = Date.now() - startTimeRef.current;
+                if (duration < 3000) {
+                    console.log(`Recording too short (${duration}ms), ignoring.`);
+                    setIsRecording(false);
+                    // Optional: Show a toast or message saying "Recording too short"
+                    return;
+                }
+                
                 await processAudio(audioBlob);
             };
         }
     };
 
+    const [processingStatus, setProcessingStatus] = useState("");
+
+    // ... (inside processAudio)
     const processAudio = async (audioBlob: Blob) => {
         setIsProcessing(true);
+        setProcessingStatus("音声データをアップロード中...");
         try {
             const formData = new FormData();
             formData.append("file", audioBlob, "voice_memo.webm");
+
+            // Simulate "Analyzing" state after a short delay (since we can't track upload progress easily with fetch)
+            // In a real app, we'd use XHR or Axios for upload progress.
+            // For now, we switch to "Analyzing" after 2 seconds as a heuristic or just keep it generic.
+            // Better: "AIが音声を解析中..." covers both.
+            // Let's try to be a bit more dynamic.
+            const uploadTimer = setTimeout(() => {
+                setProcessingStatus("AIが音声を文字起こし・要約中...");
+            }, 2000);
 
             const response = await fetch("/api/voice/process", {
                 method: "POST",
                 body: formData,
             });
+            
+            clearTimeout(uploadTimer);
 
             if (!response.ok) throw new Error("Failed to process audio");
 
@@ -168,8 +196,20 @@ export default function NotePage() {
             setError(err.message || "処理中にエラーが発生しました。");
         } finally {
             setIsProcessing(false);
+            setProcessingStatus("");
         }
     };
+
+    // ... (UI Render)
+                    {isProcessing ? (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(19, 19, 20, 0.9)", zIndex: 10, gap: "24px" }}>
+                            <Loader2 size={48} className="animate-spin" style={{ color: "var(--primary-color)" }} />
+                            <div style={{ textAlign: "center" }}>
+                                <p style={{ fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>{processingStatus || "AI解析中..."}</p>
+                                <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>しばらくお待ちください</p>
+                            </div>
+                        </div>
+                    ) : null}
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {

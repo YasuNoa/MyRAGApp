@@ -13,11 +13,13 @@ export default function ManualAdd() {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     setIsLoading(true);
     setMessage("保存中...");
+    setProgress(0);
 
     try {
       if (mode === "text") {
@@ -45,6 +47,7 @@ export default function ManualAdd() {
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           setMessage(`アップロード中 (${i + 1}/${files.length}): ${file.name}...`);
+          setProgress(Math.round(((i) / files.length) * 100));
           
           try {
             const formData = new FormData();
@@ -63,6 +66,8 @@ export default function ManualAdd() {
             console.error(`Failed to upload ${file.name}:`, e);
             failCount++;
           }
+          // Update progress after completion of this file
+          setProgress(Math.round(((i + 1) / files.length) * 100));
         }
 
         if (failCount > 0) {
@@ -86,6 +91,7 @@ export default function ManualAdd() {
       setMessage("エラーが発生しました");
     } finally {
       setIsLoading(false);
+      // setProgress(0); // Keep progress at 100% or reset? Better to keep message visible.
     }
   };
 
@@ -166,17 +172,27 @@ export default function ManualAdd() {
             ref={fileInputRef}
             onChange={(e) => {
               if (e.target.files) {
-                const selectedFiles = Array.from(e.target.files);
-                const invalidFiles = selectedFiles.filter(f => f.name.toLowerCase().endsWith(".wav"));
+                const newFiles = Array.from(e.target.files);
+                const invalidFiles = newFiles.filter(f => f.name.toLowerCase().endsWith(".wav"));
                 
                 if (invalidFiles.length > 0) {
                   alert("WAV形式のファイルはアップロードできません。MP3またはWebM形式を使用してください。");
-                  // Filter out wav files
-                  setFiles(selectedFiles.filter(f => !f.name.toLowerCase().endsWith(".wav")));
-                } else {
-                  setFiles(selectedFiles);
                 }
+                
+                // Filter valid files and append to existing files
+                const validFiles = newFiles.filter(f => !f.name.toLowerCase().endsWith(".wav"));
+                
+                // Avoid duplicates based on name and size? Or just allow. 
+                // Simple check to avoid exact same file object (not deep check)
+                setFiles(prev => {
+                    const combined = [...prev, ...validFiles];
+                    // Remove duplicates by name + size + lastModified to be safe?
+                    // For now, just append. User can remove if duplicate.
+                    return combined;
+                });
               }
+              // Reset input so same file can be selected again if needed
+              if (fileInputRef.current) fileInputRef.current.value = "";
             }}
             style={{ display: "none" }}
             multiple
@@ -193,20 +209,56 @@ export default function ManualAdd() {
             marginBottom: "8px",
             boxShadow: "0 2px 5px rgba(0,0,0,0.2)"
           }}>
-            {files.length > 0 ? `${files.length}個のファイルを選択中` : "ファイルを選択"}
+            ファイルを追加
           </div>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+            クリックしてファイルを選択（複数可）
+          </div>
+
+          {/* File List Area */}
           {files.length > 0 && (
-            <div style={{ fontSize: "12px", color: "var(--text-primary)", marginBottom: "8px", textAlign: "left", display: "inline-block" }}>
-              <ul style={{ margin: 0, paddingLeft: "20px" }}>
+            <div style={{ marginTop: "16px", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px" }}>
+                選択中のファイル ({files.length}個):
+              </div>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
                 {files.map((f, i) => (
-                  <li key={i}>{f.name}</li>
+                  <li key={i} style={{ 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    alignItems: "center",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    fontSize: "13px"
+                  }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "10px" }}>
+                      {f.name} <span style={{ opacity: 0.5, fontSize: "11px" }}>({(f.size / 1024).toFixed(0)}KB)</span>
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent triggering file input
+                        setFiles(prev => prev.filter((_, index) => index !== i));
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#ff6b6b",
+                        cursor: "pointer",
+                        padding: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                      title="削除"
+                    >
+                      ✕
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
-          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
-            PDF, Office, Image, Text, CSV, Audio
-          </div>
         </div>
       )}
 
@@ -228,7 +280,17 @@ export default function ManualAdd() {
           backgroundColor: message.includes("エラー") ? "rgba(255, 107, 107, 0.1)" : "rgba(138, 180, 248, 0.1)",
           color: message.includes("エラー") ? "#ff6b6b" : "#8ab4f8",
         }}>
-          {message}
+          <div style={{ marginBottom: "4px" }}>{message}</div>
+          {isLoading && mode === "file" && files.length > 0 && (
+            <div style={{ width: "100%", height: "4px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden", marginTop: "8px" }}>
+              <div style={{ 
+                width: `${progress}%`, 
+                height: "100%", 
+                backgroundColor: "var(--primary-color)", 
+                transition: "width 0.3s ease" 
+              }} />
+            </div>
+          )}
         </div>
       )}
     </div>

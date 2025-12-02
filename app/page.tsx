@@ -6,8 +6,12 @@ import { useChat } from "@/app/_context/ChatContext";
 import { PlusCircle } from "lucide-react";
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const aiName = (session?.user as any)?.aiName || "じぶんAI";
+
+  useEffect(() => {
+    update(); // Force update session on mount to get latest metadata
+  }, []);
   
   const [tags, setTags] = useState<string[]>([]);
   const { 
@@ -82,7 +86,7 @@ export default function Home() {
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent"
         }}>
-          {aiName}
+          じぶんAI
         </h1>
         <p style={{ color: "var(--text-secondary)" }}>あなたのためのAIアシスタント</p>
       </div>

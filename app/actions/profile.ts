@@ -15,7 +15,9 @@ export async function updateProfile(formData: FormData) {
     const password = formData.get("password") as string;
     const name = formData.get("name") as string;
 
-    if (!email && !password && !name) {
+    const aiName = formData.get("aiName") as string;
+
+    if (!email && !password && !name && !aiName) {
         return { error: "変更内容を入力してください" };
     }
 
@@ -25,7 +27,6 @@ export async function updateProfile(formData: FormData) {
         updateData.name = name;
     }
 
-    const aiName = formData.get("aiName") as string;
     if (aiName) {
         // Fetch current metadata to merge
         const currentUser = await prisma.user.findUnique({

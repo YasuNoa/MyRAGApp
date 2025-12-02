@@ -143,7 +143,7 @@ export default function KnowledgeListPage() {
 
   return (
     <LayoutWrapper>
-      <div className="container" style={{ padding: "24px", maxWidth: "1000px", margin: "0 auto", position: "relative" }}>
+      <div className="container" style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto", position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px", flexWrap: "wrap", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ padding: "12px", borderRadius: "50%", backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center" }}>

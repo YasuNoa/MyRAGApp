@@ -19,6 +19,13 @@ import asyncpg
 import logging
 import sys
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from prompts import (
+    CHAT_SYSTEM_PROMPT,
+    VOICE_MEMO_PROMPT,
+    IMAGE_DESCRIPTION_PROMPT,
+    PDF_TRANSCRIPTION_PROMPT,
+    INTENT_CLASSIFICATION_PROMPT
+)
 
 load_dotenv()
 
@@ -147,7 +154,7 @@ async def _process_pdf_with_gemini(content: bytes) -> str:
         
         logger.info("Generating PDF transcript...")
         model = genai.GenerativeModel('gemini-2.0-flash')
-        prompt = "Transcribe all text in this document verbatim. Ignore layout, just output the text."
+        prompt = PDF_TRANSCRIPTION_PROMPT
         response = model.generate_content([prompt, uploaded_file])
         return response.text
     except Exception as e:
@@ -289,23 +296,21 @@ async def process_voice_memo(
         logger.info("Generating transcript and summary...")
         model = genai.GenerativeModel('gemini-2.0-flash')
         
-        prompt = (
-            "You are a professional secretary.\n"
-            "1. Transcribe the audio file verbatim (word-for-word).\n"
-            "2. Create a concise summary of the content in Japanese (bullet points).\n\n"
-            "Output strictly in JSON format:\n"
-            "{\n"
-            '    "transcript": "Full text here...",\n'
-            '    "summary": "Summary in Japanese here..."\n'
-            "}"
-        )
+        prompt = VOICE_MEMO_PROMPT
         
-        response = model.generate_content(
-            [prompt, uploaded_file],
-            generation_config={"response_mime_type": "application/json"}
-        )
-        
-        result = json.loads(response.text)
+        try:
+            response = model.generate_content(
+                [prompt, uploaded_file],
+                generation_config={"response_mime_type": "application/json"}
+            )
+            logger.info(f"Gemini Raw Response: {response.text}")
+            result = json.loads(response.text)
+        except Exception as e:
+            logger.error(f"Gemini Generation Error: {e}")
+            if hasattr(e, 'response'):
+                 logger.error(f"Gemini Error Response: {e.response}")
+            raise HTTPException(status_code=500, detail=f"Gemini Error: {str(e)}")
+
         transcript = result.get("transcript", "")
         summary = result.get("summary", "")
         
@@ -505,11 +510,7 @@ async def _process_image(content: bytes, mime_type: str, filename: str) -> str:
         
         logger.info("Generating image description...")
         model = genai.GenerativeModel('gemini-2.0-flash')
-        prompt = (
-            "Describe this image in detail in Japanese. "
-            "Include all visible text (OCR), objects, and the general context. "
-            "If it's a document, transcribe the text."
-        )
+        prompt = IMAGE_DESCRIPTION_PROMPT
         response = model.generate_content([prompt, uploaded_file])
         return response.text
     finally:
@@ -824,22 +825,7 @@ async def classify_intent(request: ClassifyRequest):
     Classifies the user's intent using Gemini.
     """
     try:
-        prompt = f"""
-        Analyze the following user message and classify the intent into one of the following categories:
-        - STORE: The user wants to store/remember information.
-        - REVIEW: The user wants to review/recall information.
-        - CHAT: The user wants to chat or ask a question.
-        
-        Also, extract a category tag if possible (e.g., "Work", "Idea", "Health"). If no specific category, use "General".
-        
-        User Message: "{request.text}"
-        
-        Output JSON format:
-        {{
-            "intent": "STORE" | "REVIEW" | "CHAT",
-            "category": "Category Name"
-        }}
-        """
+        prompt = INTENT_CLASSIFICATION_PROMPT.format(text=request.text)
         
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
@@ -962,19 +948,9 @@ async def query_knowledge(request: QueryRequest):
         print(f"Final Context Length: {len(context)}")
         
         # 4. Generate Answer with Gemini
-        system_instruction = """
-あなたはユーザー専用の知識管理アシスタントです。以下のルールを厳守してください。
-
-1. 提供された「参考資料（Context）」のみに基づいて回答してください。
-2. 参考資料に答えがない場合は、正直に「提供された情報の中には答えが見つかりませんでした」と答えてください。無理に捏造してはいけません。
-3. ユーザーの質問が、参考資料と無関係な場合（例：今日の天気は？）は、一般論として回答しても良いですが、区別がつくようにしてください。
-4. 回答は簡潔かつ論理的に行ってください。
-"""
+        system_instruction = CHAT_SYSTEM_PROMPT
         model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction)
         prompt = f"""
-        You are a helpful AI assistant. Answer the user's question based ONLY on the provided context.
-        If the answer is not in the context, say you don't know.
-        
         Context:
         {context}
         
