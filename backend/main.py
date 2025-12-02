@@ -301,7 +301,8 @@ async def process_voice_memo(
         try:
             response = model.generate_content(
                 [prompt, uploaded_file],
-                generation_config={"response_mime_type": "application/json"}
+                generation_config={"response_mime_type": "application/json"},
+                # tools='google_search_retrieval' # Future implementation: Enable Google Search for voice analysis
             )
             logger.info(f"Gemini Raw Response: {response.text}")
             result = json.loads(response.text)
@@ -949,7 +950,8 @@ async def query_knowledge(request: QueryRequest):
         
         # 4. Generate Answer with Gemini
         system_instruction = CHAT_SYSTEM_PROMPT
-        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction)
+        # Enable Google Search (Grounding)
+        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction, tools='google_search_retrieval')
         prompt = f"""
         Context:
         {context}

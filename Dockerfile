@@ -14,6 +14,7 @@ RUN npm install
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+RUN apt-get update -y && apt-get install -y openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

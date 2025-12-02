@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useChat } from "@/app/_context/ChatContext";
 import { PlusCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function Home() {
   const { data: session, update } = useSession();
@@ -121,7 +123,17 @@ export default function Home() {
               }}>
                 {msg.role === "assistant" ? `🤖 ${aiName}` : "あなた"}
               </div>
-              {msg.content}
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({node, ...props}) => <p style={{margin: 0, marginBottom: '0.5em'}} {...props} />,
+                  ul: ({node, ...props}) => <ul style={{margin: 0, paddingLeft: '1.5em', marginBottom: '0.5em'}} {...props} />,
+                  ol: ({node, ...props}) => <ol style={{margin: 0, paddingLeft: '1.5em', marginBottom: '0.5em'}} {...props} />,
+                  li: ({node, ...props}) => <li style={{marginBottom: '0.25em'}} {...props} />,
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
             </div>
           </div>
         ))}

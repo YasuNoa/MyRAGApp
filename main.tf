@@ -133,6 +133,14 @@ resource "google_cloud_run_service" "frontend" {
           value = var.auth_google_id
         }
         env {
+          name  = "PYTHON_BACKEND_URL"
+          value = google_cloud_run_service.backend.status[0].url
+        }
+        env {
+          name  = "GOOGLE_API_KEY"
+          value = var.google_api_key
+        }
+        env {
           name  = "TZ"
           value = "Asia/Tokyo"
         }

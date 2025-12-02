@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
                     // ユーザーが特定できた場合のみ処理を続行
                     if (!account) {
                         console.log(`[LINE] Unknown user: ${lineUserId}`);
-                        await replyMessage(replyToken, "ユーザー情報が見つかりません。ログインしてください。");
+                        await replyMessage(replyToken, "ユーザー情報が見つかりません。こちらからLINEログインしてください。https://jibun-ai.com/login");
                         continue; // 次のイベントへ
                     }
 

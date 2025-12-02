@@ -30,7 +30,7 @@ steps:
     entrypoint: 'sh'
     args:
       - '-c'
-      - 'npm_config_cache=/tmp/npm-cache npx -y prisma@5.22.0 migrate deploy'
+      - 'HOME=/tmp npm_config_cache=/tmp/npm-cache DATABASE_URL=$(echo $$DATABASE_URL | sed "s/:6543/:5432/") npx -y prisma@5.22.0 migrate deploy'
     secretEnv: ['DATABASE_URL']
     id: 'DB Migration'
     waitFor: ['Push Frontend']
