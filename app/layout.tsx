@@ -1,10 +1,23 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 // アプリケーション全体のメタデータ（タイトルや説明）を定義します。
 // これにより、SEO対策やブラウザのタブに表示されるタイトルが設定されます。
 export const metadata: Metadata = {
   title: "じぶんAI",
   description: "LINE Bot & Web Chat Application",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "じぶんAI",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 import "./globals.css"; // グローバルスタイルをインポート

@@ -24,7 +24,9 @@ export default function UsagePage() {
                 授業や会議の音声をアップロードして、自動で文字起こし・要約ができます。サイドバーの<strong>「授業ノート」</strong>メニューから行えます。
               </p>
               <ul style={{ listStyle: "disc", paddingLeft: "20px", color: "var(--text-secondary)", lineHeight: "1.8" }}>
-                <li><strong>音声アップロード</strong>: mp3, wav, m4aなどの音声ファイルをアップロードすると、AIが全文を書き起こします。</li>
+                <li><strong>リアルタイム録音</strong>: 「START」ボタンを押すだけで、その場で録音・文字起こしが始まります。</li>
+                <li><strong>関連資料の添付</strong>: 授業で配られたPDFやテキストファイルを添付すると、音声データと一緒に保存・管理できます。</li>
+                <li><strong>AI要約</strong>: 録音終了後、AIが自動的に要点をまとめた「AI Summary」を生成します。</li>
                 <li><strong>カテゴリ管理</strong>: 「数学」「英語」などのカテゴリを付けて整理できます。</li>
               </ul>
             </div>
@@ -94,6 +96,11 @@ export default function UsagePage() {
               </p>
               <p style={{ color: "var(--text-secondary)", lineHeight: "1.6" }}>
                 <strong>新機能:</strong> 従来の「要約検索」に加え、ドキュメントの<strong>「全文」</strong>を読み込んで回答するようになりました。これにより、授業の細かいニュアンスや、長い文脈を理解した正確な回答が可能になっています。
+              </p>
+              <p style={{ color: "var(--text-secondary)", lineHeight: "1.6", marginTop: "10px" }}>
+                <strong>Google検索連携:</strong> 登録した知識だけでは答えられない質問（最新のニュースや一般的な事実など）には、AIが自動的に<strong>Google検索</strong>を行って回答します。
+                <br />
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>※ 検索機能はプランによって回数制限がある場合があります。</span>
               </p>
             </div>
           </div>

@@ -171,19 +171,7 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* フッター (規約・ポリシー) */}
-        <div style={{
-          padding: "20px",
-          borderTop: "1px solid var(--border-color)",
-          fontSize: "12px",
-          color: "var(--text-secondary)",
-          marginTop: "auto" // 下部に固定
-        }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <Link href="/terms" style={{ textDecoration: "none", color: "inherit" }}>利用規約</Link>
-            <Link href="/privacy" style={{ textDecoration: "none", color: "inherit" }}>プライバシーポリシー</Link>
-          </div>
-        </div>
+
       </aside>
     </>
   );
