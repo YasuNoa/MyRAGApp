@@ -43,16 +43,17 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         right: "20px",
         zIndex: 9999,
         display: "flex",
-        gap: "16px",
-        fontSize: "12px",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: "4px",
+        fontSize: "10px",
         color: "var(--text-secondary)",
-        backgroundColor: "rgba(255, 255, 255, 0.8)", // 読みやすさのため背景追加
-        padding: "4px 8px",
-        borderRadius: "4px",
-        backdropFilter: "blur(4px)"
+        opacity: 0.5,
+        pointerEvents: "none", // クリックは可能にするため、子要素でautoに戻す必要があるが、全体を薄くする意図ならこれでOK。ただしリンククリックさせたいならこれは不要か。
+        // 背景削除
       }}>
-        <a href="/terms" style={{ color: "inherit", textDecoration: "none" }}>利用規約</a>
-        <a href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>プライバシーポリシー</a>
+        <a href="/terms" style={{ color: "inherit", textDecoration: "none", pointerEvents: "auto" }}>利用規約</a>
+        <a href="/privacy" style={{ color: "inherit", textDecoration: "none", pointerEvents: "auto" }}>プライバシーポリシー</a>
       </div>
     </div>
   );

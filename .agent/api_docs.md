@@ -1,175 +1,63 @@
-# API ドキュメント (Internal API)
+# API仕様書 (API Documentation)
 
-本ドキュメントは、Frontend (Next.js) と Backend (Python FastAPI) 間の通信インターフェースを定義します。
+## Python Backend (FastAPI)
+Base URL: `http://backend:8000` (内部) / `https://...` (本番)
 
-## Base URL
-*   **Local**: `http://localhost:8000`
-*   **Docker/Cloud Run**: `http://backend:8000` (環境変数 `PYTHON_BACKEND_URL` で指定)
+### ファイル操作
 
-## Endpoints
+#### `POST /import-file`
+ファイルインポートの統合エンドポイント。
+*   **Input**: `Multipart/Form-Data`
+    *   `file`: バイナリファイル
+    *   `metadata`: JSON文字列 (`{"userId": "...", "mimeType": "...", "tags": [...]}`)
+*   **対応形式**: PDF, 画像, PPTX, DOCX, XLSX, CSV, 音声 (MP3/M4A/WAV), テキスト。
+*   **処理**: OCR/文字起こし -> チャンク分割 -> 埋め込み -> Pinecone & Postgres保存。
 
-### 1. File Import
-ファイルをインポートし、テキスト抽出・ベクトル化・保存を行います。
+#### `POST /import-text`
+テキストデータの直接インポート。
+*   **Input**: JSON `{ "text": "...", "userId": "...", "tags": [...] }`
 
-*   **URL**: `/import-file`
-*   **Method**: `POST`
-*   **Content-Type**: `multipart/form-data`
-*   **Parameters**:
-    *   `file`: UploadFile (Required) - アップロードするファイル。
-    *   `metadata`: JSON String (Required)
-        ```json
-        {
-            "userId": "user_123",
-            "fileId": "uuid_v4",
-            "fileName": "example.pdf",
-            "mimeType": "application/pdf",
-            "tags": ["tag1", "tag2"],
-            "dbId": "document_id_from_postgres"
-        }
-        ```
-*   **Response**:
-    ```json
-    {
-        "status": "success",
-        "message": "Successfully processed example.pdf",
-        "chunks_count": 15,
-        "fileId": "uuid_v4"
-    }
-    ```
+#### `POST /delete-file`
+指定ファイルの全ベクトルを削除。
+*   **Input**: JSON `{ "fileId": "...", "userId": "..." }`
 
-### 2. Voice Memo Processing
-音声ファイルを文字起こし・要約し、保存します。
+#### `POST /update-tags`
+指定ファイルのタグを更新。
+*   **Input**: JSON `{ "fileId": "...", "userId": "...", "tags": [...] }`
 
-*   **URL**: `/process-voice-memo`
-*   **Method**: `POST`
-*   **Content-Type**: `multipart/form-data`
-*   **Parameters**:
-    *   `file`: UploadFile (Required) - 音声ファイル (mp3, wav, m4a, etc.)
-    *   `metadata`: JSON String (Required)
-        ```json
-        {
-            "userId": "user_123",
-            "fileId": "uuid_v4",
-            "tags": ["VoiceMemo"],
-            "dbId": "document_id_from_postgres"
-        }
-        ```
-    *   `save`: Boolean (Optional, default=True) - 保存するかどうか。
-*   **Response**:
-    ```json
-    {
-        "status": "success",
-        "transcript": "...",
-        "summary": "...",
-        "chunks_count": 5
-    }
-    ```
+### AI操作
 
-### 3. Text Import
-テキストを直接インポートします。
+#### `POST /query`
+RAG検索 & チャット応答生成。
+*   **Input**: JSON `{ "query": "...", "userId": "...", "tags": [...] }`
+*   **Output**: JSON `{ "answer": "..." }`
+*   **ロジック**: クエリ埋め込み -> Pinecone検索 -> 全文取得 (Postgres) -> Gemini回答生成 (Google検索付き)。
 
-*   **URL**: `/import-text`
-*   **Method**: `POST`
-*   **Content-Type**: `application/json`
-*   **Body**:
-    ```json
-    {
-        "text": "保存したいテキスト内容...",
-        "userId": "user_123",
-        "tags": ["memo"],
-        "summary": "要約（任意）",
-        "dbId": "document_id_from_postgres"
-    }
-    ```
-*   **Response**:
-    ```json
-    {
-        "status": "success",
-        "fileId": "generated_uuid",
-        "chunks_count": 1
-    }
-    ```
+#### `POST /classify`
+ユーザー意図の分類。
+*   **Input**: JSON `{ "text": "..." }`
+*   **Output**: JSON `{ "intent": "CHAT" | "STORE" | "REVIEW", "category": "..." }`
 
-### 4. RAG Query
-質問に対してRAG検索を行い、回答を生成します。内部知識で不足する場合はGoogle検索(Grounding)を行います。
+## Next.js API Routes
+Base URL: `/api`
 
-*   **URL**: `/query`
-*   **Method**: `POST`
-*   **Content-Type**: `application/json`
-*   **Body**:
-    ```json
-    {
-        "query": "ユーザーの質問",
-        "userId": "user_123",
-        "tags": ["tag1"] // フィルタリング用（任意）
-    }
-    ```
-*   **Response**:
-    ```json
-    {
-        "answer": "AIによる回答..."
-    }
-    ```
+### `POST /api/upload`
+Backend `/import-file` へのラッパー。
+1.  Postgresに `Document` レコードを作成。
+2.  Backend `/import-file` を `dbId` 付きで呼び出し。
+3.  成功/失敗を返す。
 
-### 5. Intent Classification
-テキストの意図を分類します。
+### `POST /api/voice/process`
+ボイスメモ処理用ラッパー (レガシー/特定用途)。
+*   Backend `/process-voice-memo` (または `/import-file`) を呼び出す。
 
-*   **URL**: `/classify`
-*   **Method**: `POST`
-*   **Content-Type**: `application/json`
-*   **Body**:
-    ```json
-    {
-        "text": "ユーザーの入力テキスト"
-    }
-    ```
-*   **Response**:
-    ```json
-    {
-        "intent": "STORE" | "SEARCH" | "REVIEW",
-        "tags": ["tag1", "tag2"]
-    }
-    ```
-
-### 6. Delete File
-ファイルのベクトルデータを削除します。
-
-*   **URL**: `/delete-file`
-*   **Method**: `POST`
-*   **Content-Type**: `application/json`
-*   **Body**:
-    ```json
-    {
-        "fileId": "uuid_v4",
-        "userId": "user_123"
-    }
-    ```
-*   **Response**:
-    ```json
-    {
-        "status": "success",
-        "message": "Deleted vectors for file ..."
-    }
-    ```
-
-### 7. Update Tags
-ファイルのタグを更新します。
-
-*   **URL**: `/update-tags`
-*   **Method**: `POST`
-*   **Content-Type**: `application/json`
-*   **Body**:
-    ```json
-    {
-        "fileId": "uuid_v4",
-        "userId": "user_123",
-        "tags": ["new_tag1", "new_tag2"]
-    }
-    ```
-*   **Response**:
-    ```json
-    {
-        "status": "success",
-        "message": "Updated tags for N vectors"
-    }
-    ```
+### `POST /api/webhook/line`
+LINE Messaging API Webhook。
+*   **ロジック**:
+    1.  署名検証。
+    2.  `Account` テーブルからユーザー特定。
+    3.  意図分類 (`/classify` またはローカルGemini)。
+    4.  **STORE**: メッセージをDocumentとして保存。
+    5.  **REVIEW**: 今日のメッセージを取得して要約。
+    6.  **CHAT**: `/query` を呼び出して回答。
+    7.  LINE API経由で返信。

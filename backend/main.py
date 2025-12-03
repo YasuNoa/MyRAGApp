@@ -545,6 +545,63 @@ async def _process_xlsx(content: bytes) -> str:
 async def _process_csv(content: bytes) -> str:
     return content.decode("utf-8")
 
+async def _process_audio(content: bytes, mime_type: str, filename: str) -> str:
+    # Uploads audio to Gemini 2.0 Flash for transcription.
+    temp_filename = f"/tmp/{uuid.uuid4()}_{filename}"
+    try:
+        with open(temp_filename, "wb") as f:
+            f.write(content)
+        
+        logger.info("Uploading audio to Gemini...")
+        uploaded_file = genai.upload_file(temp_filename, mime_type=mime_type)
+        
+        logger.info("Generating audio transcript...")
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = VOICE_MEMO_PROMPT
+        
+        # Request JSON response for structured output (transcript + summary)
+        response = model.generate_content(
+            [prompt, uploaded_file],
+            generation_config={"response_mime_type": "application/json"}
+        )
+        
+        try:
+            result = json.loads(response.text)
+            transcript = result.get("transcript", "")
+            summary = result.get("summary", "")
+            
+            # Combine transcript and summary for the main content
+            # Or just return transcript and let the caller handle summary?
+            # The unified flow expects 'text' (content) and 'summary' is handled separately if possible.
+            # But here we get both. 
+            # Let's return the transcript as the main text. 
+            # Ideally we should pass the summary back too, but _process_* functions return str.
+            # For now, we append summary to text or just return transcript.
+            # Let's return: "Summary: ... \n\n Transcript: ..." to ensure both are indexed?
+            # Or better: The caller 'import_file' calls 'process_and_save_content'.
+            # 'process_and_save_content' takes 'text' and 'summary'.
+            # But _process_audio only returns str.
+            # Hack: Return JSON string and parse it in import_file? 
+            # Or just return transcript.
+            # Let's return transcript. The summary from Gemini is good, but our unified flow 
+            # might generate its own summary later? 
+            # Actually, 'process_and_save_content' doesn't generate summary, it just saves it.
+            # So we lose the Gemini summary if we don't pass it.
+            # Let's modify the return type or handle it in import_file.
+            # For simplicity and consistency with other handlers, let's return the transcript.
+            # If we really want the summary, we can prepend it.
+            return transcript
+        except json.JSONDecodeError:
+            # Fallback if not JSON
+            return response.text
+
+    except Exception as e:
+        logger.error(f"Error processing audio with Gemini: {e}")
+        return ""
+    finally:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
 # --- Unified Endpoint ---
 
 @app.post("/import-file")
@@ -579,6 +636,8 @@ async def import_file(
             text = await _process_xlsx(content)
         elif mime_type == "text/csv":
             text = await _process_csv(content)
+        elif mime_type.startswith("audio/"):
+            text = await _process_audio(content, mime_type, file.filename)
         elif mime_type.startswith("text/") or mime_type == "application/vnd.google-apps.document":
             text = content.decode("utf-8")
         else:

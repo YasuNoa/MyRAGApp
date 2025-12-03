@@ -61,3 +61,18 @@
 
 ### 7.1  全体像把握
 * 都度、全体像を把握するために、.agentの中身全部、report2025の中身全部、.cursorrulesの中身を確認して欲しい。
+
+## 8. 技術的ベストプラクティス (Lessons Learned)
+
+### 8.1. データベースマイグレーション
+* **開発環境:** 原則として `npx prisma migrate dev` を使用すること。`db push` はプロトタイプ作成時以外は避ける。これにより、本番環境 (`migrate deploy`) との整合性を保つ。
+
+### 8.2. Docker環境 (Local vs Production)
+* **Dockerfile:** 本番用 (`runner` ステージ) は `NODE_ENV=production` となっているため、開発時には不適切。
+* **docker-compose.yml (開発用):**
+    * `target: deps` を指定して、プレーンな環境を使用すること。
+    * `NODE_ENV=development` を明示的に設定すること。
+    * プラットフォーム間（Mac vs Linux）の不整合を防ぐため、起動コマンドで `rm -f package-lock.json` を実行し、依存関係をクリーンに保つこと。
+
+### 8.3. Next.js & PWA
+* **ビルドツール:** Next.js 16 + `next-pwa` の組み合わせでは、Turbopackがまだ不安定なため、`--webpack` フラグを使用すること。

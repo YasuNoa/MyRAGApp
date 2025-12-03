@@ -15,7 +15,13 @@ type Document = {
 export default function Sidebar() {
   const pathname = usePathname();
   const { refreshTrigger, triggerRefresh } = useKnowledge();
-  const { isOpen, toggleSidebar } = useSidebar();
+  const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
+
+  const handleMobileClick = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      closeSidebar();
+    }
+  };
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -147,6 +153,7 @@ export default function Sidebar() {
         <nav style={{ padding: "20px 10px" }}>
           {navItems.map((item) => (
             <Link
+              onClick={handleMobileClick}
               key={item.href}
               href={item.href}
               className={`neo-nav-link ${pathname === item.href ? "active" : ""}`}
