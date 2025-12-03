@@ -29,6 +29,7 @@ model User {
   messages      Message[]                      // 1人のユーザーはたくさんの「メッセージ」を送る
   documents     Document[]                     // 1人のユーザーはたくさんの「ドキュメント」を登録する
   feedbacks     Feedback[]                     // 1人のユーザーはたくさんの「フィードバック」を送る
+  subscription  UserSubscription?              // サブスクリプション情報
   
   createdAt     DateTime  @default(now())      // 作成日時
   updatedAt     DateTime  @updatedAt           // 更新日時
@@ -111,4 +112,52 @@ model Feedback {
   createdAt DateTime @default(now())      // 送信日時
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- マネタイズ関連 (サブスク & チケット) ---
+
+enum Plan {
+  FREE        // 梅
+  STANDARD    // 竹
+  PREMIUM     // 松
+}
+
+model UserSubscription {
+  id            String    @id @default(cuid()) // ID
+  userId        String    @unique              // ユーザーID
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // --- 基本プラン設定 ---
+  plan          Plan      @default(FREE)       // 現在のプラン (FREE, STANDARD, PREMIUM)
+  
+  // Stripe連携 (将来用)
+  stripeCustomerId       String?   @unique     // Stripeの顧客ID (cus_...)
+  stripeSubscriptionId   String?   @unique     // StripeのサブスクリプションID (sub_...)
+  currentPeriodEnd       DateTime?             // サブスク有効期限 (この日時まで有効)
+
+  // --- 制限管理 (Quota Management) ---
+
+  // 1. チャット制限 (汎用カウンタ)
+  // Free: 上限10回 / "lastChatResetAt" から2時間経てば 0 にリセット
+  // Standard: 上限100回 / 日付が変われば 0 にリセット
+  // Premium: 上限200回 / 日付が変われば 0 にリセット
+  dailyChatCount    Int       @default(0)       // 現在の送信数 (加算式)
+  lastChatResetAt   DateTime  @default(now())   // 最後にリセットした日時 (旧: lastChatDate)
+
+  // 2. 音声回数制限 (Free専用)
+  // "Note録音 + Upload = 1日5回まで"
+  // Standard/Premium は無視(無制限)
+  dailyVoiceCount   Int       @default(0)       // 本日の音声処理回数
+  lastVoiceDate     DateTime  @default(now())   // 日付リセット判定用
+
+  // 3. 音声時間制限 (Standard/Premium専用)
+  // "Note録音 + Upload = 月間 1800分 or 6000分"
+  monthlyVoiceMinutes Int     @default(0)       // 今月の音声処理時間 (分)
+  lastVoiceResetDate  DateTime  @default(now()) // 月次リセット判定用
+
+  // 4. 追加購入枠 (チケット残高)
+  // 300円課金で +270分 されるチャージ残高 (売価は90分100円)
+  purchasedVoiceBalance Int   @default(0)       // 追加購入した音声処理時間 (分)
+
+  updatedAt     DateTime  @updatedAt            // 更新日時
 }

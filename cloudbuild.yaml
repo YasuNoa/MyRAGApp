@@ -62,6 +62,7 @@ steps:
       - 'gcr.io/myragapp-479606/myragapp-backend:latest'
       - '--region'
       - 'asia-northeast1'
+      - '--set-env-vars=TZ=Asia/Tokyo'
     id: 'Deploy Backend'
     waitFor: ['Push Backend']
 

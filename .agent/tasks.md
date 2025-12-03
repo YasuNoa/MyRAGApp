@@ -10,6 +10,7 @@
     - [ ] Cloud Run へのデプロイ (`gcloud builds submit`)。
     - [ ] 本番環境での音声アップロード検証。
     - [ ] 本番環境でのプライバシーポリシーリンク検証 (Google OAuth用)。
+    - [ ] **審査完了後**: フッターリンクのフォントサイズを `12px` に戻す (`LayoutWrapper.tsx`)。
 
 ## 📋 バックログ
 

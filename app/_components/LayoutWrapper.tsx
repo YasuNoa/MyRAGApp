@@ -37,24 +37,39 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       </main>
 
       {/* 固定フッターリンク (利用規約・PP) */}
-      <div style={{
-        position: "fixed",
-        bottom: "10px",
-        right: "20px",
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: "4px",
-        fontSize: "10px",
-        color: "var(--text-secondary)",
-        opacity: 0.5,
-        pointerEvents: "none", // クリックは可能にするため、子要素でautoに戻す必要があるが、全体を薄くする意図ならこれでOK。ただしリンククリックさせたいならこれは不要か。
-        // 背景削除
-      }}>
-        <a href="/terms" style={{ color: "inherit", textDecoration: "none", pointerEvents: "auto" }}>利用規約</a>
-        <a href="/privacy" style={{ color: "inherit", textDecoration: "none", pointerEvents: "auto" }}>プライバシーポリシー</a>
-      </div>
+      {/* 固定フッターリンク (利用規約・PP) */}
+      {/* ホームページ(ログイン画面)のみ表示 */}
+      {(pathname === "/login" || pathname === "/") && (
+        <div style={{
+          position: "fixed",
+          bottom: "10px",
+          right: "20px",
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: "4px",
+          fontSize: "20px", // 審査用に大きく (20px)
+          color: "white",
+          opacity: 0.9,
+          pointerEvents: "none",
+        }}>
+          <a 
+            href="/terms" 
+            className="hover:underline cursor-pointer no-underline"
+            style={{ color: "inherit", pointerEvents: "auto" }}
+          >
+            利用規約
+          </a>
+          <a 
+            href="/privacy" 
+            className="hover:underline cursor-pointer no-underline"
+            style={{ color: "inherit", pointerEvents: "auto" }}
+          >
+            プライバシーポリシー
+          </a>
+        </div>
+      )}
     </div>
   );
 }

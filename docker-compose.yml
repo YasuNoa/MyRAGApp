@@ -46,6 +46,7 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: myragapp
+      TZ: Asia/Tokyo
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
