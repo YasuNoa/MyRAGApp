@@ -91,7 +91,7 @@
     ```
 
 ### 4. RAG Query
-質問に対してRAG検索を行い、回答を生成します。
+質問に対してRAG検索を行い、回答を生成します。内部知識で不足する場合はGoogle検索(Grounding)を行います。
 
 *   **URL**: `/query`
 *   **Method**: `POST`

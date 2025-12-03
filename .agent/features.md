@@ -40,6 +40,7 @@
     3.  **Filtering**: ユーザーIDとタグによる絞り込み。
     4.  **Content Retrieval**: ヒットしたドキュメントの**全文**をPostgreSQLから取得。
     5.  **Answer Generation**: Gemini 2.0 Flash に「質問 + 検索結果(全文)」を与えて回答生成。
+    6.  **Grounding**: 内部知識で不足する場合、Google検索を実行して最新情報を補完。
 
 ### 2.2. Intent Classification (意図分類)
 *   **機能**: ユーザーの入力が「検索(SEARCH)」「保存(STORE)」「振り返り(REVIEW)」のどれかを自動判別。

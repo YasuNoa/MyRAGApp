@@ -32,6 +32,7 @@
     *   自然言語で質問すると、蓄積された知識ベースから関連情報を検索し、回答を生成。
     *   **ハイブリッド検索**: ベクトル検索 (Pinecone) と、メタデータフィルタリング（タグ、ユーザーID）。
     *   **Long Context RAG**: 検索ヒットしたドキュメントの全文をPostgreSQLから取得し、Geminiの長いコンテキストウィンドウを活用して回答精度を向上。
+    *   **Google検索 (Grounding)**: 内部知識で不足する場合、Google検索を実行して最新情報を補完。
 *   **タグフィルタリング**:
     *   チャット時に特定のタグで検索範囲を絞り込み。
 *   **LINEチャット**:
@@ -61,3 +62,103 @@
 *   **LLM**: Google Gemini 2.0 Flash / Pro (Embedding: text-embedding-004)
 *   **Auth**: NextAuth.js v5 (Google, LINE)
 *   **Infrastructure**: Google Cloud Run, Cloud Build, Secret Manager
+
+---
+
+## 6. 将来拡張計画書: マルチペルソナ・アーキテクチャとLTV最大化戦略
+
+本セクションは、「じぶんAI (MyRAGApp)」が単なる学生向けツールに留まらず、ユーザーのライフステージ（学生→社会人）に合わせて進化し、高いLTV（顧客生涯価値）を実現するための技術的およびビジネス的な拡張仕様を定義する。
+
+### 6.1. データベース拡張設計 (Schema Evolution)
+将来的にユーザー属性や好みの対話スタイルを保存するため、User テーブルを以下のように拡張する準備を行う。
+
+```prisma
+// schema.prisma (Future Roadmap)
+
+model User {
+  id            String    @id @default(cuid())
+  // ...既存のカラム
+
+  // --- 拡張: ペルソナ設定 ---
+  // 職業/ステータス (アプリの振る舞いのベースとなる)
+  occupation    OccupationStatus @default(STUDENT) 
+  
+  // AIの対話モード (システムプロンプトの骨子)
+  aiMode        AiMode           @default(TUTOR) 
+  
+  // AIの性格/トーン (回答の温度感)
+  aiTone        AiTone           @default(EMPATHETIC)
+
+  // 属性変更のトリガーとなる日付 (例: 卒業予定年月)
+  graduationDate DateTime?
+}
+
+enum OccupationStatus {
+  STUDENT       // 学生
+  BUSINESS      // 社会人
+  OTHER         // その他
+}
+
+enum AiMode {
+  TUTOR         // 家庭教師 (解説・教育重視)
+  SECRETARY     // 秘書 (結論・効率重視)
+  BUTLER        // 執事 (丁寧・サポート重視)
+}
+
+enum AiTone {
+  PASSIONATE    // 熱血 (モチベーション向上)
+  ANALYTICAL    // 冷静 (事実重視)
+  EMPATHETIC    // 優しい (共感重視)
+}
+```
+
+### 6.2. UXフロー: パーソナライズ・オンボーディング
+初回登録時、または設定変更時に以下のUIを提供し、ユーザー体験を最適化する。
+
+**Step 1: ステータス確認**
+UI: 「あなたの現在のステータスを教えてください」
+*   🎓 学生 (Default: Tutor Mode)
+*   💼 社会人 (Default: Secretary Mode)
+*   🏠 その他
+
+**Step 2: パートナー性格診断**
+UI: 「AIにどんな話し方をしてほしいですか？」
+*   🔥 熱血 (背中を押してほしい)
+*   🧊 冷静 (淡々と事実を知りたい)
+*   🥰 優しい (褒めて伸ばしてほしい)
+
+### 6.3. バックエンド実装: 動的プロンプト注入 (Prompt Injection)
+`main.py` における `get_chat_model()` 関数を拡張し、ユーザー設定に基づいてシステムプロンプトを動的に生成・切り替えられるロジック（Factory Pattern）を採用する。
+
+**実装イメージ (Python):**
+```python
+def get_system_prompt(user_mode: str, user_tone: str) -> str:
+    # 1. ベースプロンプトの選択 (役割)
+    if user_mode == "SECRETARY":
+        base_prompt = PROMPT_TEMPLATE_SECRETARY # "結論ファースト、効率重視..."
+    else:
+        base_prompt = PROMPT_TEMPLATE_TUTOR     # "分かりやすさ重視、教育的..."
+
+    # 2. トーンの注入 (性格)
+    if user_tone == "ANALYTICAL":
+        tone_instruction = "感情的な表現を排し、数値と事実に基づいて客観的に..."
+    elif user_tone == "PASSIONATE":
+        tone_instruction = "ユーザーを鼓舞するような熱い言葉選びを..."
+    else:
+        tone_instruction = "ユーザーの苦労に寄り添い、共感的な言葉選びを..."
+
+    # 3. 統合
+    return f"{base_prompt}\n\n【トーン設定】\n{tone_instruction}"
+```
+
+### 6.4. ビジネス戦略: ライフサイクル・マネジメント (Churn Prevention)
+本機能の最大の目的は、ユーザーの環境変化（卒業・就職・転職）による解約（Churn）を防ぐことにある。
+
+**シナリオ: "Graduation to Business"**
+*   **トリガー**: ユーザーが大学を卒業するタイミング（3月など）。
+*   **アクション**: アプリから通知を表示。
+    > 「🎓 卒業おめでとうございます！ 4月からは『学生モード』を終了し、あなたの仕事をサポートする**『ビジネス秘書モード』**に切り替えますか？ 会議の議事録作成や、業界分析のお手伝いができます。」
+*   **効果**:
+    *   「授業対策アプリ」から「業務効率化アプリ」へと価値をスライドさせる。
+    *   蓄積されたデータ（過去の学習履歴など）を保持したまま、新しいユースケースを提供する。
+    *   これにより、LTV（顧客生涯価値）を最大化する。

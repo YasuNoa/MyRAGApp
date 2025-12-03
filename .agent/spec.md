@@ -34,7 +34,7 @@
             1.  クエリのEmbedding生成 (`text-embedding-004`)。
             2.  Pinecone検索 (タグフィルタリング対応)。
             3.  PostgreSQLからドキュメント全文を取得 (Long Context)。
-            4.  Gemini 2.0 Flash で回答生成。
+            4.  Gemini 2.0 Flash で回答生成 (Google Search Grounding 対応)。
 
 ### 1.3. ファイルインポート & OCR
 PDF、画像、Officeファイルを解析し、テキストを抽出します。
