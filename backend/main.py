@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from sentence_transformers import CrossEncoder # 軽量化のため削除 (REMOVED for lightweight)
 # import pytesseract # 軽量化のため削除 (REMOVED for lightweight)
 # from pdf2image import convert_from_bytes # 軽量化のため削除 (REMOVED for lightweight)
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import asyncpg
 import logging
 import sys
@@ -26,8 +26,13 @@ from prompts import (
     VOICE_MEMO_PROMPT,
     IMAGE_DESCRIPTION_PROMPT,
     PDF_TRANSCRIPTION_PROMPT,
+    PDF_TRANSCRIPTION_PROMPT,
     INTENT_CLASSIFICATION_PROMPT
 )
+from search_service import SearchService
+
+# Initialize Search Service
+search_service = SearchService()
 
 def clean_json_response(text: str) -> str:
     """Markdownのコードブロックを除去してJSON文字列を抽出する"""
@@ -786,9 +791,10 @@ async def check_and_increment_chat_limit(user_id: str, plan: str):
             )
         else:
              # Create if missing
+             new_sub_id = str(uuid.uuid4())
              await conn.execute(
-                'INSERT INTO "UserSubscription" ("userId", "plan", "dailyChatCount", "lastChatResetAt") VALUES ($1, $2, $3, $4)',
-                user_id, plan, 1, now
+                'INSERT INTO "UserSubscription" ("id", "userId", "plan", "dailyChatCount", "lastChatResetAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6)',
+                new_sub_id, user_id, plan, 1, now, now
             )
 
 async def _process_audio(content: bytes, mime_type: str, filename: str, user_plan: str = "FREE", user_id: str = "") -> str:
@@ -1162,7 +1168,10 @@ async def classify_intent(request: ClassifyRequest):
 class QueryRequest(BaseModel):
     query: str
     userId: str
+    query: str
+    userId: str
     tags: List[str] = [] # categoryからtagsリストに変更
+    userPlan: str = "FREE" # Default to FREE
 
 @app.post("/query")
 async def query_knowledge(request: QueryRequest):
@@ -1177,12 +1186,12 @@ async def query_knowledge(request: QueryRequest):
         print(f"Received query: {request.query} from user: {request.userId}, tags: {request.tags}")
         
         # 1. Check Chat Limit
-        user_plan = await get_user_plan(request.userId)
-        await check_and_increment_chat_limit(request.userId, user_plan)
+        # user_plan = await get_user_plan(request.userId) # REMOVED: Use request.userPlan
+        await check_and_increment_chat_limit(request.userId, request.userPlan)
 
         # 0. Check Storage Limit
-        user_plan = await get_user_plan(request.userId)
-        await check_storage_limit(request.userId, user_plan)
+        # user_plan = await get_user_plan(request.userId) # REMOVED: Use request.userPlan
+        await check_storage_limit(request.userId, request.userPlan)
 
         # 1. Generate Embedding for Query
         query_embedding = get_embedding(request.query)
@@ -1247,13 +1256,22 @@ async def query_knowledge(request: QueryRequest):
             context = "\n\n---\n\n".join(context_parts)
         print(f"Final Context Length: {len(context)}")
         
-        # 4. Geminiで回答生成
+        # 4. Perform Web Search (Plan-based)
+        search_results = search_service.search(request.query, request.userPlan)
+        print(f"Search Results: {search_results[:200]}...") # Log first 200 chars
+
+        # 5. Geminiで回答生成
         system_instruction = CHAT_SYSTEM_PROMPT
-        # Google検索 (Grounding) を有効化
-        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction, tools='google_search_retrieval')
+        # Note: We are NOT using 'google_search_retrieval' tool here anymore, 
+        # as we are injecting search results into the context manually.
+        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_instruction)
+        
         prompt = f"""
-        Context:
+        Context from Knowledge Base:
         {context}
+        
+        Context from Web Search:
+        {search_results}
         
         Question:
         {request.query}
@@ -1262,7 +1280,7 @@ async def query_knowledge(request: QueryRequest):
         """
         
         response = model.generate_content(prompt)
-        return {"answer": response.text}
+        return {"answer": response.text, "sources": []} # Sources handling to be improved
 
     except Exception as e:
         print(f"Error querying: {e}")

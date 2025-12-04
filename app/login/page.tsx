@@ -161,6 +161,24 @@ export default function LoginPage() {
           </a>
         </div>
       </div>
+
+      {/* Legal Links Footer */}
+      <div style={{
+        position: "fixed",
+        bottom: "10px",
+        right: "20px",
+        fontSize: "12px",
+        color: "var(--text-secondary)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "5px",
+        alignItems: "flex-end",
+        zIndex: 50
+      }}>
+        <a href="/terms" style={{ color: "inherit", textDecoration: "none" }}>利用規約</a>
+        <a href="/privacy" style={{ color: "inherit", textDecoration: "none" }}>プライバシーポリシー</a>
+        <span style={{ opacity: 0.7 }}>© 2025 じぶんAI</span>
+      </div>
     </div>
   );
 }

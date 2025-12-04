@@ -68,6 +68,13 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // 1.5 Get User Plan
+        const userSubscription = await prisma.userSubscription.findUnique({
+            where: { userId },
+            select: { plan: true }
+        });
+        const userPlan = userSubscription?.plan || "FREE";
+
         // 2. Pythonバックエンドに問い合わせ
         const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
         const response = await fetch(`${pythonUrl}/query`, {
@@ -79,6 +86,7 @@ export async function POST(req: NextRequest) {
                 query: query,
                 userId: userId,
                 tags: tags || [], // Pass tags to backend
+                userPlan: userPlan, // Pass user plan
             }),
         });
 

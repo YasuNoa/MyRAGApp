@@ -36,39 +36,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         {children}
       </main>
 
-      {/* 固定フッターリンク (利用規約・PP) */}
-      {/* ホームページかつ未ログイン時のみ表示 */}
-      {pathname === "/" && !isAuthenticated && (
-        <div style={{
-          position: "fixed",
-          bottom: "10px",
-          right: "20px",
-          zIndex: 9999,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: "4px",
-          fontSize: "12px", // 審査後なので小さく (12px)
-          color: "rgba(255, 255, 255, 0.6)", // 少し薄く
-          opacity: 0.8,
-          pointerEvents: "none",
-        }}>
-          <a 
-            href="/terms" 
-            className="hover:underline cursor-pointer no-underline"
-            style={{ color: "inherit", pointerEvents: "auto" }}
-          >
-            利用規約
-          </a>
-          <a 
-            href="/privacy" 
-            className="hover:underline cursor-pointer no-underline"
-            style={{ color: "inherit", pointerEvents: "auto" }}
-          >
-            プライバシーポリシー
-          </a>
-        </div>
-      )}
+
     </div>
   );
 }
