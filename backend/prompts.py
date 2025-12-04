@@ -85,7 +85,10 @@ INTENT_CLASSIFICATION_PROMPT = """
         - REVIEW: The user wants to review/recall information.
         - CHAT: The user wants to chat or ask a question.
         
-        Also, extract a category tag if possible (e.g., "Work", "Idea", "Health"). If no specific category, use "General".
+        Also, extract a category tag if possible (e.g., "Work", "Idea", "Health"). 
+        Please extract about 3 tags related to the content as an array.
+        Example: ["Work", "Python", "Dev"], ["Hobby", "Travel", "Spa"], ["Life", "Food", "Recipe"]
+        If no specific category, use ["General"].
         
         User Message: "{text}"
         

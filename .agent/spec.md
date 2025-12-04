@@ -34,7 +34,7 @@ graph TD
 *   **AIモデル**: Google Gemini 2.0 Flash (`google-generativeai` SDK)
 *   **ベクトルDB**: Pinecone
 *   **データベース**: PostgreSQL (`asyncpg` for Python, `prisma` for Next.js)
-*   **ツール**: LangChain (テキスト分割), PyPDF, Pandas (Excel), python-docx, python-pptx.
+*   **ツール**: LangChain (テキスト分割), PyPDF, Pandas (Excel), python-docx, python-pptx, **ffmpeg** (音声処理).
 
 ### インフラストラクチャ
 *   **コンテナ化**: Docker, Docker Compose
@@ -48,7 +48,7 @@ graph TD
 1.  **アップロード**: ユーザーがWeb UI (`ManualAdd.tsx`) からファイルをアップロード。
 2.  **登録**: Next.js が PostgreSQL に `Document` レコードを作成 (ステータス: pending)。
 3.  **処理開始**: Next.js が Python Backend (`/import-file`) にファイルを送信。
-4.  **抽出**: Python Backend が MIMEタイプを判別し、テキストを抽出 (画像/PDFはOCR、音声は文字起こし)。
+4.  **抽出**: Python Backend が MIMEタイプを判別し、テキストを抽出 (画像/PDFはOCR、音声は文字起こし)。**※Freeプランの音声は冒頭20分に自動トリミング。**
 5.  **分割・埋め込み**: テキストをチャンクに分割し、Gemini (`text-embedding-004`) でベクトル化。
 6.  **保存**:
     *   **ベクトル**: Pinecone にメタデータ (`userId`, `fileId`, `tags`) と共に保存。

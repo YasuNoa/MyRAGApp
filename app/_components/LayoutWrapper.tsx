@@ -37,9 +37,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       </main>
 
       {/* 固定フッターリンク (利用規約・PP) */}
-      {/* 固定フッターリンク (利用規約・PP) */}
-      {/* ホームページ(ログイン画面)のみ表示 */}
-      {(pathname === "/login" || pathname === "/") && (
+      {/* ホームページかつ未ログイン時のみ表示 */}
+      {pathname === "/" && !isAuthenticated && (
         <div style={{
           position: "fixed",
           bottom: "10px",
@@ -49,9 +48,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           flexDirection: "column",
           alignItems: "flex-end",
           gap: "4px",
-          fontSize: "20px", // 審査用に大きく (20px)
-          color: "white",
-          opacity: 0.9,
+          fontSize: "12px", // 審査後なので小さく (12px)
+          color: "rgba(255, 255, 255, 0.6)", // 少し薄く
+          opacity: 0.8,
           pointerEvents: "none",
         }}>
           <a 

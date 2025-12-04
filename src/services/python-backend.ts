@@ -19,9 +19,9 @@ export const PythonBackendService = {
             fileName?: string;
             tags?: string[];
             dbId?: string;
+            userPlan?: string;
         }
     ) {
-        // Special handling for audio (Voice Memo) - keep separate for now as it returns transcript/summary
         if (metadata.mimeType.startsWith("audio/")) {
             return this.processVoiceMemo(file, metadata);
         }
@@ -119,6 +119,7 @@ export const PythonBackendService = {
             fileId: string;
             dbId?: string;
             tags?: string[];
+            userPlan?: string;
         }
     ) {
         const formData = new FormData();

@@ -1,8 +1,24 @@
-import React from "react";
+import Link from "next/link";
 
 export default function TermsPage() {
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <Link href="/" style={{ 
+          display: "inline-flex", 
+          alignItems: "center", 
+          gap: "8px", 
+          color: "var(--text-secondary)", 
+          textDecoration: "none",
+          fontSize: "14px",
+          padding: "8px 16px",
+          borderRadius: "20px",
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          border: "1px solid var(--border-color)"
+        }}>
+          ← ホームに戻る
+        </Link>
+      </div>
       <h1 style={{ fontSize: "2rem", fontWeight: "bold", marginBottom: "20px" }}>利用規約</h1>
       <p style={{ marginBottom: "10px", color: "var(--text-secondary)" }}>最終更新日: 2025年11月30日</p>
 

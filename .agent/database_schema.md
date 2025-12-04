@@ -42,6 +42,22 @@ OAuth認証情報 (NextAuth) を管理します。
 *   `providerAccountId`: プロバイダ側のID
 *   `access_token`, `refresh_token`: APIアクセス用
 
+### `UserSubscription` (サブスクリプション)
+ユーザーのプランと利用制限を管理します。
+*   `id`: String (CUID) - 主キー
+*   `userId`: String - ユーザーID (Unique)
+*   `plan`: Enum (FREE, STANDARD, PREMIUM) - 現在のプラン
+*   `stripeCustomerId`: String - Stripe顧客ID
+*   `stripeSubscriptionId`: String - StripeサブスクID
+*   `currentPeriodEnd`: DateTime - 有効期限
+*   `dailyChatCount`: Int - 本日のチャット送信数
+*   `lastChatResetAt`: DateTime - チャット制限のリセット日時
+*   `dailyVoiceCount`: Int - 本日の音声処理回数 (Free用)
+*   `lastVoiceDate`: DateTime - 音声回数のリセット日時
+*   `monthlyVoiceMinutes`: Int - 今月の音声処理時間 (分)
+*   `lastVoiceResetDate`: DateTime - 音声時間のリセット日時
+*   `purchasedVoiceBalance`: Int - 追加購入した音声時間 (分)
+
 ## Pinecone スキーマ
 
 ### Index: `myragapp`

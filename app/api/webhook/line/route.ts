@@ -47,19 +47,26 @@ export async function POST(req: NextRequest) {
                     let tags: string[] = ["General"];
 
                     try {
-                        // Use gemini.ts classifyIntent directly if possible, or call Python if implemented there.
-                        // Since we updated src/lib/gemini.ts, let's use it here directly for simplicity if we can import it.
-                        // But wait, this is Next.js API route, so we can use src/lib/gemini.ts.
-                        // However, the original code called Python /classify. Let's check if Python has /classify.
-                        // If not, we should use src/lib/gemini.ts.
-                        // Assuming Python /classify is NOT updated yet or doesn't exist (original code had it but maybe it was a placeholder?).
-                        // Let's use the updated src/lib/gemini.ts directly.
-                        const { classifyIntent } = await import("@/src/lib/gemini");
-                        const result = await classifyIntent(userMessage);
-                        intent = result.intent;
-                        tags = result.tags;
+                        // Python Backendの /classify エンドポイントを呼び出す
+                        const classifyRes = await fetch(`${pythonUrl}/classify`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ text: userMessage }),
+                        });
+
+                        if (classifyRes.ok) {
+                            const result = await classifyRes.json();
+                            intent = result.intent || "CHAT";
+                            tags = result.tags || ["General"];
+                            // 旧形式 (category) の場合のフォールバック
+                            if (!result.tags && result.category) {
+                                tags = [result.category];
+                            }
+                        } else {
+                            console.error(`[LINE] Classification failed: ${classifyRes.status}`);
+                        }
                     } catch (e) {
-                        console.error("[LINE] Classification failed, defaulting to CHAT:", e);
+                        console.error("[LINE] Classification error:", e);
                     }
 
                     console.log(`[Gemini] Intent: ${intent}, Tags: ${tags}`);

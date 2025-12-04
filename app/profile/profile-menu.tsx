@@ -5,7 +5,7 @@ import { logout } from "@/app/actions/auth";
 import ProfileForm from "./profile-form";
 import NameForm from "./name-form";
 import AiNameForm from "./ai-name-form";
-import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe } from "lucide-react";
+import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe, FileText, ChevronRight } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 export default function ProfileMenu({ user, providers = [] }: { user: any, providers?: string[] }) {
@@ -246,6 +246,44 @@ export default function ProfileMenu({ user, providers = [] }: { user: any, provi
           </div>
         </div>
 
+        {/* Terms of Service */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <a href="/terms" style={{ textDecoration: "none" }}>
+            <div style={{ 
+              padding: "20px 24px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              color: "var(--text-color)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <FileText size={20} color="var(--text-secondary)" />
+                <span>利用規約</span>
+              </div>
+              <ChevronRight size={16} color="var(--text-secondary)" />
+            </div>
+          </a>
+        </div>
+
+        {/* Privacy Policy */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <a href="/privacy" style={{ textDecoration: "none" }}>
+            <div style={{ 
+              padding: "20px 24px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "space-between",
+              color: "var(--text-color)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <FileText size={20} color="var(--text-secondary)" />
+                <span>プライバシーポリシー</span>
+              </div>
+              <ChevronRight size={16} color="var(--text-secondary)" />
+            </div>
+          </a>
+        </div>
+
         {/* Logout Item */}
         <div>
           <button 
@@ -272,6 +310,18 @@ export default function ProfileMenu({ user, providers = [] }: { user: any, provi
           </button>
         </div>
 
+      </div>
+      
+      {/* Copyright Footer */}
+      <div style={{ 
+        padding: "20px", 
+        textAlign: "center", 
+        fontSize: "12px", 
+        color: "var(--text-secondary)",
+        borderTop: "1px solid var(--border-color)",
+        backgroundColor: "rgba(0, 0, 0, 0.02)"
+      }}>
+        © 2025 じぶんAI
       </div>
     </div>
   );

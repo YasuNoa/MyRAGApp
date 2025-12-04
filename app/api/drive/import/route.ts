@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getDriveFileContent } from "@/src/lib/google-drive";
 import { KnowledgeService } from "@/src/services/knowledge";
 import { PythonBackendService } from "@/src/services/python-backend";
+import { prisma } from "@/src/lib/prisma";
 
 export async function POST(req: NextRequest) {
     const session = await auth();
@@ -60,26 +61,34 @@ export async function POST(req: NextRequest) {
         console.log(`[Import] Step 3: Sending to Python Backend...`);
         const blob = new Blob([buffer], { type: mimeType });
 
-        // Unified Import: The service handles dispatching based on MIME type
-        const result = await PythonBackendService.importFile(blob, {
-            userId: session.user.id,
-            fileId: fileId,
-            mimeType: mimeType,
-            fileName: fileName,
-            tags: tags,
-            dbId: document.id // Pass dbId so Python can update content
-        });
+        try {
+            // Unified Import: The service handles dispatching based on MIME type
+            const result = await PythonBackendService.importFile(blob, {
+                userId: session.user.id,
+                fileId: fileId,
+                mimeType: mimeType,
+                fileName: fileName,
+                tags: tags,
+                dbId: document.id // Pass dbId so Python can update content
+            });
 
-        console.log(`[Import] Step 3: Python processing complete. Result:`, result);
+            console.log(`[Import] Step 3: Python processing complete. Result:`, result);
+            console.log(`[Import] Completed import for file: ${fileId}`);
 
-        console.log(`[Import] Completed import for file: ${fileId}`);
+            return NextResponse.json({ success: true, id: fileId, chunks: result.chunks_count });
 
-        return NextResponse.json({ success: true, id: fileId, chunks: result.chunks_count });
+        } catch (e: any) {
+            console.error("[Import] Python Backend rejected:", e);
+            // Cleanup
+            await prisma.document.delete({ where: { id: document.id } });
+            throw e;
+        }
+
     } catch (error: any) {
         console.error(`[Import] FATAL ERROR for file ${fileId || 'unknown'}:`, error);
         return NextResponse.json(
             { error: error.message || "Internal Server Error" },
-            { status: 500 }
+            { status: error.message?.includes("limit") ? 403 : 500 }
         );
     }
 }

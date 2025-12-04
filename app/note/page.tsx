@@ -138,14 +138,6 @@ export default function NotePage() {
             mediaRecorderRef.current.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
                 
-                // Check duration (3 seconds = 3000ms)
-                const duration = Date.now() - startTimeRef.current;
-                if (duration < 3000) {
-                    console.log(`Recording too short (${duration}ms), ignoring.`);
-                    setIsRecording(false);
-                    // Optional: Show a toast or message saying "Recording too short"
-                    return;
-                }
                 
                 await processAudio(audioBlob);
             };

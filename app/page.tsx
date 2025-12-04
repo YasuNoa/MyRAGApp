@@ -21,7 +21,8 @@ export default function Home() {
     input, setInput, 
     isLoading, setIsLoading, 
     selectedTag, setSelectedTag,
-    clearChat
+    clearChat,
+    threadId, setThreadId
   } = useChat();
 
   useEffect(() => {
@@ -55,7 +56,8 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           query: userMessage.content,
-          tags: selectedTag ? [selectedTag] : [] 
+          tags: selectedTag ? [selectedTag] : [],
+          threadId: threadId // Pass current threadId
         }),
       });
 
@@ -64,6 +66,11 @@ export default function Home() {
         const data = await res.json();
         const botMessage = { role: "assistant", content: data.answer || "エラーが発生しました" };
         setMessages((prev) => [...prev, botMessage]);
+        
+        // Update threadId if a new one was created
+        if (data.threadId && data.threadId !== threadId) {
+            setThreadId(data.threadId);
+        }
       } else {
         const text = await res.text();
         setMessages((prev) => [...prev, { role: "assistant", content: "サーバーエラー: " + text }]);
@@ -78,20 +85,55 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", paddingBottom: "40px", position: "relative" }}>
-      {/* ... (New Chat Button) */}
+      {/* New Chat Button */}
+      <button
+        onClick={clearChat}
+        style={{
+          position: "absolute",
+          top: "0",
+          right: "0",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          background: "rgba(255, 255, 255, 0.05)",
+          border: "1px solid var(--border-color)",
+          borderRadius: "20px",
+          padding: "8px 16px",
+          color: "var(--text-secondary)",
+          cursor: "pointer",
+          fontSize: "14px",
+          transition: "all 0.2s",
+        }}
+        onMouseOver={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"}
+        onMouseOut={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
+      >
+        <PlusCircle size={16} />
+        <span>New Chat</span>
+      </button>
 
-      <div style={{ textAlign: "center", marginBottom: "40px", paddingTop: "40px" }}>
-        <h1 style={{ 
-          margin: "0 0 10px 0", 
-          fontSize: "2.5rem", 
-          background: "linear-gradient(to right, #8ab4f8, #c58af9)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent"
-        }}>
-          じぶんAI
-        </h1>
-        <p style={{ color: "var(--text-secondary)" }}>あなたのためのAIアシスタント</p>
-      </div>
+      {/* タイトル (メッセージがない時のみ表示) */}
+      {messages.length === 0 && (
+        <div style={{ textAlign: "center", marginBottom: "40px", paddingTop: "40px" }}>
+          <h1 
+            onClick={clearChat}
+            style={{ 
+              margin: "0 0 10px 0", 
+              fontSize: "2.5rem", 
+              background: "linear-gradient(to right, #8ab4f8, #c58af9)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              cursor: "pointer",
+              display: "inline-block",
+              transition: "opacity 0.2s"
+            }}
+            onMouseOver={(e) => e.currentTarget.style.opacity = "0.8"}
+            onMouseOut={(e) => e.currentTarget.style.opacity = "1"}
+          >
+            じぶんAI
+          </h1>
+          <p style={{ color: "var(--text-secondary)" }}>あなたのためのAIアシスタント</p>
+        </div>
+      )}
       
       {/* チャット履歴 */}
       <div style={{ 

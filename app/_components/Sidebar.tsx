@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 import { useSidebar } from "@/app/_context/SidebarContext";
+import { useChat } from "@/app/_context/ChatContext";
 
 type Document = {
   id: string;
@@ -147,8 +148,6 @@ export default function Sidebar() {
           </button>
         </div>
 
-
-
         {/* メインナビゲーション */}
         <nav style={{ padding: "20px 10px" }}>
           {navItems.map((item) => (
@@ -178,8 +177,70 @@ export default function Sidebar() {
           ))}
         </nav>
 
+        <div style={{ borderBottom: "1px solid var(--border-color)", margin: "10px 0" }}></div>
+
+        {/* 最近のチャット (履歴) */}
+        <div style={{ padding: "10px 10px 0 10px" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", paddingLeft: "10px" }}>最近のチャット</div>
+            <ChatHistoryList />
+        </div>
+
+
+
 
       </aside>
     </>
   );
+}
+
+function ChatHistoryList() {
+    const { loadThread, threadId } = useChat();
+    const [threads, setThreads] = useState<{id: string, title: string}[]>([]);
+    const { refreshTrigger } = useKnowledge(); // Use this to trigger refresh if needed, or add new context
+
+    useEffect(() => {
+        fetchThreads();
+    }, [threadId]); // Refresh when thread changes (e.g. new thread created)
+
+    const fetchThreads = async () => {
+        try {
+            const res = await fetch("/api/thread");
+            if (res.ok) {
+                const data = await res.json();
+                setThreads(data.threads);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {threads.map(thread => (
+                <button
+                    key={thread.id}
+                    onClick={() => loadThread(thread.id)}
+                    style={{
+                        textAlign: "left",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        background: threadId === thread.id ? "rgba(66, 133, 244, 0.1)" : "transparent",
+                        color: threadId === thread.id ? "var(--primary-color)" : "var(--text-color)",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px"
+                    }}
+                >
+                    <MessageSquare size={14} style={{ minWidth: "14px" }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{thread.title}</span>
+                </button>
+            ))}
+        </div>
+    );
 }

@@ -17,6 +17,9 @@ type ChatContextType = {
   selectedTag: string;
   setSelectedTag: React.Dispatch<React.SetStateAction<string>>;
   clearChat: () => void;
+  threadId: string | null;
+  setThreadId: React.Dispatch<React.SetStateAction<string | null>>;
+  loadThread: (id: string) => Promise<void>;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -26,12 +29,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTag, setSelectedTag] = useState("");
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   const clearChat = () => {
     setMessages([]);
     setInput("");
     setIsLoading(false);
     setSelectedTag("");
+    setThreadId(null);
+  };
+
+  const loadThread = async (id: string) => {
+    setIsLoading(true);
+    try {
+        const res = await fetch(`/api/thread/${id}`);
+        if (res.ok) {
+            const data = await res.json();
+            setMessages(data.messages);
+            setThreadId(id);
+        }
+    } catch (e) {
+        console.error("Failed to load thread", e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -46,6 +67,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         selectedTag,
         setSelectedTag,
         clearChat,
+        threadId,
+        setThreadId,
+        loadThread,
       }}
     >
       {children}

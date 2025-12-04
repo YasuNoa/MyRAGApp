@@ -27,6 +27,7 @@ model User {
   accounts      Account[]                      // 1人のユーザーは複数の「アカウント連携」を持つ
   sessions      Session[]                      // 1人のユーザーは複数の「ログインセッション」を持つ
   messages      Message[]                      // 1人のユーザーはたくさんの「メッセージ」を送る
+  threads       Thread[]                       // 1人のユーザーはたくさんの「スレッド」を持つ
   documents     Document[]                     // 1人のユーザーはたくさんの「ドキュメント」を登録する
   feedbacks     Feedback[]                     // 1人のユーザーはたくさんの「フィードバック」を送る
   subscription  UserSubscription?              // サブスクリプション情報
@@ -54,15 +55,30 @@ model Document {
 }
 
 // チャットの履歴テーブル
+// チャットの履歴テーブル
 model Message {
   id        String   @id @default(cuid()) // ID
   content   String                        // 内容
   role      String                        // 役割: "user" か "assistant"
   category  String?  @default("その他")   // カテゴリ
   userId    String                        // 誰のメッセージか
+  threadId  String?                       // スレッドID (履歴機能用)
   createdAt DateTime @default(now())      // 送信日時
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定
+  thread    Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade) // スレッドとのリレーション
+}
+
+// チャットスレッド（履歴のまとまり）
+model Thread {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String    @default("New Chat") // スレッドのタイトル
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt           // 最終更新日時（並び替え用）
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
 }
 
 // 外部アカウント連携（Google, LINEなど）の鍵束テーブル
