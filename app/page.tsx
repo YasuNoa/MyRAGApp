@@ -11,20 +11,8 @@ import LandingPage from "@/app/_components/LandingPage";
 export default function Home() {
   const { data: session, status, update } = useSession();
   const aiName = (session?.user as any)?.aiName || "じぶんAI";
-
-  useEffect(() => {
-    if (status === "authenticated") {
-        update(); // Force update session on mount to get latest metadata
-    }
-  }, [status]);
-
-  if (status === "loading") {
-      return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading...</div>;
-  }
-
-  if (status === "unauthenticated") {
-      return <LandingPage />;
-  }
+  
+  console.log("Current session status:", status); // Debug log
   
   const [tags, setTags] = useState<string[]>([]);
   const { 
@@ -50,6 +38,14 @@ export default function Home() {
     };
     fetchTags();
   }, []);
+
+  if (status === "loading") {
+      return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#000", color: "#fff" }}>Loading...</div>;
+  }
+
+  if (status === "unauthenticated") {
+      return <LandingPage />;
+  }
 
   const handleSubmit = async (e?: React.FormEvent, textOverride?: string) => {
     if (e) e.preventDefault();

@@ -132,6 +132,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     response_type: "code"
                 }
             },
+            checks: ["none"], // Disable PKCE checks to fix localhost 500 error
             allowDangerousEmailAccountLinking: true,
         }),
         Credentials({

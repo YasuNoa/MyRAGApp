@@ -376,6 +376,24 @@ export default function LandingPage() {
         </div>
         <div>© 2025 じぶんAI</div>
       </footer>
+      {/* Temporary Legal Links for Google Verification */}
+      <div style={{
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        zIndex: 9999,
+        background: "rgba(0, 0, 0, 0.8)",
+        padding: "10px 15px",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.2)",
+        display: "flex",
+        gap: "15px",
+        fontSize: "12px",
+        backdropFilter: "blur(4px)"
+      }}>
+        <Link href="/terms" style={{ color: "#e5e7eb", textDecoration: "none" }}>利用規約</Link>
+        <Link href="/privacy" style={{ color: "#e5e7eb", textDecoration: "none" }}>プライバシーポリシー</Link>
+      </div>
     </div>
   );
 }

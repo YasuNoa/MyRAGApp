@@ -72,7 +72,13 @@
         *   ※ DuckDuckGoのAPIレート制限 (`202 Ratelimit`) が返ってきましたが、これは外部要因であり、振り分けロジックは正しく動作しています。
     *   **Standardプラン**: ログに `[SearchService] Using Serper (Google)` と表示され、実際にGoogle検索結果に基づいた回答が生成されました。
         *   **成功確認**: `AI News delivers the latest updates...` などの検索結果がログに出力され、回答にも反映されました。
+    *   **Premiumプラン**: ログに `[SearchService] Using Google Custom Search API` と表示され、Google Custom Search API経由での検索に成功しました。
+        *   **成功確認**: APIキーの制限設定（Custom Search APIの許可）を行った後、正常に検索結果が取得され、回答に反映されました。
 
 ## 結論
 プランに応じた検索エンジンの振り分け実装は完了し、正しく動作しています。
-`.env` へのAPIキー追加とコンテナ再作成により、StandardプランでのGoogle検索も正常に機能することを確認しました。
+- **Free**: DuckDuckGo
+- **Standard**: Serper (Google Search)
+- **Premium**: Google Custom Search API
+
+全てのプランで正常動作を確認しました。

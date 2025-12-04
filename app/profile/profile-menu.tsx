@@ -6,7 +6,7 @@ import ProfileForm from "./profile-form";
 import NameForm from "./name-form";
 import AiNameForm from "./ai-name-form";
 import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe, FileText, ChevronRight } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 
 export default function ProfileMenu({ user, providers = [] }: { user: any, providers?: string[] }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -289,7 +289,7 @@ export default function ProfileMenu({ user, providers = [] }: { user: any, provi
           <button 
             onClick={() => {
               if (window.confirm("ログアウトしますか？")) {
-                logout();
+                signOut({ callbackUrl: "/" });
               }
             }}
             style={{ 

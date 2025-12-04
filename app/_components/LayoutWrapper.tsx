@@ -28,7 +28,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         style={{
           flex: 1,
           marginLeft: showSidebar && isOpen ? "280px" : "0", // ログイン時かつOpen時のみマージン
-          padding: "40px",
+          padding: (!isAuthenticated && pathname === "/") ? "0" : "40px",
           maxWidth: "100%",
           transition: "margin-left 0.3s ease", // スムーズなアニメーション
         }}
