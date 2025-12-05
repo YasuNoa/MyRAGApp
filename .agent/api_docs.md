@@ -8,35 +8,63 @@ Base URL: `http://backend:8000` (内部) / `https://...` (本番)
 #### `POST /import-file`
 ファイルインポートの統合エンドポイント。
 *   **Input**: `Multipart/Form-Data`
-    *   `file`: バイナリファイル
-    *   `metadata`: JSON文字列 (`{"userId": "...", "mimeType": "...", "tags": [...]}`)
-*   **対応形式**: PDF, 画像, PPTX, DOCX, XLSX, CSV, 音声 (MP3/M4A/WAV), テキスト。
+    *   `file`: Binary (PDF, JPG, PNG, MP3, M4A, WAV, PPTX, DOCX, XLSX, CSV, TXT)
+    *   `metadata`: JSON String
+        ```json
+        {
+          "userId": "cuid...",
+          "fileId": "uuid...",
+          "tags": ["tag1", "tag2"],
+          "dbId": "cuid..." // Optional: Postgres Document ID
+        }
+        ```
 *   **処理**: OCR/文字起こし -> チャンク分割 -> 埋め込み -> Pinecone & Postgres保存。
 
 #### `POST /import-text`
 テキストデータの直接インポート。
-*   **Input**: JSON `{ "text": "...", "userId": "...", "tags": [...] }`
+*   **Input**: JSON
+    ```json
+    {
+      "text": "...",
+      "userId": "cuid...",
+      "source": "manual",
+      "tags": ["tag1"]
+    }
+    ```
 
 #### `POST /delete-file`
 指定ファイルの全ベクトルを削除。
-*   **Input**: JSON `{ "fileId": "...", "userId": "..." }`
+*   **Input**: JSON `{ "fileId": "uuid...", "userId": "cuid..." }`
 
 #### `POST /update-tags`
 指定ファイルのタグを更新。
-*   **Input**: JSON `{ "fileId": "...", "userId": "...", "tags": [...] }`
+*   **Input**: JSON `{ "fileId": "uuid...", "userId": "cuid...", "tags": ["new_tag"] }`
 
 ### AI操作
 
 #### `POST /query`
 RAG検索 & チャット応答生成。
-*   **Input**: JSON `{ "query": "...", "userId": "...", "tags": [...] }`
+*   **Input**: JSON
+    ```json
+    {
+      "query": "...",
+      "userId": "cuid...",
+      "tags": [] // Optional filtering
+    }
+    ```
 *   **Output**: JSON `{ "answer": "..." }`
-*   **ロジック**: クエリ埋め込み -> Pinecone検索 -> 全文取得 (Postgres) -> Gemini回答生成 (Google検索付き)。
+*   **ロジック**: クエリ埋め込み -> Pinecone検索 (Top-K) -> 全文取得 (Postgres) -> Gemini回答生成 (Google検索付き)。
 
 #### `POST /classify`
 ユーザー意図の分類。
 *   **Input**: JSON `{ "text": "..." }`
-*   **Output**: JSON `{ "intent": "CHAT" | "STORE" | "REVIEW", "category": "..." }`
+*   **Output**: JSON
+    ```json
+    {
+      "intent": "CHAT" | "STORE" | "REVIEW",
+      "category": "General" // Optional
+    }
+    ```
 
 ## Next.js API Routes
 Base URL: `/api`
@@ -50,6 +78,20 @@ Backend `/import-file` へのラッパー。
 ### `POST /api/voice/process`
 ボイスメモ処理用ラッパー (レガシー/特定用途)。
 *   Backend `/process-voice-memo` (または `/import-file`) を呼び出す。
+
+*   Backend `/process-voice-memo` (または `/import-file`) を呼び出す。
+
+### `POST /api/trial/chat`
+体験版チャット。
+*   **制限**: 1セッションあたり2回まで。
+*   **機能**: Geminiによる単純応答 (検索なし)。
+*   **保存**: `GuestSession` に履歴を保存。
+
+### `POST /api/trial/voice`
+体験版音声メモ。
+*   **制限**: 1セッションあたり1回まで。
+*   **機能**: 音声アップロード -> Gemini要約。
+*   **保存**: `GuestSession` に要約を保存。
 
 ### `POST /api/webhook/line`
 LINE Messaging API Webhook。

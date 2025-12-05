@@ -90,17 +90,6 @@ export default function LandingPage() {
 
         {/* Right: Buttons */}
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-          <Link href="/register" style={{ textDecoration: "none" }}>
-            <button className="neo-button secondary" style={{ 
-              padding: "8px 20px", 
-              fontSize: "14px",
-              background: "rgba(255, 255, 255, 0.1)",
-              color: "white",
-              border: "1px solid rgba(255, 255, 255, 0.2)"
-            }}>
-              新規登録
-            </button>
-          </Link>
           <Link href="/login" style={{ textDecoration: "none" }}>
             <button className="neo-button" style={{ 
               padding: "8px 20px", 
@@ -111,6 +100,18 @@ export default function LandingPage() {
               fontWeight: "bold"
             }}>
               ログイン
+            </button>
+          </Link>
+          <Link href="/register" style={{ textDecoration: "none" }}>
+            <button className="neo-button secondary" style={{ 
+              padding: "8px 20px", 
+              fontSize: "14px",
+              background: "linear-gradient(135deg, #0061ff, #60efff)",
+              color: "white",
+              border: "none",
+              fontWeight: "bold"
+            }}>
+              新規登録
             </button>
           </Link>
         </div>

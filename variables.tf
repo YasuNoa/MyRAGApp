@@ -66,3 +66,15 @@ variable "google_picker_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "serper_api_key" {
+  description = "Serper API Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_cse_id" {
+  description = "Google Custom Search Engine ID"
+  type        = string
+  sensitive   = true
+}

@@ -31,8 +31,11 @@ graph TD
 ### バックエンド
 *   **フレームワーク**: FastAPI (Python)
 *   **言語**: Python 3.11+
-*   **AIモデル**: Google Gemini 2.0 Flash (`google-generativeai` SDK)
-*   **ベクトルDB**: Pinecone
+*   **AIモデル**:
+    *   **生成**: Google Gemini 2.0 Flash (`gemini-2.0-flash`) - メイン処理
+    *   **体験版**: Google Gemini 1.5 Flash (`gemini-1.5-flash`) - 軽量処理
+*   **ベクトルDB**: Pinecone (Index: `myragapp`)
+*   **埋め込みモデル**: Google `models/text-embedding-004` (768次元)
 *   **データベース**: PostgreSQL (`asyncpg` for Python, `prisma` for Next.js)
 *   **ツール**: LangChain (テキスト分割), PyPDF, Pandas (Excel), python-docx, python-pptx, **ffmpeg** (音声処理).
 
@@ -49,7 +52,10 @@ graph TD
 2.  **登録**: Next.js が PostgreSQL に `Document` レコードを作成 (ステータス: pending)。
 3.  **処理開始**: Next.js が Python Backend (`/import-file`) にファイルを送信。
 4.  **抽出**: Python Backend が MIMEタイプを判別し、テキストを抽出 (画像/PDFはOCR、音声は文字起こし)。**※Freeプランの音声は冒頭20分に自動トリミング。**
-5.  **分割・埋め込み**: テキストをチャンクに分割し、Gemini (`text-embedding-004`) でベクトル化。
+5.  **分割・埋め込み**:
+    *   **チャンク分割**: `RecursiveCharacterTextSplitter` (Size: 1500, Overlap: 150)。
+    *   **セパレータ**: `["\n\n", "\n", "。", "、", " ", ""]`。
+    *   **ベクトル化**: `text-embedding-004` で埋め込み生成。
 6.  **保存**:
     *   **ベクトル**: Pinecone にメタデータ (`userId`, `fileId`, `tags`) と共に保存。
     *   **コンテンツ**: 全文テキストと要約を PostgreSQL の `Document` レコードに更新。
@@ -61,6 +67,20 @@ graph TD
     *   *ハイブリッド*: 完全な文脈が必要な場合、PostgreSQL から `dbId` を使って全文を取得。
 4.  **生成**: Gemini 2.0 Flash が、取得した文脈 + Google検索 (グラウンディング) を元に回答を生成。
 5.  **応答**: 回答をユーザーにストリーミング/返却。
+
+### 3.3 体験版 (Trial) フロー
+1.  **アクセス**: 未ログインユーザーが `/` または `/trial` にアクセス。
+2.  **セッション**: 初回アクセス時に `GuestSession` を作成 (Cookie: `guestSessionId`)。
+3.  **チャット**:
+    *   `/api/trial/chat` をコール。
+    *   `GuestSession.chatCount` をチェック (Max 2)。
+    *   Gemini (Search Toolなし) で回答生成。
+    *   履歴を `GuestSession.messages` に保存。
+4.  **音声メモ**:
+    *   `/api/trial/voice` をコール。
+    *   `GuestSession.voiceCount` をチェック (Max 1)。
+    *   Gemini で要約生成。
+    *   結果を `GuestSession.voiceMemo` に保存。
 
 ## 4. データベース構成 (概念)
 

@@ -611,7 +611,7 @@ def get_audio_duration(file_path: str) -> float:
 async def check_storage_limit(user_id: str, plan: str):
     LIMITS = {
         "FREE": 5,
-        "STANDARD": 100,
+        "STANDARD": 200,
         "PREMIUM": 1000,
     }
     limit = LIMITS.get(plan, 5)

@@ -177,3 +177,19 @@ model UserSubscription {
 
   updatedAt     DateTime  @updatedAt            // 更新日時
 }
+
+// --- 体験版（未ログイン）ユーザー管理 ---
+model GuestSession {
+  id          String   @id @default(cuid())
+  ipAddress   String?  // IPアドレス（レート制限用）
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime // 有効期限（1時間）
+  
+  // 利用回数制限
+  chatCount   Int      @default(0) // 上限2回
+  voiceCount  Int      @default(0) // 上限1回
+  
+  // 一時データ（ログイン時に移行するため）
+  messages    Json[]   @default([]) // チャット履歴
+  voiceMemo   String?  // 音声メモの要約結果
+}

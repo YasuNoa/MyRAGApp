@@ -44,6 +44,14 @@ resource "google_cloud_run_service" "backend" {
           name  = "TZ"
           value = "Asia/Tokyo"
         }
+        env {
+          name  = "SERPER_API_KEY"
+          value = var.serper_api_key
+        }
+        env {
+          name  = "GOOGLE_CSE_ID"
+          value = var.google_cse_id
+        }
       }
     }
   }

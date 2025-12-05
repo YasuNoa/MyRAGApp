@@ -12,12 +12,12 @@
 | :--- | :--- | :--- | :--- |
 | **ターゲット** | 新入生、ライト層 | テスト前の学生 | 就活生、卒論生 |
 | **価格** | ¥0 | ¥980/月 | ¥2,980/月 |
-| **チャット制限** | 10回 / 2時間<br><small>「休み時間に使う」</small> | 100回 / 日<br><small>「1日中使える」</small> | 200回 / 日<br><small>「ヘビーユース」</small> |
-| **資料保存数** | 5ファイル<br><small>「お試し用」</small> | 200ファイル<br><small>「全教科・サークル資料」</small> | 1000ファイル<br><small>「過去問アーカイブ」</small> |
-| **音声解析 (回数)** | 5回 / 日<br><small>「授業の要点だけ」</small> | 無制限 | 無制限 |
+| **チャット制限** | 10回 / 2時間<br><small>(1時間クールダウン)</small> | 100回 / 日<br><small>(JST 0時リセット)</small> | 200回 / 日<br><small>(JST 0時リセット)</small> |
+| **資料保存数** | 5ファイル<br><small>(Knowledgeのみ)</small> | 100ファイル<br><small>(全教科・サークル資料)</small> | 1000ファイル<br><small>(過去問アーカイブ)</small> |
+| **音声解析 (回数)** | 5回 / 日<br><small>(JST 0時リセット)</small> | 無制限 | 無制限 |
 | **音声解析 (時間)** | 冒頭20分のみ (自動カット)<br><small>「イントロ確認用」</small> | 1ファイル 120分<br>月間 1800分 (30時間) | 1ファイル 180分<br>月間 6000分 (100時間) |
-| **検索エンジン** | DuckDuckGo (0円) | Google検索 (Serper) | Deep Research |
-| **AIモデル** | Gemini 2.0 Flash | Gemini 2.0 Flash | Gemini 2.0 Pro |
+| **検索エンジン** | DuckDuckGo (0円) | Google検索 (Serper) | Google Custom Search |
+| **AIモデル** | Gemini 2.0 Flash | Gemini 2.0 Flash | Gemini 2.0 Flash |
 
 ### 🎟️ チケット課金 (Micro-transactions)
 サブスクに抵抗がある学生向けに、**「必要な時だけ買う」** オプションを用意します。

@@ -42,6 +42,17 @@ OAuth認証情報 (NextAuth) を管理します。
 *   `providerAccountId`: プロバイダ側のID
 *   `access_token`, `refresh_token`: APIアクセス用
 
+### `GuestSession` (ゲストセッション)
+体験版ユーザーの一時データを管理します。
+*   `id`: String (CUID) - 主キー
+*   `ipAddress`: String - レート制限用
+*   `createdAt`: DateTime - 作成日時
+*   `expiresAt`: DateTime - 有効期限 (1時間)
+*   `chatCount`: Int - チャット利用回数 (Max 2)
+*   `voiceCount`: Int - 音声利用回数 (Max 1)
+*   `messages`: Json[] - チャット履歴
+*   `voiceMemo`: String - 音声要約結果
+
 ### `UserSubscription` (サブスクリプション)
 ユーザーのプランと利用制限を管理します。
 *   `id`: String (CUID) - 主キー
