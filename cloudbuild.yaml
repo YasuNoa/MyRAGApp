@@ -2,31 +2,31 @@ steps:
   # --- 1. Build Frontend Image ---
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
-    args: ['-c', 'docker pull gcr.io/myragapp-479606/myragapp-frontend:latest || true && docker build --cache-from gcr.io/myragapp-479606/myragapp-frontend:latest -t gcr.io/myragapp-479606/myragapp-frontend:latest .']
+    args: ['-c', 'docker pull asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest || true && docker build --cache-from asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest -t asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest .']
     id: 'Build Frontend'
     waitFor: ['-']
 
   # --- 2. Build Backend Image ---
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
-    args: ['-c', 'docker pull gcr.io/myragapp-479606/myragapp-backend:latest || true && docker build --cache-from gcr.io/myragapp-479606/myragapp-backend:latest -t gcr.io/myragapp-479606/myragapp-backend:latest ./backend']
+    args: ['-c', 'docker pull asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest || true && docker build --cache-from asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest -t asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest ./backend']
     id: 'Build Backend'
     waitFor: ['Build Frontend'] # Wait for Frontend to finish
 
   # --- 3. Push Images ---
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/myragapp-479606/myragapp-frontend:latest']
+    args: ['push', 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest']
     id: 'Push Frontend'
     waitFor: ['Build Frontend']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/myragapp-479606/myragapp-backend:latest']
+    args: ['push', 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest']
     id: 'Push Backend'
     waitFor: ['Build Backend']
 
 
   # --- 4. DB Migration ---
-  - name: 'gcr.io/myragapp-479606/myragapp-frontend:latest'
+  - name: 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -44,7 +44,7 @@ steps:
       - 'update'
       - 'myragapp-frontend'
       - '--image'
-      - 'gcr.io/myragapp-479606/myragapp-frontend:latest'
+      - 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest'
       - '--region'
       - 'asia-northeast1'
     id: 'Deploy Frontend'
@@ -59,15 +59,15 @@ steps:
       - 'update'
       - 'myragapp-backend'
       - '--image'
-      - 'gcr.io/myragapp-479606/myragapp-backend:latest'
+      - 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest'
       - '--region'
       - 'asia-northeast1'
     id: 'Deploy Backend'
     waitFor: ['Push Backend']
 
 images:
-  - 'gcr.io/myragapp-479606/myragapp-frontend:latest'
-  - 'gcr.io/myragapp-479606/myragapp-backend:latest'
+  - 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest'
+  - 'asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest'
 
 availableSecrets:
   secretManager:

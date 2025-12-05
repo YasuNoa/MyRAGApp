@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, FileText, MessageSquare, Smartphone, Zap, Shield, Brain } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileText, MessageSquare, Smartphone, Zap, Shield, Brain, Mic, Search, Folder } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -139,7 +139,7 @@ export default function LandingPage() {
           marginBottom: "30px",
           fontWeight: "500"
         }}>
-          ✨ あなただけの専属AIパートナー
+          ✨ じぶんAIはあなた専用にカスタマイズされたパートナーになります。
         </div>
 
         <h1 style={{ 
@@ -150,12 +150,12 @@ export default function LandingPage() {
           fontWeight: "800",
           letterSpacing: "-0.02em"
         }}>
-          私だけのAIが、<br/>
+          大丈夫、<br/>
           <span style={{ 
             background: "linear-gradient(to right, #8ab4f8, #c58af9)", 
             WebkitBackgroundClip: "text", 
             WebkitTextFillColor: "transparent" 
-          }}>すべての知識を整理する。</span>
+          }}>授業中寝てても。</span>
         </h1>
         
         <p style={{ 
@@ -166,7 +166,7 @@ export default function LandingPage() {
           lineHeight: "1.8"
         }}>
           授業ノート、資料、録音データ。あらゆる情報を「じぶんAI」に預ければ、<br className="hidden md:block"/>
-          いつでも瞬時に引き出せます。もう、情報の海で迷うことはありません。
+         授業を後から全て再現できます。
         </p>
 
         <Link href="/register" style={{ textDecoration: "none" }}>
@@ -176,7 +176,7 @@ export default function LandingPage() {
             display: "flex", 
             alignItems: "center", 
             gap: "12px",
-            background: "linear-gradient(135deg, #4285F4, #C58AF9)",
+            background: "linear-gradient(135deg, #8AB4F8, #E9D5FF)", // Lighter gradient
             color: "white",
             border: "none",
             borderRadius: "30px",
@@ -205,36 +205,64 @@ export default function LandingPage() {
           {[
             { 
               icon: <FileText size={32} color="#8ab4f8" />, 
-              title: "あらゆるデータを知識に", 
-              desc: "PDF、画像、音声データ。形式を問わずアップロードするだけで、AIが自動で学習・整理します。" 
+              title: "授業ノート", 
+              desc: "授業のメモや板書を、きれいに整理して保存。もうノートを無くすことはありません。" 
             },
             { 
-              icon: <Brain size={32} color="#c58af9" />, 
-              title: "文脈を理解するAI", 
-              desc: "単なるキーワード検索ではありません。あなたの意図を深く理解し、膨大な知識から最適な回答を生成します。" 
+              icon: <Mic size={32} color="#ff8a80" />, 
+              title: "音声記録＆要約", 
+              desc: "先生の話を録音するだけ。AIが自動で文字起こしして、大事なポイントを要約します。" 
             },
             { 
-              icon: <Smartphone size={32} color="#06C755" />, 
-              title: "LINEでいつでもどこでも", 
-              desc: "使い慣れたLINEアプリから、いつでも自分の「第二の脳」にアクセス。PCを開く必要さえありません。" 
+              icon: <MessageSquare size={32} color="#c58af9" />, 
+              title: "AIチャット", 
+              desc: "「あの時なんて言ってた？」と聞くだけ。AIがあなたの過去の全記録から答えを見つけ出します。" 
+            },
+            { 
+              icon: <Search size={32} color="#fcd34d" />, 
+              title: "ネット検索連携", 
+              desc: "教科書に載っていない最新情報も、AIがインターネットから調べて補足説明してくれます。" 
+            },
+            { 
+              icon: <Folder size={32} color="#4ade80" />, 
+              title: "資料一括管理", 
+              desc: "配布されたプリントやPDFもまとめて管理。画像の中の文字まで検索できます。" 
+            },
+            { 
+              icon: <Smartphone size={32} color="#a78bfa" />, 
+              title: "どこでも復習", 
+              desc: "スマホやLINEからいつでもアクセス。通学時間や寝る前のスキマ時間を有効活用できます。" 
             }
           ].map((feature, i) => (
             <div key={i} style={{ 
               textAlign: "left", 
               padding: "40px",
               background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.2)", // Increased visibility
               borderRadius: "24px",
               backdropFilter: "blur(10px)",
-              transition: "transform 0.3s, background 0.3s"
+              transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)", // Smoother transition
+              cursor: "pointer", // Indicate interactivity
+              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)"
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.transform = "translateY(-5px)";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+              e.currentTarget.style.transform = "translateY(-10px)"; // More movement
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+              e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.6)"; // Stronger white border
+              e.currentTarget.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.4)"; // Deep shadow for floating effect
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+              e.currentTarget.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+              e.currentTarget.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
+            }}
+            // Add touch events for mobile responsiveness if needed, though hover usually covers tap on many devices
+            onTouchStart={(e) => {
+               e.currentTarget.style.transform = "scale(0.98)";
+            }}
+            onTouchEnd={(e) => {
+               e.currentTarget.style.transform = "scale(1)";
             }}
             >
               <div style={{ 

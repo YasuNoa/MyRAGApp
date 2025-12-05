@@ -3,13 +3,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/src/lib/prisma";
 
 // GET: Fetch messages for a specific thread
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const threadId = params.id;
+    const { id: threadId } = await params;
 
     try {
         // Verify ownership
@@ -34,13 +34,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE: Delete a thread
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const threadId = params.id;
+    const { id: threadId } = await params;
 
     try {
         // Verify ownership
@@ -64,13 +64,13 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 }
 
 // PATCH: Update thread title
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const session = await auth();
     if (!session || !session.user?.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const threadId = params.id;
+    const { id: threadId } = await params;
     const { title } = await req.json();
 
     if (!title) {

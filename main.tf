@@ -3,6 +3,41 @@ provider "google" {
   region  = "asia-northeast1"
 }
 
+# --- Artifact Registry ---
+resource "google_artifact_registry_repository" "repo" {
+  location      = "asia-northeast1"
+  repository_id = "myragapp-repo"
+  description   = "Docker repository for MyRAGApp"
+  format        = "DOCKER"
+
+  cleanup_policy_dry_run = false
+
+  cleanup_policies {
+    id     = "keep-latest-5"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 5
+    }
+  }
+
+  cleanup_policies {
+    id     = "keep-recent-30-days"
+    action = "KEEP"
+    condition {
+      newer_than = "2592000s" # 30 days
+    }
+  }
+  
+  # Delete everything else that doesn't match a KEEP policy
+  cleanup_policies {
+    id     = "delete-old"
+    action = "DELETE"
+    condition {
+      older_than = "2592000s" # 30 days
+    }
+  }
+}
+
 # --- Backend Service (Python) ---
 resource "google_cloud_run_service" "backend" {
   name     = "myragapp-backend"
@@ -17,7 +52,7 @@ resource "google_cloud_run_service" "backend" {
     }
     spec {
       containers {
-        image = "gcr.io/myragapp-479606/myragapp-backend"
+        image = "asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest"
         resources {
           limits = {
             memory = "512Mi"
@@ -78,7 +113,7 @@ resource "google_cloud_run_service" "frontend" {
   template {
     spec {
       containers {
-        image = "gcr.io/myragapp-479606/myragapp-frontend"
+        image = "asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-frontend:latest"
         env {
           name  = "NEXT_PUBLIC_API_URL"
           value = google_cloud_run_service.backend.status[0].url
