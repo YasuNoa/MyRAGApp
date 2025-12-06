@@ -15,23 +15,33 @@ export const authConfig = {
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnLogin = nextUrl.pathname.startsWith("/login");
-            const isOnRegister = nextUrl.pathname.startsWith("/register");
-            const isOnApi = nextUrl.pathname.startsWith("/api");
-            const isPublicPage = nextUrl.pathname.startsWith("/privacy") || nextUrl.pathname.startsWith("/terms");
+
+            const isDashboard = nextUrl.pathname.startsWith("/dashboard");
+            const isAuthPage = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
+            const isRoot = nextUrl.pathname === "/";
+            const isPublicApi = nextUrl.pathname.startsWith("/api");
+            const isPublicDoc = nextUrl.pathname.startsWith("/privacy") || nextUrl.pathname.startsWith("/terms") || nextUrl.pathname.includes("manifest");
             const isTrial = nextUrl.pathname.startsWith("/trial");
 
-            const isRoot = nextUrl.pathname === "/";
+            // 1. Always allow API
+            if (isPublicApi) return true;
 
-            // API routes are always allowed (handled by their own logic if needed)
-            if (isOnApi) return true;
+            // 2. Logged-in Users on Auth Pages or Root -> Redirect to Dashboard
+            if (isLoggedIn && (isAuthPage || isRoot)) {
+                return Response.redirect(new URL("/dashboard", nextUrl));
+            }
 
-            if (isOnLogin || isOnRegister || isPublicPage || isRoot || isTrial) {
-                // Already logged in, allow access (will redirect in page logic if needed)
+            // 3. Protected Routes (Dashboard) -> Require Login
+            if (isDashboard) {
+                return isLoggedIn;
+            }
+
+            // 4. Default Public Routes (Root, Login, Register, Terms, Trial) -> Allow
+            if (isRoot || isAuthPage || isPublicDoc || isTrial) {
                 return true;
             }
 
-            // Default: require login for all other pages!
+            // 5. Default block everything else
             return isLoggedIn;
         },
     },

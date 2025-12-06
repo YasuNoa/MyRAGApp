@@ -108,6 +108,7 @@ export default function LoginPage() {
         </div>
 
 
+        {/* 
         <div style={{ display: "flex", alignItems: "center", margin: "20px 0" }}>
           <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
           <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>または</span>
@@ -154,6 +155,7 @@ export default function LoginPage() {
             {isLoading ? "確認中..." : "ログイン"}
           </button>
         </form>
+        */}
 
         <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
           <a href="/register" style={{ color: "var(--primary-color)", textDecoration: "none" }}>

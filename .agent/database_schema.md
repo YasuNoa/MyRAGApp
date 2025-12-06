@@ -58,16 +58,12 @@ OAuth認証情報 (NextAuth) を管理します。
 *   `id`: String (CUID) - 主キー
 *   `userId`: String - ユーザーID (Unique)
 *   `plan`: Enum (FREE, STANDARD, PREMIUM) - 現在のプラン
-*   `stripeCustomerId`: String - Stripe顧客ID
-*   `stripeSubscriptionId`: String - StripeサブスクID
-*   `currentPeriodEnd`: DateTime - 有効期限
-*   `dailyChatCount`: Int - 本日のチャット送信数
-*   `lastChatResetAt`: DateTime - チャット制限のリセット日時
-*   `dailyVoiceCount`: Int - 本日の音声処理回数 (Free用)
-*   `lastVoiceDate`: DateTime - 音声回数のリセット日時
-*   `monthlyVoiceMinutes`: Int - 今月の音声処理時間 (分)
-*   `lastVoiceResetDate`: DateTime - 音声時間のリセット日時
-*   `purchasedVoiceBalance`: Int - 追加購入した音声時間 (分)
+*   `dailyChatCount`: Int - 本日のチャット送信数。**Free**: 上限10回/2h (リセット: `lastChatResetAt` + 2h)。**Std/Prem**: 上限100/200回 (リセット: 日付変更JST)。
+*   `lastChatResetAt`: DateTime - チャット制限のリセット判定日時。
+*   `dailyVoiceCount`: Int - **Free専用**: 本日の音声処理回数 (上限5回/日, リセット: 日付変更JST)。
+*   `lastVoiceDate`: DateTime - 音声回数のリセット判定日時。
+*   `monthlyVoiceMinutes`: Int - **Std/Prem専用**: 今月の音声処理時間 (分) (上限1800/6000分, リセット: 月初)。
+*   `purchasedVoiceBalance`: Int - 追加購入した音声時間 (チケット)。
 
 ## Pinecone スキーマ
 

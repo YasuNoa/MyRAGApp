@@ -12,10 +12,10 @@ Base URL: `http://backend:8000` (内部) / `https://...` (本番)
     *   `metadata`: JSON String
         ```json
         {
-          "userId": "cuid...",
           "fileId": "uuid...",
           "tags": ["tag1", "tag2"],
-          "dbId": "cuid..." // Optional: Postgres Document ID
+          "dbId": "cuid...", // Optional: Postgres Document ID
+          "userPlan": "FREE" // Optional: "FREE" | "STANDARD" | "PREMIUM"
         }
         ```
 *   **処理**: OCR/文字起こし -> チャンク分割 -> 埋め込み -> Pinecone & Postgres保存。
@@ -49,7 +49,8 @@ RAG検索 & チャット応答生成。
     {
       "query": "...",
       "userId": "cuid...",
-      "tags": [] // Optional filtering
+      "tags": [], // Optional filtering
+      "userPlan": "FREE" // Required for search/grounding limits
     }
     ```
 *   **Output**: JSON `{ "answer": "..." }`
@@ -76,15 +77,13 @@ Backend `/import-file` へのラッパー。
 3.  成功/失敗を返す。
 
 ### `POST /api/voice/process`
-ボイスメモ処理用ラッパー (レガシー/特定用途)。
-*   Backend `/process-voice-memo` (または `/import-file`) を呼び出す。
-
-*   Backend `/process-voice-memo` (または `/import-file`) を呼び出す。
+ボイスメモ処理用ラッパー。
+*   Backend `/process-voice-memo` を呼び出す。
 
 ### `POST /api/trial/chat`
 体験版チャット。
 *   **制限**: 1セッションあたり2回まで。
-*   **機能**: Geminiによる単純応答 (検索なし)。
+*   **機能**: Gemini 2.0 Flashによる単純応答 (検索なし)。
 *   **保存**: `GuestSession` に履歴を保存。
 
 ### `POST /api/trial/voice`

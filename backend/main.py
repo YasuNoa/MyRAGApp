@@ -606,7 +606,45 @@ def get_audio_duration(file_path: str) -> float:
         logger.error(f"Error getting audio duration: {e}")
         return 0.0
 
+
+async def get_user_plan(user_id: str) -> str:
+    """
+    ユーザーのプランを取得します。
+    もしUserSubscriptionが存在しない場合は、デフォルトでFREEプランを作成して返します。
+    """
+    if not db_pool:
+        return "FREE" # Fallback if DB not ready
+
+    try:
+        async with db_pool.acquire() as conn:
+            # Check existing subscription
+            row = await conn.fetchrow('SELECT plan FROM "UserSubscription" WHERE "userId" = $1', user_id)
+            
+            if row:
+                return row['plan']
+            
+            # Create default FREE plan if missing
+            logger.info(f"No subscription found for user {user_id}. Creating default FREE plan.")
+            new_sub_id = str(uuid.uuid4())
+            now = datetime.now()
+            
+            # Create subscription
+            await conn.execute(
+                """
+                INSERT INTO "UserSubscription" 
+                ("id", "userId", "plan", "dailyChatCount", "lastChatResetAt", "updatedAt", "dailyVoiceCount", "lastVoiceDate") 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                """,
+                new_sub_id, user_id, "FREE", 0, now, now, 0, now
+            )
+            return "FREE"
+
+    except Exception as e:
+        logger.error(f"Error fetching/creating user plan: {e}")
+        return "FREE" # Fallback to FREE on error
+
 # --- Usage Limit Helpers ---
+
 
 async def check_storage_limit(user_id: str, plan: str):
     LIMITS = {

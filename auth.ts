@@ -48,6 +48,24 @@ async function refreshAccessToken(token: any) {
     }
 }
 
+
+async function ensureUserPlan(userId: string) {
+    try {
+        const sub = await prisma.userSubscription.findUnique({ where: { userId } });
+        if (!sub) {
+            console.log(`Creating default FREE plan for user ${userId}`);
+            await prisma.userSubscription.create({
+                data: {
+                    userId,
+                    plan: "FREE",
+                }
+            });
+        }
+    } catch (e) {
+        console.error("Error creating user plan:", e);
+    }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
     trustHost: true,
@@ -59,15 +77,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Initial sign in
             if (account && user) {
                 console.log("DEBUG: Initial sign in. Got refresh token?", !!account.refresh_token);
+                console.log("DEBUG: Provider:", account.provider);
+
+                // Ensure user has a plan
+                if (user.id) {
+                    await ensureUserPlan(user.id);
+                }
+
+                const expiresIn = (account.expires_in as number) || (60 * 60 * 24 * 30); // Default 30 days for credentials
+
                 return {
                     ...token,
                     accessToken: account.access_token,
-                    expiresAt: Date.now() + (account.expires_in as number * 1000),
+                    expiresAt: Date.now() + (expiresIn * 1000),
                     refreshToken: account.refresh_token,
                     id: user.id,
                     name: user.name,
                     email: user.email,
                     picture: user.image,
+                    provider: account.provider, // Store provider to switch refresh logic later
                 };
             }
 
@@ -92,6 +120,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Return previous token if the access token has not expired yet
             if (Date.now() < (token.expiresAt as number)) {
+                return token;
+            }
+
+            // If no refresh token (e.g. Credentials provider), cannot refresh.
+            if (!token.refreshToken) {
                 return token;
             }
 
@@ -135,6 +168,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             checks: ["none"], // Disable PKCE checks to fix localhost 500 error
             allowDangerousEmailAccountLinking: true,
         }),
+        /*
         Credentials({
             credentials: {
                 email: { label: "Email", type: "email" },
@@ -167,6 +201,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return null;
             },
         }),
+        */
     ],
 });
 
