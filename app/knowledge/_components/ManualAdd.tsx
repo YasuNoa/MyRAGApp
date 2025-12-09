@@ -153,7 +153,10 @@ export default function ManualAdd() {
         <h3 style={{ margin: 0 }}>知識を手動で追加</h3>
         <div style={{ display: "flex", gap: "5px", backgroundColor: "var(--input-bg)", padding: "4px", borderRadius: "20px" }}>
           <button
-            onClick={() => setMode("text")}
+            onClick={() => {
+                setMode("text");
+                setMessage("");
+            }}
             style={{
               padding: "4px 12px",
               borderRadius: "16px",
@@ -168,7 +171,10 @@ export default function ManualAdd() {
             テキスト
           </button>
           <button
-            onClick={() => setMode("file")}
+            onClick={() => {
+                setMode("file");
+                setMessage("");
+            }}
             style={{
               padding: "4px 12px",
               borderRadius: "16px",
@@ -187,14 +193,20 @@ export default function ManualAdd() {
 
       <div style={{ marginBottom: "15px" }}>
         <label style={{ display: "block", marginBottom: "5px", fontSize: "12px", color: "var(--text-secondary)" }}>タグ (任意)</label>
-        <TagInput tags={tags} onChange={setTags} placeholder="タグを入力 (Enterで追加)" />
+        <TagInput tags={tags} onChange={(t) => {
+            setTags(t);
+            setMessage("");
+        }} placeholder="タグを入力 (Enterで追加)" />
       </div>
 
       {mode === "text" ? (
         <textarea
           className="neo-input"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+              setText(e.target.value);
+              setMessage("");
+          }}
           placeholder="ここにAIに覚えさせたい知識を入力してください..."
           style={{
             width: "100%",
@@ -223,6 +235,7 @@ export default function ManualAdd() {
             type="file"
             ref={fileInputRef}
             onChange={(e) => {
+              setMessage("");
               if (e.target.files) {
                 const newFiles = Array.from(e.target.files);
                 const invalidFiles = newFiles.filter(f => f.name.toLowerCase().endsWith(".wav"));
@@ -287,6 +300,9 @@ export default function ManualAdd() {
                       if (plan === "STANDARD") return "Standardプラン: 冒頭90分のみ解析されます。（91分以降はカット）";
                       return "Freeプラン: 冒頭20分のみ解析されます。（21分以降はカット）";
                   })()}
+                  <div style={{ marginTop: "4px", color: "rgba(255, 193, 7, 0.9)" }}>
+                     ※ ファイルサイズが大きい場合、保存完了まで数分かかることがあります。
+                  </div>
               </div>
           )}
 
@@ -314,6 +330,7 @@ export default function ManualAdd() {
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent triggering file input
                         setFiles(prev => prev.filter((_, index) => index !== i));
+                        setMessage("");
                       }}
                       style={{
                         background: "none",

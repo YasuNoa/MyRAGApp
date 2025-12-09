@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 import asyncpg
 import logging
 import sys
+import time
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import re
 from prompts import (
@@ -28,6 +29,8 @@ from prompts import (
     IMAGE_DESCRIPTION_PROMPT,
     PDF_TRANSCRIPTION_PROMPT,
     PDF_TRANSCRIPTION_PROMPT,
+    AUDIO_CHUNK_PROMPT,
+    SUMMARY_FROM_TEXT_PROMPT,
     INTENT_CLASSIFICATION_PROMPT
 )
 from search_service import SearchService
@@ -396,58 +399,118 @@ async def process_voice_memo(
             pass
         # -------------------------------------------------------------------
             
-        # Geminiへのアップロード
-        logger.info("Uploading to Gemini...")
-        uploaded_file = genai.upload_file(temp_filename, mime_type=file.content_type)
+        # --- Chunking & Segmentation Strategy ---
+        # 10分 (600秒) ごとに分割して処理する
+        # これにより8kトークン制限を回避
         
-        # コンテンツ生成 (文字起こし + 要約)
-        logger.info("Generating transcript and summary...")
+        chunk_duration = 600 # 10 minutes
+        temp_dir = f"/tmp/{uuid.uuid4()}"
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Split audio using ffmpeg
+        # Output pattern: part000.mp3, part001.mp3...
+        split_pattern = os.path.join(temp_dir, "part%03d" + file_ext)
+        logger.info(f"Splitting audio into {chunk_duration}s chunks...")
+        
+        cmd = [
+            "ffmpeg", "-y", "-i", current_temp_file, 
+            "-f", "segment", "-segment_time", str(chunk_duration), 
+            "-c", "copy", split_pattern
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Gather chunks
+        chunks_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.startswith("part")])
+        logger.info(f"Created {len(chunks_files)} chunks: {chunks_files}")
+        
+        full_transcript = []
         model = genai.GenerativeModel('gemini-2.0-flash')
         
-        prompt = VOICE_MEMO_PROMPT
+        # Loop through chunks
+        for i, chunk_path in enumerate(chunks_files):
+            logger.info(f"Processing chunk {i+1}/{len(chunks_files)}: {chunk_path}")
+            
+            # Upload Chunk
+            chunk_file = genai.upload_file(chunk_path, mime_type=file.content_type)
+            
+            # Generate Transcript (No Summary yet)
+            retry_count = 0
+            max_retries = 5
+            
+            while retry_count < max_retries:
+                try:
+                    response = model.generate_content(
+                        [AUDIO_CHUNK_PROMPT, chunk_file],
+                    )
+                    
+                    # Parse Chunk Transcript
+                    text_resp = response.text
+                    chunk_transcript = ""
+                    if "[TRANSCRIPT]" in text_resp:
+                        chunk_transcript = text_resp.split("[TRANSCRIPT]")[1].strip()
+                    else:
+                        chunk_transcript = text_resp.strip()
+                    
+                    full_transcript.append(chunk_transcript)
+                    break # Success, exit retry loop
+                    
+                except Exception as e:
+                    if "429" in str(e) or "Resource exhausted" in str(e):
+                        retry_count += 1
+                        wait_time = 30 * retry_count # Progressive backoff: 30s, 60s, 90s...
+                        logger.warning(f"Rate limit hit for chunk {i}. Retrying in {wait_time}s... ({retry_count}/{max_retries})")
+                        time.sleep(wait_time)
+                    else:
+                        logger.error(f"Failed to transcribe chunk {i}: {e}")
+                        full_transcript.append(f"(Chunk {i} failed: {e})")
+                        break # Non-retriable error
+
+            # Rate Limit Prevention: usage is high, so wait between chunks
+            logger.info("Sleeping 10s to respect rate limits...")
+            time.sleep(10)
+            
+            # Cleanup chunk file from Gemini (optional but good practice)
+            # chunk_file.delete() 
+
+        # Merge Transcripts
+        final_transcript = "\n\n".join(full_transcript)
+        logger.info(f"Full transcript length: {len(final_transcript)} chars")
+        
+        # Generate Final Summary from Text
+        logger.info("Generating final summary from text...")
+        final_summary = "（要約生成失敗）"
         
         try:
-            response = model.generate_content(
-                [prompt, uploaded_file],
-                generation_config={"response_mime_type": "application/json"},
-            )
-            logger.info(f"Gemini Raw Response: {response.text}")
+            # Inject transcript into prompt
+            summary_prompt = SUMMARY_FROM_TEXT_PROMPT.format(text=final_transcript[:500000]) # Safety cap 500k chars
             
-            try:
-                # 1. Try parsing directly
-                result = json.loads(response.text)
-            except json.JSONDecodeError:
-                # 2. Try cleaning markdown (Regex-based extraction)
-                # Find the first JSON object '{...}' or list '[...]' in the text
-                try:
-                    match = re.search(r'(\{.*\}|\[.*\])', response.text, re.DOTALL)
-                    if match:
-                        cleaned = match.group(0)
-                        result = json.loads(cleaned)
-                    else:
-                        # Try standard cleaning if regex fails
-                        cleaned = clean_json_response(response.text)
-                        result = json.loads(cleaned)
-                        
-                except Exception as e:
-                    # 3. Fallback: Treat as raw text if parsing fails completely
-                    logger.warning(f"JSON parsing failed: {e}. Falling back to raw text.")
-                    result = {"transcript": response.text, "summary": "（要約生成失敗）"}
-
-            # Handle List response (Gemini sometimes returns [{}])
-            if isinstance(result, list):
-                if len(result) > 0 and isinstance(result[0], dict):
-                    result = result[0]
-                else:
-                     logger.warning("Gemini returned a list but structure is unexpected. Using raw text fallback.")
-                     result = {"transcript": str(result), "summary": "（要約生成失敗）"}
-
+            summary_resp = model.generate_content([summary_prompt])
+            
+            # Parse Summary
+            summary_text = summary_resp.text
+            if "[SUMMARY]" in summary_text:
+                final_summary = summary_text.split("[SUMMARY]")[1].strip()
+            else:
+                final_summary = summary_text.strip()
+                
         except Exception as e:
-            logger.error(f"Gemini Generation Error: {e}")
-            if hasattr(e, 'response'):
-                 logger.error(f"Gemini Error Response: {e.response}")
-            # Instead of 500, return a partial success if possible, or re-raise
-            raise HTTPException(status_code=500, detail=f"Gemini Error: {str(e)}")
+            logger.error(f"Summary generation failed: {e}")
+            final_summary = "（要約生成に失敗しました）"
+
+        # Compat for existing variables
+        transcript = final_transcript
+        summary = final_summary
+        
+        # Cleanup split files
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+        result = {
+            "transcript": transcript,
+            "summary": summary
+        }
+
+
 
         transcript = result.get("transcript", "")
         summary = result.get("summary", "")
@@ -1410,27 +1473,10 @@ async def classify_intent(request: ClassifyRequest):
         # Fallback
         return {"intent": "CHAT", "tags": ["General"]}
 
-[
-    "ReplacementContent": "        # 3. Aggregation (Vector + Filename Match)\n        context_parts = []\n        seen_doc_ids = set()\n\n        # A. Process Vector Matches\n        if search_results['matches']:\n            for match in search_results['matches']:\n                metadata = match['metadata']\n                doc_id = metadata.get('dbId') or metadata.get('fileId')\n                \n                full_content = None\n                if doc_id and doc_id not in seen_doc_ids:\n                    # Try fetching full content\n                    full_content = await get_document_content(doc_id)\n                    if full_content:\n                        context_parts.append(f\"Source: {metadata.get('fileName', 'Unknown')}\\n\\n{full_content}\")\n                        seen_doc_ids.add(doc_id)\n                \n                if not full_content:\n                     # Fallback to chunk\n                     chunk_text = metadata.get('text', '')\n                     context_parts.append(f\"Source: {metadata.get('fileName', 'Unknown')} (Excerpt)\\n\\n{chunk_text}\")\n\n        # B. Process Filename Matches (Direct DB Search)\n        # Checks if query contains the filename of any user document\n        filename_matches = await search_documents_by_title_in_query(request.userId, request.query)\n        if filename_matches:\n             print(f\"Found {len(filename_matches)} documents by filename reference in query.\")\n             for doc in filename_matches:\n                 if doc['id'] not in seen_doc_ids:\n                     print(f\"Adding direct filename match: {doc['title']}\")\n                     context_parts.append(f\"Source: {doc['title']} (Filename Match)\\n\\n{doc['content']}\")\n                     seen_doc_ids.add(doc['id'])\n\n        if not context_parts:\n            print(\"No matches found in Pinecone OR Filename search. Proceeding with empty context fallback.\")\n            context = \"関連する学習データは見つかりませんでした。\"\n        else:\n            context = \"\\n\\n---\\n\\n\".join(context_parts)"
-  },
-  {
-    "AllowMultiple": false,
-    "StartLine": 1419,
-    "EndLine": 1419,
-    "TargetContent": "        # Pineconeヒットなし かつ 内部データについての質問なら、Web検索をスキップ",
-    "ReplacementContent": "        # コンテキスト(Pinecone/Filename)なし かつ 内部データについての質問なら、Web検索をスキップ"
-  },
-  {
-    "AllowMultiple": false,
-    "StartLine": 1420,
-    "EndLine": 1420,
-    "TargetContent": "        if not search_results['matches'] and is_internal_query:",
-    "ReplacementContent": "        if (not context_parts or not search_results['matches']) and is_internal_query: \n            # Note: context_parts check is more accurate now that we have Filename search.\n            # If context_parts is empty, it means NEITHER vector NOR filename search found anything.\n            # But we keep 'matches' check for safety or just check context text?\n            # 'context' string is set to \"関連する...\" if empty.\n            # Let's use the 'context' content check.\n            pass # Logic updated below"
-  }
-]
 
-    query: str
-    userId: str
+
+
+class QueryRequest(BaseModel):
     query: str
     userId: str
     tags: List[str] = [] # categoryからtagsリストに変更

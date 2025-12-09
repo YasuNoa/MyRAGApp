@@ -41,12 +41,47 @@ VOICE_MEMO_PROMPT = (
     "2. Create a concise summary of the content in Japanese (bullet points).\n"
     "3. CRITICAL: If the audio is silent, unclear, contains no speech, or is just background noise, return empty strings for both transcript and summary.\n"
     "4. Do NOT invent or hallucinate content. If you are unsure, return empty.\n\n"
-    "Output strictly in JSON format:\n"
-    "{\n"
-    '    "transcript": "Full text here...",\n'
-    '    "summary": "Summary in Japanese here..."\n'
-    "}"
+    "Output strictly in the following format (Text-based, NO JSON):\n\n"
+    "[SUMMARY]\n"
+    "(Concise summary in Japanese bullet points here...)\n\n"
+    "[TRANSCRIPT]\n"
+    "(Full verbatim transcript here...)\n"
 )
+
+# New Prompt for Chunk Processing
+AUDIO_CHUNK_PROMPT = (
+    "You are a professional secretary.\n"
+    "1. Transcribe the audio file verbatim (word-for-word).\n"
+    "2. Do NOT summarize. Just transcribe.\n"
+    "3. CRITICAL: If audio is silent/noise, return empty string.\n\n"
+    "Output strictly in the following format:\n"
+    "[TRANSCRIPT]\n"
+    "(Full verbatim transcript here...)\n"
+)
+
+# New Prompt for Summarizing Long Text
+
+SUMMARY_FROM_TEXT_PROMPT = """
+You are a professional secretary.
+Read the following long transcript and create a comprehensive summary in Japanese.
+The transcript is a merged text of split audio files.
+
+[TRANSCRIPT_START]
+{text}
+[TRANSCRIPT_END]
+
+**Instructions:**
+1. Cover the **entire content** from beginning to end. Do not stop at the start.
+2. Structure the summary with bullet points.
+3. Capture key decisions, actionable items, and important facts.
+4. If the content changes topics, separate the summary into sections.
+
+Output strictly in the following format:
+[SUMMARY]
+- (Point 1)
+- (Point 2)
+...
+"""
 
 IMAGE_DESCRIPTION_PROMPT = (
     "Describe this image in detail in Japanese. "
