@@ -187,6 +187,43 @@ resource "google_cloud_run_service" "frontend" {
           name  = "TZ"
           value = "Asia/Tokyo"
         }
+        
+        # Stripe
+        env {
+            name = "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+            value = var.next_public_stripe_publishable_key
+        }
+        env {
+            name = "STRIPE_SECRET_KEY"
+            value = var.stripe_secret_key
+        }
+        
+        # Stripe Price IDs
+        env {
+          name = "STRIPE_PRICE_ID_STANDARD_MONTHLY"
+          value = var.stripe_price_id_standard_monthly
+        }
+        env {
+          name = "STRIPE_PRICE_ID_STANDARD_YEARLY"
+          value = var.stripe_price_id_standard_yearly
+        }
+        env {
+          name = "STRIPE_PRICE_ID_PREMIUM_MONTHLY"
+          value = var.stripe_price_id_premium_monthly
+        }
+        env {
+          name = "STRIPE_PRICE_ID_PREMIUM_YEARLY"
+          value = var.stripe_price_id_premium_yearly
+        }
+        env {
+          name = "STRIPE_PRICE_ID_TICKET_90"
+          value = var.stripe_price_id_ticket_90
+        }
+        
+        env {
+            name = "STRIPE_WEBHOOK_SECRET"
+            value = var.stripe_webhook_secret
+        }
       }
     }
   }

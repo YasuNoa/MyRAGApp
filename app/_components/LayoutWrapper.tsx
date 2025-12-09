@@ -28,9 +28,11 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         style={{
           flex: 1,
           marginLeft: showSidebar && isOpen ? "280px" : "0", // ログイン時かつOpen時のみマージン
-          padding: ((!isAuthenticated && pathname === "/") || pathname === "/trial") ? "0" : "40px",
+          padding: ((!isAuthenticated && pathname === "/") || pathname === "/trial" || pathname === "/dashboard") ? "0" : "40px",
           maxWidth: "100%",
           transition: "margin-left 0.3s ease", // スムーズなアニメーション
+          overflow: (pathname === "/dashboard") ? "hidden" : "visible", // Dashboardの場合はスクロールを内部に任せる
+          height: (pathname === "/dashboard") ? "100vh" : "auto", // 高さを固定
         }}
       >
         {children}

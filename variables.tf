@@ -78,3 +78,26 @@ variable "google_cse_id" {
   type        = string
   sensitive   = true
 }
+
+variable "next_public_stripe_publishable_key" {
+  description = "Stripe Publishable Key"
+  type        = string
+}
+
+variable "stripe_secret_key" {
+  description = "Stripe Secret Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "stripe_price_id_standard_monthly" { type = string }
+variable "stripe_price_id_standard_yearly" { type = string }
+variable "stripe_price_id_premium_monthly" { type = string }
+variable "stripe_price_id_premium_yearly" { type = string }
+variable "stripe_price_id_ticket_90" { type = string }
+
+variable "stripe_webhook_secret" {
+  description = "Stripe Webhook Signing Secret"
+  type        = string
+  sensitive   = true
+}

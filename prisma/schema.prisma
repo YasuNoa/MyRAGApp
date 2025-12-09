@@ -55,7 +55,6 @@ model Document {
 }
 
 // チャットの履歴テーブル
-// チャットの履歴テーブル
 model Message {
   id        String   @id @default(cuid()) // ID
   content   String                        // 内容

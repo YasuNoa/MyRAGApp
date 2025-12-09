@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Trash2, FileText, Database, MessageSquare, Settings, PlusCircle, ChevronRight, ChevronLeft, HelpCircle, MessageSquarePlus } from "lucide-react";
+import { Trash2, FileText, Database, MessageSquare, Settings, PlusCircle, ChevronRight, ChevronLeft, HelpCircle, MessageSquarePlus, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 import { useSidebar } from "@/app/_context/SidebarContext";
 import { useChat } from "@/app/_context/ChatContext";
@@ -15,8 +15,10 @@ type Document = {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { refreshTrigger, triggerRefresh } = useKnowledge();
   const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
+  const { clearChat } = useChat();
 
   const handleMobileClick = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -81,6 +83,7 @@ export default function Sidebar() {
     { href: "/knowledge/list", label: "学習済みデータ", icon: <Database size={20} /> },
     { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
     { href: "/feedback", label: "フィードバック", icon: <MessageSquarePlus size={20} /> },
+    { href: "/pricing", label: "アップグレード", icon: <Sparkles size={20} color="#fbbf24" /> },
     { href: "/profile", label: "設定", icon: <Settings size={20} /> },
   ];
 
@@ -148,8 +151,39 @@ export default function Sidebar() {
           </button>
         </div>
 
+        {/* New Chat Button */}
+        <div style={{ padding: "20px 10px 0 10px" }}>
+            <button
+                onClick={() => {
+                    clearChat();
+                    router.push("/dashboard");
+                    handleMobileClick();
+                }}
+                className="neo-button"
+                style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "10px 15px",
+                    borderRadius: "8px",
+                    backgroundColor: "transparent",
+                    color: "#4285f4",
+                    border: "1px solid rgba(66, 133, 244, 0.3)",
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                    transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(66, 133, 244, 0.1)"}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+            >
+                <PlusCircle size={20} />
+                <span>新しいチャット</span>
+            </button>
+        </div>
+
         {/* メインナビゲーション */}
-        <nav style={{ padding: "20px 10px" }}>
+        <nav style={{ padding: "10px 10px 20px 10px" }}>
           {navItems.map((item) => (
             <Link
               onClick={handleMobileClick}

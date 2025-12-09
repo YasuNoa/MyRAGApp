@@ -5,6 +5,7 @@ import os
 import io
 import json
 import uuid
+import subprocess # For running ffmpeg
 from typing import List, Optional
 from pypdf import PdfReader
 from pinecone import Pinecone
@@ -61,6 +62,23 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/myr
 
 if not PINECONE_API_KEY or not GOOGLE_API_KEY:
     logger.warning("API Keys not found in environment variables")
+
+def get_audio_duration(file_path: str) -> float:
+    """Get the duration of an audio file in seconds using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe", 
+            "-v", "error", 
+            "-show_entries", "format=duration", 
+            "-of", "default=noprint_wrappers=1:nokey=1", 
+            file_path
+        ]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        return float(result.stdout.strip())
+    except Exception as e:
+        logger.error(f"Failed to get audio duration: {e}")
+        return 0.0
+
 
 # --- クライアント初期化 (Initialize Clients) ---
 # Pinecone (ベクトルDB) と Gemini (AIモデル) のクライアントを初期化します。
@@ -311,9 +329,72 @@ async def process_voice_memo(
             await check_and_increment_voice_limit(user_id, user_plan)
 
         # 1. Save temporary
-        temp_filename = f"/tmp/{uuid.uuid4()}_{file.filename}"
+        # Use UUID to prevent filename collision
+        file_ext = os.path.splitext(file.filename)[1]
+        if not file_ext:
+            file_ext = ".mp3" # Default if missing
+            
+        temp_filename = f"/tmp/{uuid.uuid4()}{file_ext}"
+        
         with open(temp_filename, "wb") as f:
             f.write(content)
+
+        # --- Plan-Based Logic: Truncation & Usage Recording ---
+        
+        # 1. Truncation
+        needs_truncation = False
+        truncate_seconds = 0
+        
+        if user_plan == "FREE":
+            needs_truncation = True
+            truncate_seconds = 1200 # 20 mins
+            logger.info("Free Plan detected: Truncating to 20 mins.")
+        elif user_plan == "STANDARD":
+            needs_truncation = True
+            truncate_seconds = 5400 # 90 mins
+            logger.info("Standard Plan detected: Truncating to 90 mins.")
+        elif user_plan == "PREMIUM":
+            needs_truncation = True
+            truncate_seconds = 10800 # 180 mins (3 hours)
+            logger.info("Premium Plan detected: Truncating to 180 mins.")
+
+        try:
+            current_temp_file = temp_filename
+            
+            if needs_truncation:
+                # Check actual duration first to see if truncation is really needed for this file
+                # Optimization: if file is short, skip ffmpeg copy
+                actual_duration = get_audio_duration(temp_filename)
+                
+                if actual_duration > truncate_seconds:
+                    truncated_filename = f"/tmp/{uuid.uuid4()}_truncated{file_ext}"
+                    # ffmpeg: -t duration, -acodec copy
+                    cmd = ["ffmpeg", "-y", "-i", temp_filename, "-t", str(truncate_seconds), "-acodec", "copy", truncated_filename]
+                    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    
+                    # Swap
+                    os.remove(temp_filename)
+                    temp_filename = truncated_filename
+                    current_temp_file = temp_filename
+                    logger.info(f"Truncated from {actual_duration:.1f}s to {truncate_seconds}s")
+            
+            # 2. Record Usage (Monthly Limits) for Paid Plans
+            # Use final duration (post-truncation)
+            final_duration = get_audio_duration(current_temp_file)
+            await record_audio_usage(user_id, user_plan, final_duration)
+            
+        except Exception as e:
+            logger.error(f"Audio processing/recording failed: {e}")
+            # Identify if it was quota exceeded
+            if "limit exceeded" in str(e):
+                raise e # Re-raise 403
+            
+            # For other errors (ffmpeg), log and proceed with original if possible?
+            # If recording usage failed, we should strictly fail to prevent free usage abuse? 
+            # Or soft fail? Let's soft fail for robustness but log error.
+            # Actually, if record_audio_usage raises 403, we must stop.
+            pass
+        # -------------------------------------------------------------------
             
         # Geminiへのアップロード
         logger.info("Uploading to Gemini...")
@@ -336,14 +417,30 @@ async def process_voice_memo(
                 # 1. Try parsing directly
                 result = json.loads(response.text)
             except json.JSONDecodeError:
-                # 2. Try cleaning markdown
-                cleaned = clean_json_response(response.text)
+                # 2. Try cleaning markdown (Regex-based extraction)
+                # Find the first JSON object '{...}' or list '[...]' in the text
                 try:
-                    result = json.loads(cleaned)
-                except json.JSONDecodeError:
+                    match = re.search(r'(\{.*\}|\[.*\])', response.text, re.DOTALL)
+                    if match:
+                        cleaned = match.group(0)
+                        result = json.loads(cleaned)
+                    else:
+                        # Try standard cleaning if regex fails
+                        cleaned = clean_json_response(response.text)
+                        result = json.loads(cleaned)
+                        
+                except Exception as e:
                     # 3. Fallback: Treat as raw text if parsing fails completely
-                    logger.warning("JSON parsing failed. Falling back to raw text.")
+                    logger.warning(f"JSON parsing failed: {e}. Falling back to raw text.")
                     result = {"transcript": response.text, "summary": "（要約生成失敗）"}
+
+            # Handle List response (Gemini sometimes returns [{}])
+            if isinstance(result, list):
+                if len(result) > 0 and isinstance(result[0], dict):
+                    result = result[0]
+                else:
+                     logger.warning("Gemini returned a list but structure is unexpected. Using raw text fallback.")
+                     result = {"transcript": str(result), "summary": "（要約生成失敗）"}
 
         except Exception as e:
             logger.error(f"Gemini Generation Error: {e}")
@@ -667,7 +764,7 @@ async def check_storage_limit(user_id: str, plan: str):
 async def check_and_increment_voice_limit(user_id: str, plan: str):
     # 1. Daily Count Limit (Free Only)
     if plan == "FREE":
-        LIMIT = 5
+        LIMIT = 2 # Updated from 5 to 2 based on new "Reasonable" monetization strategy
         async with db_pool.acquire() as conn:
             row = await conn.fetchrow('SELECT "dailyVoiceCount", "lastVoiceDate" FROM "UserSubscription" WHERE "userId" = $1', user_id)
             
@@ -679,10 +776,21 @@ async def check_and_increment_voice_limit(user_id: str, plan: str):
                 last_date = row["lastVoiceDate"]
             
             # Check reset (JST)
-            now = datetime.now(timezone(timedelta(hours=9)))
-            last_date_jst = last_date.astimezone(timezone(timedelta(hours=9)))
+            # 1. 現在時刻をUTCで取得 (DB保存用)
+            now_utc = datetime.now(timezone.utc)
             
-            if last_date_jst.date() != now.date():
+            # 2. ロジック判定用にJSTに変換
+            jst = timezone(timedelta(hours=9))
+            now_jst = now_utc.astimezone(jst)
+            
+            # 3. DBから取得した日時をJSTに変換
+            # DBがNaive(UTC)の場合はreplaceでAwareにしてから変換
+            if last_date.tzinfo is None:
+                last_date = last_date.replace(tzinfo=timezone.utc)
+            
+            last_date_jst = last_date.astimezone(jst)
+            
+            if last_date_jst.date() != now_jst.date():
                 daily_count = 0
             
             if daily_count >= LIMIT:
@@ -691,35 +799,32 @@ async def check_and_increment_voice_limit(user_id: str, plan: str):
             # Increment
             # Note: We increment here. If processing fails later, it still counts.
             # This is safer for preventing abuse.
+            # Important: Pass NAIVE UTC datetime to asyncpg to avoid "can't subtract offset-naive" error
+            now_utc_naive = now_utc.replace(tzinfo=None)
+            
             if row:
                 await conn.execute(
                     'UPDATE "UserSubscription" SET "dailyVoiceCount" = $1, "lastVoiceDate" = $2 WHERE "userId" = $3',
-                    daily_count + 1, now, user_id
+                    daily_count + 1, now_utc_naive, user_id
                 )
             else:
                 # Should exist, but handle just in case
                 pass
 
-async def check_and_update_audio_time_limit(user_id: str, plan: str, duration_sec: float):
-    # Standard/Premium Time Limit
+async def record_audio_usage(user_id: str, plan: str, duration_sec: float):
+    """
+    Record audio usage and check monthly limits.
+    File duration limits (e.g. 20m/90m) are handled by truncation logic in process_voice_memo.
+    """
     if plan == "FREE":
-        return # Free plan handled by count limit
+        return # Free plan handled by count limit (and truncation)
 
     duration_min = int(duration_sec / 60)
     
-    # File Limit
-    FILE_LIMITS = {
-        "STANDARD": 120,
-        "PREMIUM": 180,
-    }
-    file_limit = FILE_LIMITS.get(plan, 120)
-    if duration_min > file_limit:
-        raise HTTPException(status_code=400, detail=f"Audio file duration ({duration_min}m) exceeds limit for {plan} plan ({file_limit}m).")
-
-    # Monthly Limit
+    # Monthly Limit (Minutes)
     MONTHLY_LIMITS = {
-        "STANDARD": 1800,
-        "PREMIUM": 6000,
+        "STANDARD": 1800, # 30 hours
+        "PREMIUM": 6000,  # 100 hours
     }
     monthly_limit = MONTHLY_LIMITS.get(plan, 1800)
 
@@ -733,13 +838,20 @@ async def check_and_update_audio_time_limit(user_id: str, plan: str, duration_se
         if row:
             current_usage = row["monthlyVoiceMinutes"]
             purchased = row["purchasedVoiceBalance"]
+            # Ensure timezone awareness handling if needed, similar to other funcs
             last_reset = row["lastVoiceResetDate"]
+            if last_reset.tzinfo is None:
+                last_reset = last_reset.replace(tzinfo=timezone.utc)
 
-        # Monthly Reset Check
-        now = datetime.now()
-        if last_reset.month != now.month or last_reset.year != now.year:
+        # Monthly Reset Check (JST)
+        now_utc = datetime.now(timezone.utc)
+        jst = timezone(timedelta(hours=9))
+        now_jst = now_utc.astimezone(jst)
+        last_reset_jst = last_reset.astimezone(jst)
+        
+        if last_reset_jst.month != now_jst.month or last_reset_jst.year != now_jst.year:
             current_usage = 0
-            last_reset = now
+            # update last_reset to now_utc? Yes.
         
         total_available = monthly_limit + purchased
         if current_usage + duration_min > total_available:
@@ -747,10 +859,12 @@ async def check_and_update_audio_time_limit(user_id: str, plan: str, duration_se
 
         # Update
         new_usage = current_usage + duration_min
+        now_utc_naive = now_utc.replace(tzinfo=None) # For asyncpg
+        
         if row:
             await conn.execute(
                 'UPDATE "UserSubscription" SET "monthlyVoiceMinutes" = $1, "lastVoiceResetDate" = $2 WHERE "userId" = $3',
-                new_usage, last_reset, user_id
+                new_usage, now_utc_naive, user_id
             )
 
 async def check_and_increment_chat_limit(user_id: str, plan: str):
@@ -763,6 +877,7 @@ async def check_and_increment_chat_limit(user_id: str, plan: str):
     
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow('SELECT "dailyChatCount", "lastChatResetAt" FROM "UserSubscription" WHERE "userId" = $1', user_id)
+
         
         daily_count = 0
         last_reset = datetime.now()
@@ -1295,8 +1410,22 @@ async def query_knowledge(request: QueryRequest):
         print(f"Final Context Length: {len(context)}")
         
         # 4. Perform Web Search (Plan-based)
-        search_results = search_service.search(request.query, request.userPlan)
-        print(f"Search Results: {search_results[:200]}...") # Log first 200 chars
+        # Anti-Hallucination: Check if we should skip web search for internal queries
+        internal_keywords = [
+            "登録", "アップロード", "ファイル", "要約", "データ", "音声", "録音", "私の", "この", "中身", "内容",
+            "registered", "uploaded", "file", "summarize", "data", "audio", "recording", "my", "this", "content"
+        ]
+        is_internal_query = any(keyword in request.query for keyword in internal_keywords)
+        
+        web_search_result = ""
+        
+        # Pineconeヒットなし かつ 内部データについての質問なら、Web検索をスキップ
+        if not search_results['matches'] and is_internal_query:
+            print("[Anti-Hallucination] Skipping Web Search for internal query with no vector matches.")
+            web_search_result = "（ユーザーは自身のデータについて質問しましたが、知識ベースに関連情報が見つからなかったため、混同を避けるためにWeb検索はスキップされました。）"
+        else:
+            web_search_result = search_service.search(request.query, request.userPlan)
+            print(f"Web Search Results: {web_search_result[:200]}...")
 
         # 5. Geminiで回答生成
         system_instruction = CHAT_SYSTEM_PROMPT
@@ -1309,7 +1438,7 @@ async def query_knowledge(request: QueryRequest):
         {context}
         
         Context from Web Search:
-        {search_results}
+        {web_search_result}
         
         Question:
         {request.query}

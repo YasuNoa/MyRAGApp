@@ -5,10 +5,10 @@ import { logout } from "@/app/actions/auth";
 import ProfileForm from "./profile-form";
 import NameForm from "./name-form";
 import AiNameForm from "./ai-name-form";
-import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe, FileText, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe, FileText, ChevronRight, CreditCard } from "lucide-react";
 import { signIn, signOut } from "next-auth/react";
 
-export default function ProfileMenu({ user, providers = [] }: { user: any, providers?: string[] }) {
+export default function ProfileMenu({ user, providers = [], subscription }: { user: any, providers?: string[], subscription?: any }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAiProfileOpen, setIsAiProfileOpen] = useState(false);
@@ -57,6 +57,24 @@ export default function ProfileMenu({ user, providers = [] }: { user: any, provi
 
       {/* Menu List */}
       <div style={{ display: "flex", flexDirection: "column" }}>
+
+        {/* Current Plan Item */}
+        <div style={{ borderBottom: "1px solid var(--border-color)" }}>
+          <div style={{ 
+            padding: "20px 24px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <CreditCard size={20} color="var(--primary-color)" />
+              <span>現在のプラン</span>
+            </div>
+            <span style={{ fontWeight: "bold", fontSize: "16px", color: "var(--text-color)" }}>
+              {subscription?.plan || "FREE"} プラン
+            </span>
+          </div>
+        </div>
         
         {/* Profile Settings Item (Name) */}
         <div style={{ borderBottom: "1px solid var(--border-color)" }}>

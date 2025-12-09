@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { cookies } from "next/headers";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
 import { PrismaClient } from "@prisma/client";
@@ -73,6 +74,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: { strategy: "jwt" },
     callbacks: {
         ...authConfig.callbacks,
+        async signIn({ account, profile }) {
+            // Check for existing session cookies to prevent multiple logins
+            const cookieStore = cookies();
+            const sessionToken = cookieStore.get("authjs.session-token") ||
+                cookieStore.get("__Secure-authjs.session-token") ||
+                cookieStore.get("next-auth.session-token") ||
+                cookieStore.get("__Secure-next-auth.session-token");
+
+            if (sessionToken) {
+                return "/login?error=SessionExists";
+            }
+
+            // Original logic from auth.config.ts
+            if (account?.provider === "line") {
+                if (!profile?.email) {
+                    return "/login?error=EmailRequired";
+                }
+            }
+            return true;
+        },
         async jwt({ token, user, account }) {
             // Initial sign in
             if (account && user) {
@@ -82,6 +103,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // Ensure user has a plan
                 if (user.id) {
                     await ensureUserPlan(user.id);
+                }
+
+                // Initial fetch of plan
+                let plan = "FREE";
+                try {
+                    const sub = await prisma.userSubscription.findUnique({ where: { userId: user.id } });
+                    if (sub) plan = sub.plan;
+                } catch (e) {
+                    console.error("Error fetching plan on initial signin", e);
                 }
 
                 const expiresIn = (account.expires_in as number) || (60 * 60 * 24 * 30); // Default 30 days for credentials
@@ -96,6 +126,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     email: user.email,
                     picture: user.image,
                     provider: account.provider, // Store provider to switch refresh logic later
+                    plan: plan,
                 };
             }
 
@@ -103,7 +134,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (token.id) {
                 try {
                     const dbUser = await prisma.user.findUnique({
-                        where: { id: token.id as string }
+                        where: { id: token.id as string },
+                        include: { subscription: true } // Fetch subscription
                     });
                     if (dbUser) {
                         token.name = dbUser.name;
@@ -112,6 +144,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         // Extract aiName from metadata
                         const metadata = dbUser.metadata as Record<string, any> || {};
                         token.aiName = metadata.aiName || "じぶんAI";
+
+                        if (dbUser.subscription) {
+                            token.plan = dbUser.subscription.plan;
+                        } else {
+                            token.plan = "FREE";
+                        }
                     }
                 } catch (error) {
                     console.error("Error fetching user in JWT callback:", error);
@@ -141,6 +179,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.accessToken = token.accessToken as string;
                 // @ts-ignore
                 session.user.aiName = token.aiName as string;
+                // @ts-ignore
+                session.user.plan = token.plan as string;
                 // @ts-ignore
                 session.error = token.error as string;
             }

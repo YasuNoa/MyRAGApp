@@ -42,6 +42,7 @@ class SearchService:
             elif plan == "STANDARD":
                 return self._search_serper(query)
             elif plan == "PREMIUM":
+                # return self._search_serper(query) # Use Serper for Premium too ($0.15/1000) instead of Google CSE ($5/1000)
                 return self._search_google_custom(query)
             else:
                 # Default to DDG for unknown plans

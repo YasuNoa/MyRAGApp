@@ -14,12 +14,18 @@ export default async function ProfilePage() {
     select: { provider: true },
   });
 
+  // サブスクリプション情報を取得
+  const subscription = await prisma.userSubscription.findUnique({
+    where: { userId: session.user.id },
+    select: { plan: true },
+  });
+
   const providers = accounts.map((account) => account.provider);
 
   return (
     <div className="container" style={{ paddingTop: "20px", paddingBottom: "40px" }}>
       <h1 style={{ textAlign: "center", marginBottom: "40px" }}>設定</h1>
-      <ProfileMenu user={session.user} providers={providers} />
+      <ProfileMenu user={session.user} providers={providers} subscription={subscription} />
     </div>
   );
 }

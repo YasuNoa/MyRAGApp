@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, FileText, MessageSquare, Smartphone, Zap, Shield, Brain, Mic, Search, Folder } from "lucide-react";
+import PlansSection from "./PlansSection";
 
 export default function LandingPage() {
   return (
@@ -58,6 +59,7 @@ export default function LandingPage() {
         <nav style={{ display: "flex", gap: "10px" }} className="hidden md:flex">
           {[
             { href: "#features", label: "機能" },
+            { href: "#plan", label: "料金プラン" },
             { href: "#how-to-use", label: "使い方" },
             { href: "#use-cases", label: "活用シーン" }
           ].map((link) => (
@@ -319,6 +321,11 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Plans Section */}
+        <div style={{ marginTop: "150px", width: "100%" }}>
+            <PlansSection id="plan" />
         </div>
 
         {/* Use Cases */}

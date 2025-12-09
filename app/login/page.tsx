@@ -15,6 +15,8 @@ export default function LoginPage() {
 
   if (errorParam === "EmailRequired" && !error) {
     setError("LINEログインでメールアドレスが取得できませんでした。LINEアプリの設定でメールアドレスの提供を許可してください。");
+  } else if (errorParam === "SessionExists" && !error) {
+    setError("1つのブラウザで複数のアカウントに同時にログインすることはできません。一度ログアウトしてからお試しください。");
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,6 +57,21 @@ export default function LoginPage() {
       <div className="neo-card" style={{ width: "100%", maxWidth: "400px", border: "1px solid var(--border-color)" }}>
         <h1 style={{ textAlign: "center", fontSize: "1.8rem", marginBottom: "30px" }}>ログイン</h1>
         
+        {error && (
+            <div style={{ 
+                color: "#ff6b6b", 
+                fontSize: "14px", 
+                textAlign: "left", 
+                marginBottom: "20px", 
+                padding: "10px", 
+                backgroundColor: "rgba(255, 107, 107, 0.1)", 
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 107, 107, 0.3)"
+            }}>
+              {error}
+            </div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
           {/* LINE Login Button */}
           <button
@@ -157,10 +174,14 @@ export default function LoginPage() {
         </form>
         */}
 
-        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
+        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px", display: "flex", flexDirection: "column", gap: "16px" }}>
           <a href="/register" style={{ color: "var(--primary-color)", textDecoration: "none" }}>
             アカウントをお持ちでない方はこちら
           </a>
+          
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "left", lineHeight: "1.5" }}>
+            ※セキュリティのため、1つのブラウザで複数のアカウントに同時にログインすることはできません。
+          </div>
         </div>
       </div>
 

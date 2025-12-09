@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 
 import TagInput from "@/app/_components/TagInput";
 
 export default function ManualAdd() {
+  const { data: session } = useSession();
   const { triggerRefresh } = useKnowledge();
   const [mode, setMode] = useState<"text" | "file">("text");
   const [text, setText] = useState("");
@@ -44,11 +46,40 @@ export default function ManualAdd() {
         let successCount = 0;
         let failCount = 0;
 
+        let lastErrorMessage = "";
+
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          setMessage(`アップロード中 (${i + 1}/${files.length}): ${file.name}...`);
-          setProgress(Math.round(((i) / files.length) * 100));
+          const isAudio = file.type.startsWith("audio/");
           
+          setMessage(`アップロード準備中 (${i + 1}/${files.length}): ${file.name}...`);
+          setProgress(0);
+          
+          // Simulated progress timer
+          let progressTimer: NodeJS.Timeout | null = null;
+          let currentProgress = 0;
+          
+          if (isAudio) {
+             // Audio takes long, simulate AI thinking
+             progressTimer = setInterval(() => {
+                 currentProgress += (95 - currentProgress) * 0.1; // Ease out towards 95%
+                 if (currentProgress > 95) currentProgress = 95;
+                 
+                 setProgress(Math.round(currentProgress));
+                 
+                 // Rotate messages based on progress
+                 if (currentProgress < 20) setMessage(`音声データをアップロード中...`);
+                 else if (currentProgress < 50) setMessage(`AIが音声を解析しています...`);
+                 else if (currentProgress < 80) setMessage(`要約を生成しています...`);
+                 else setMessage(`知識ベースに保存中...`);
+                 
+             }, 1000);
+          } else {
+             // Regular files are faster
+             setProgress(50);
+             setMessage(`ファイルを処理中...`);
+          }
+
           try {
             const formData = new FormData();
             formData.append("file", file);
@@ -56,22 +87,43 @@ export default function ManualAdd() {
             if (file.lastModified) {
               formData.append("fileCreatedAt", file.lastModified.toString());
             }
+            
+            // Start Request
             const res = await fetch("/api/upload", {
               method: "POST",
               body: formData,
             });
-            if (!res.ok) throw new Error(await res.text());
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: res.statusText }));
+                throw new Error(errorData.error || errorData.detail || "Upload failed");
+            }
             successCount++;
-          } catch (e) {
+          } catch (e: any) {
             console.error(`Failed to upload ${file.name}:`, e);
+            lastErrorMessage = e.message;
+            if (lastErrorMessage.includes("limit")) {
+                // If limit reached, likely all subsequent will fail too.
+                // But we continue loop just in case.
+                // User-friendly translation or keep raw? User asked for detailed error.
+                // raw message is "Monthly audio limit exceeded..."
+                // translating roughly for user
+                if (lastErrorMessage.includes("Monthly audio limit")) lastErrorMessage = "月間音声制限を超過しました";
+                if (lastErrorMessage.includes("Daily voice upload limit")) lastErrorMessage = "本日の音声アップロード回数制限です";
+            }
             failCount++;
+          } finally {
+            if (progressTimer) clearInterval(progressTimer);
           }
-          // Update progress after completion of this file
-          setProgress(Math.round(((i + 1) / files.length) * 100));
+          
+          // Finish this file
+          setProgress(100);
+          // Wait a bit to show 100%
+          await new Promise(r => setTimeout(r, 500));
         }
 
         if (failCount > 0) {
-          setMessage(`完了: ${successCount}件成功, ${failCount}件失敗`);
+          setMessage(`完了: ${successCount}件成功, ${failCount}件失敗\n詳細: ${lastErrorMessage}`);
         } else {
           setMessage(`成功！${successCount}件のファイルを保存しました。`);
         }
@@ -215,6 +267,29 @@ export default function ManualAdd() {
             クリックしてファイルを選択（複数可）
           </div>
 
+          {/* Audio Warning Message */}
+          {files.some(f => f.type.startsWith("audio/")) && (
+              <div style={{
+                  marginTop: "10px",
+                  padding: "8px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  backgroundColor: "rgba(255, 193, 7, 0.1)", // Amber tint
+                  color: "#ffc107",
+                  border: "1px solid rgba(255, 193, 7, 0.3)",
+                  textAlign: "left"
+              }}>
+                  <span style={{ marginRight: "5px" }}>⚠️</span>
+                  {(() => {
+                      // @ts-ignore
+                      const plan = session?.user?.plan || "FREE";
+                      if (plan === "PREMIUM") return "Premiumプラン: データ保護のため、最大3時間(180分)でカットされます。";
+                      if (plan === "STANDARD") return "Standardプラン: 冒頭90分のみ解析されます。（91分以降はカット）";
+                      return "Freeプラン: 冒頭20分のみ解析されます。（21分以降はカット）";
+                  })()}
+              </div>
+          )}
+
           {/* File List Area */}
           {files.length > 0 && (
             <div style={{ marginTop: "16px", textAlign: "left" }} onClick={(e) => e.stopPropagation()}>
@@ -280,14 +355,15 @@ export default function ManualAdd() {
           backgroundColor: message.includes("エラー") ? "rgba(255, 107, 107, 0.1)" : "rgba(138, 180, 248, 0.1)",
           color: message.includes("エラー") ? "#ff6b6b" : "#8ab4f8",
         }}>
-          <div style={{ marginBottom: "4px" }}>{message}</div>
+          <div style={{ marginBottom: "4px", fontSize: "13px", fontWeight: "bold" }}>{message}</div>
           {isLoading && mode === "file" && files.length > 0 && (
-            <div style={{ width: "100%", height: "4px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden", marginTop: "8px" }}>
+            <div style={{ width: "100%", height: "8px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "4px", overflow: "hidden", marginTop: "8px" }}>
               <div style={{ 
                 width: `${progress}%`, 
                 height: "100%", 
                 backgroundColor: "var(--primary-color)", 
-                transition: "width 0.3s ease" 
+                transition: "width 0.3s ease",
+                boxShadow: "0 0 10px var(--primary-color)"
               }} />
             </div>
           )}
