@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Transcript is required" }, { status: 400 });
         }
 
+        // Combine summary and transcript for better searchability (matching file upload logic)
+        let combinedContent = "";
+        if (summary) {
+            combinedContent += `【AI要約】\n${summary}\n\n`;
+        }
+        if (transcript) {
+            combinedContent += `【文字起こし】\n${transcript}`;
+        }
+        if (!combinedContent) combinedContent = transcript;
+
         // 1. Create Document record
         const fileId = uuidv4();
         const document = await prisma.document.create({
@@ -28,15 +38,16 @@ export async function POST(req: NextRequest) {
                 type: "note",
                 source: "voice_memo",
                 externalId: fileId,
-                content: transcript,
+                content: combinedContent,
                 summary: summary || "",
-                tags: tags || []
+                tags: tags || [],
+                fileCreatedAt: new Date() // Set creation time for note
             }
         });
 
         // 2. Send to Python Backend to Embed and Save to Pinecone
         // We use importText which now supports summary
-        await PythonBackendService.importText(transcript, {
+        await PythonBackendService.importText(combinedContent, {
             userId: session.user.id,
             dbId: document.id,
             tags: tags || [],

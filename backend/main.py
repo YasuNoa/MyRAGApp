@@ -6,7 +6,7 @@ import io
 import json
 import uuid
 import subprocess # For running ffmpeg
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pypdf import PdfReader
 from pinecone import Pinecone
 import google.generativeai as genai
@@ -704,6 +704,87 @@ def get_audio_duration(file_path: str) -> float:
         return 0.0
 
 
+async def search_documents_by_title_in_query(user_id: str, query: str, tags: List[str] = None) -> List[dict]:
+    """
+    Checks if the user's query contains the title of any of their documents.
+    Performs flexible matching (ignoring extensions, replacing underscores).
+    If yes, returns the content of those documents.
+    Also filters by tags if provided.
+    """
+    if not db_pool:
+        return []
+
+    try:
+        async with db_pool.acquire() as conn:
+            # 1. Fetch ALL titles for the user (lightweight)
+            # Filter by tags if present
+            if tags:
+                stmt_titles = """
+                    SELECT id, title
+                    FROM "Document"
+                    WHERE "userId" = $1
+                    AND tags && $2
+                """
+                rows = await conn.fetch(stmt_titles, user_id, tags)
+            else:
+                stmt_titles = """
+                    SELECT id, title
+                    FROM "Document"
+                    WHERE "userId" = $1
+                """
+                rows = await conn.fetch(stmt_titles, user_id)
+
+            # 2. Python Filtering (Normalization)
+            matched_ids = []
+            
+            # Normalize query: lowercase, replace _ with space
+            norm_query = query.lower().replace("_", " ")
+            
+            for row in rows:
+                original_title = row['title']
+                if not original_title:
+                    continue
+                    
+                # Normalize title: remove extension, replace _ with space, lowercase
+                # "Meeting_2024.pdf" -> "meeting 2024"
+                base_name = os.path.splitext(original_title)[0]
+                norm_title = base_name.lower().replace("_", " ")
+                
+                # Skip very short titles to avoid false positives (e.g. "a", "of")
+                if len(norm_title) < 2:
+                    continue
+
+                # Check if normalized title is in query
+                if norm_title in norm_query:
+                    matched_ids.append(row['id'])
+
+            if not matched_ids:
+                return []
+
+            # 3. Fetch Content for Matches (Limit 3)
+            # Use ANY ($1) for array search in Postgres
+            stmt_content = """
+                SELECT id, title, content
+                FROM "Document"
+                WHERE id = ANY($1::text[])
+                LIMIT 3
+            """
+            content_rows = await conn.fetch(stmt_content, matched_ids[:3])
+            
+            results = []
+            for row in content_rows:
+                if row['content']:
+                    results.append({
+                        "id": row['id'],
+                        "title": row['title'],
+                        "content": row['content']
+                    })
+            return results
+
+    except Exception as e:
+        logger.error(f"Error searching documents by title: {e}")
+        return []
+
 async def get_user_plan(user_id: str) -> str:
     """
     ユーザーのプランを取得します。
@@ -950,7 +1031,7 @@ async def check_and_increment_chat_limit(user_id: str, plan: str):
                 new_sub_id, user_id, plan, 1, now, now
             )
 
-async def _process_audio(content: bytes, mime_type: str, filename: str, user_plan: str = "FREE", user_id: str = "") -> str:
+async def _process_audio(content: bytes, mime_type: str, filename: str, user_plan: str = "FREE", user_id: str = "") -> Tuple[str, Optional[str]]:
     # 音声をGemini 2.0 Flashにアップロードして文字起こしを行います。
     # ユーザープランに応じて、トリミング (Free) や時間制限チェック (Standard/Premium) を行います。
     temp_filename = f"/tmp/{uuid.uuid4()}_{filename}"
@@ -997,7 +1078,17 @@ async def _process_audio(content: bytes, mime_type: str, filename: str, user_pla
         try:
             result = json.loads(response.text)
             transcript = result.get("transcript", "")
-            return transcript
+            summary = result.get("summary", "")
+            
+            # Combine summary and transcript for better context storage
+            combined_text = ""
+            if summary:
+                combined_text += f"【AI要約】\n{summary}\n\n"
+            
+            if transcript:
+                 combined_text += f"【文字起こし】\n{transcript}"
+                 
+            return combined_text if combined_text else "", summary
         except json.JSONDecodeError:
             # Try cleaning markdown
             cleaned = clean_json_response(response.text)
@@ -1039,6 +1130,7 @@ async def import_file(
         
         content = await file.read()
         text = ""
+        summary = None
 
         if mime_type == "application/pdf":
             text = await _process_pdf(content)
@@ -1059,7 +1151,7 @@ async def import_file(
         elif mime_type == "text/csv":
             text = await _process_csv(content)
         elif mime_type.startswith("audio/"):
-            text = await _process_audio(content, mime_type, file.filename, user_plan, user_id)
+            text, summary = await _process_audio(content, mime_type, file.filename, user_plan, user_id)
         elif mime_type.startswith("text/") or mime_type == "application/vnd.google-apps.document":
             text = content.decode("utf-8")
         else:
@@ -1069,7 +1161,7 @@ async def import_file(
             except:
                 raise HTTPException(status_code=400, detail=f"Unsupported mime type: {mime_type}")
 
-        return await process_and_save_content(text, meta_dict)
+        return await process_and_save_content(text, meta_dict, summary=summary)
 
 
 
@@ -1318,7 +1410,25 @@ async def classify_intent(request: ClassifyRequest):
         # Fallback
         return {"intent": "CHAT", "tags": ["General"]}
 
-class QueryRequest(BaseModel):
+[
+    "ReplacementContent": "        # 3. Aggregation (Vector + Filename Match)\n        context_parts = []\n        seen_doc_ids = set()\n\n        # A. Process Vector Matches\n        if search_results['matches']:\n            for match in search_results['matches']:\n                metadata = match['metadata']\n                doc_id = metadata.get('dbId') or metadata.get('fileId')\n                \n                full_content = None\n                if doc_id and doc_id not in seen_doc_ids:\n                    # Try fetching full content\n                    full_content = await get_document_content(doc_id)\n                    if full_content:\n                        context_parts.append(f\"Source: {metadata.get('fileName', 'Unknown')}\\n\\n{full_content}\")\n                        seen_doc_ids.add(doc_id)\n                \n                if not full_content:\n                     # Fallback to chunk\n                     chunk_text = metadata.get('text', '')\n                     context_parts.append(f\"Source: {metadata.get('fileName', 'Unknown')} (Excerpt)\\n\\n{chunk_text}\")\n\n        # B. Process Filename Matches (Direct DB Search)\n        # Checks if query contains the filename of any user document\n        filename_matches = await search_documents_by_title_in_query(request.userId, request.query)\n        if filename_matches:\n             print(f\"Found {len(filename_matches)} documents by filename reference in query.\")\n             for doc in filename_matches:\n                 if doc['id'] not in seen_doc_ids:\n                     print(f\"Adding direct filename match: {doc['title']}\")\n                     context_parts.append(f\"Source: {doc['title']} (Filename Match)\\n\\n{doc['content']}\")\n                     seen_doc_ids.add(doc['id'])\n\n        if not context_parts:\n            print(\"No matches found in Pinecone OR Filename search. Proceeding with empty context fallback.\")\n            context = \"関連する学習データは見つかりませんでした。\"\n        else:\n            context = \"\\n\\n---\\n\\n\".join(context_parts)"
+  },
+  {
+    "AllowMultiple": false,
+    "StartLine": 1419,
+    "EndLine": 1419,
+    "TargetContent": "        # Pineconeヒットなし かつ 内部データについての質問なら、Web検索をスキップ",
+    "ReplacementContent": "        # コンテキスト(Pinecone/Filename)なし かつ 内部データについての質問なら、Web検索をスキップ"
+  },
+  {
+    "AllowMultiple": false,
+    "StartLine": 1420,
+    "EndLine": 1420,
+    "TargetContent": "        if not search_results['matches'] and is_internal_query:",
+    "ReplacementContent": "        if (not context_parts or not search_results['matches']) and is_internal_query: \n            # Note: context_parts check is more accurate now that we have Filename search.\n            # If context_parts is empty, it means NEITHER vector NOR filename search found anything.\n            # But we keep 'matches' check for safety or just check context text?\n            # 'context' string is set to \"関連する...\" if empty.\n            # Let's use the 'context' content check.\n            pass # Logic updated below"
+  }
+]
+
     query: str
     userId: str
     query: str
@@ -1369,43 +1479,44 @@ async def query_knowledge(request: QueryRequest):
         
         print(f"Found {len(search_results['matches'])} matches")
         
-        if not search_results['matches']:
-            # 検索結果がない場合でも、Geminiに判断を委ねるために処理を続行します。
-            # "関連する学習データは見つかりませんでした。" というコンテキストを渡すことで、
-            # システムプロンプトに従ってGoogle検索を行ったり、キャラクターとして応答したりできるようにします。
-            print("No matches found in Pinecone. Proceeding with empty context fallback.")
-            context = "関連する学習データは見つかりませんでした。"
-        else:
-            # 3. PostgreSQLから全文コンテンツを取得 (Long Context RAG)
-            context_parts = []
-            seen_doc_ids = set()
-            
+        # 3. Aggregation (Vector + Filename Match)
+        context_parts = []
+        seen_doc_ids = set()
+
+        # A. Process Vector Matches
+        if search_results['matches']:
             for match in search_results['matches']:
-                # メタデータからdbId (またはfileId) を取得します。
-                # 新しいインポートではdbIdが保存されていますが、古いデータ(Drive連携など)ではfileIdのみの場合があります。
-                
                 metadata = match['metadata']
                 doc_id = metadata.get('dbId') or metadata.get('fileId')
                 
-                # DBから全文取得を試みます
                 full_content = None
-                if doc_id:
-                    if doc_id not in seen_doc_ids:
-                        print(f"Attempting to fetch content for doc_id: {doc_id}")
-                        full_content = await get_document_content(doc_id)
-                        if full_content:
-                            print(f"Successfully fetched full content for {doc_id} (Length: {len(full_content)})")
-                            context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')}\n\n{full_content}")
-                            seen_doc_ids.add(doc_id)
-                        else:
-                            print(f"Full content not found for {doc_id}, falling back to chunk.")
+                if doc_id and doc_id not in seen_doc_ids:
+                    # Try fetching full content
+                    full_content = await get_document_content(doc_id)
+                    if full_content:
+                        context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')}\n\n{full_content}")
+                        seen_doc_ids.add(doc_id)
                 
-                # 全文が見つからない場合、Pineconeのチャンクテキストをフォールバックとして使用します
                 if not full_content:
-                    chunk_text = metadata.get('text', '')
-                    print(f"Using chunk text fallback (Length: {len(chunk_text)})")
-                    context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')} (Excerpt)\n\n{chunk_text}")
+                     # Fallback to chunk
+                     chunk_text = metadata.get('text', '')
+                     context_parts.append(f"Source: {metadata.get('fileName', 'Unknown')} (Excerpt)\n\n{chunk_text}")
 
+        # B. Process Filename Matches (Direct DB Search)
+        # Checks if query contains the filename of any user document
+        filename_matches = await search_documents_by_title_in_query(request.userId, request.query)
+        if filename_matches:
+             print(f"Found {len(filename_matches)} documents by filename reference in query.")
+             for doc in filename_matches:
+                 if doc['id'] not in seen_doc_ids:
+                     print(f"Adding direct filename match: {doc['title']}")
+                     context_parts.append(f"Source: {doc['title']} (Filename Match)\n\n{doc['content']}")
+                     seen_doc_ids.add(doc['id'])
+
+        if not context_parts:
+            print("No matches found in Pinecone OR Filename search. Proceeding with empty context fallback.")
+            context = "関連する学習データは見つかりませんでした。"
+        else:
             context = "\n\n---\n\n".join(context_parts)
         print(f"Final Context Length: {len(context)}")
         
@@ -1420,8 +1531,12 @@ async def query_knowledge(request: QueryRequest):
         web_search_result = ""
         
         # Pineconeヒットなし かつ 内部データについての質問なら、Web検索をスキップ
-        if not search_results['matches'] and is_internal_query:
-            print("[Anti-Hallucination] Skipping Web Search for internal query with no vector matches.")
+        # Update: We now check if valid context was found (from either Vector or Filename search)
+        context_not_found_msg = "関連する学習データは見つかりませんでした。"
+        has_context = context != context_not_found_msg
+        
+        if not has_context and is_internal_query:
+            print("[Anti-Hallucination] Skipping Web Search for internal query with no vector/filename matches.")
             web_search_result = "（ユーザーは自身のデータについて質問しましたが、知識ベースに関連情報が見つからなかったため、混同を避けるためにWeb検索はスキップされました。）"
         else:
             web_search_result = search_service.search(request.query, request.userPlan)

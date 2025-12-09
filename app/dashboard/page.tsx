@@ -1,10 +1,11 @@
 "use client";
 
+
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@/app/_context/ChatContext";
-import { PlusCircle, Check, X } from "lucide-react";
+import { PlusCircle, Check, X, Square } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const aiName = (session?.user as any)?.aiName || "じぶんAI";
   const searchParams = useSearchParams();
   const router = useRouter();
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const [tags, setTags] = useState<string[]>([]);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -65,6 +67,13 @@ export default function DashboardPage() {
     const textToSend = textOverride || input;
     if (!textToSend.trim()) return;
 
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const userMessage = { role: "user", content: textToSend };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -79,6 +88,7 @@ export default function DashboardPage() {
           tags: selectedTag ? [selectedTag] : [],
           threadId: threadId 
         }),
+        signal: controller.signal
       });
 
       const contentType = res.headers.get("content-type");
@@ -94,12 +104,26 @@ export default function DashboardPage() {
         const text = await res.text();
         setMessages((prev) => [...prev, { role: "assistant", content: "サーバーエラー: " + text }]);
       }
-    } catch (error) {
-      console.error("Error:", error);
-      setMessages((prev) => [...prev, { role: "assistant", content: "通信エラーが発生しました" }]);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+          console.log("Request aborted");
+          setMessages((prev) => [...prev, { role: "assistant", content: "（生成を停止しました）" }]);
+      } else {
+          console.error("Error:", error);
+          setMessages((prev) => [...prev, { role: "assistant", content: "通信エラーが発生しました" }]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleStop = () => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+          setIsLoading(false);
+      }
   };
 
   // Layout updated
@@ -287,14 +311,14 @@ export default function DashboardPage() {
                 maxHeight: "200px",
                 overflowY: "auto"
               }}
-              disabled={isLoading}
+              // disabled={isLoading} // Allow typing while generating
             />
             <button 
-              onClick={handleSubmit}
-              disabled={isLoading || !input.trim()}
+              onClick={isLoading ? handleStop : handleSubmit}
+              disabled={!isLoading && !input.trim()}
               style={{
-                backgroundColor: input.trim() ? "var(--primary-color)" : "#3c4043",
-                color: input.trim() ? "#202124" : "#9aa0a6",
+                backgroundColor: (isLoading || input.trim()) ? "var(--primary-color)" : "#3c4043",
+                color: (isLoading || input.trim()) ? "#202124" : "#9aa0a6",
                 border: "none",
                 borderRadius: "50%",
                 width: "36px",
@@ -303,11 +327,11 @@ export default function DashboardPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: input.trim() ? "pointer" : "default",
+                cursor: (isLoading || input.trim()) ? "pointer" : "default",
                 transition: "all 0.2s"
               }}
             >
-              ➤
+              {isLoading ? <Square size={16} fill="currentColor" /> : "➤"}
             </button>
           </div>
       </div>

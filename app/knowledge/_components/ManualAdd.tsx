@@ -318,14 +318,16 @@ export default function ManualAdd() {
                       style={{
                         background: "none",
                         border: "none",
-                        color: "#ff6b6b",
-                        cursor: "pointer",
+                        color: isLoading ? "var(--text-secondary)" : "#ff6b6b",
+                        cursor: isLoading ? "not-allowed" : "pointer",
+                        opacity: isLoading ? 0.5 : 1,
                         padding: "4px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center"
                       }}
                       title="削除"
+                      disabled={isLoading}
                     >
                       ✕
                     </button>
