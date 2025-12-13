@@ -116,7 +116,7 @@ export default function PlansSection({ id, subscription }: { id?: string, subscr
         display: "grid", 
         gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
         gap: "25px", 
-        alignItems: "start",
+        alignItems: "stretch",
         marginBottom: "40px" 
       }}>
         {PLANS.map((plan, i) => {
@@ -438,6 +438,51 @@ export default function PlansSection({ id, subscription }: { id?: string, subscr
             )}
           </div>
         )})}
+      </div>
+
+      {/* Ticket Section */}
+      <div style={{ 
+          background: "rgba(255, 255, 255, 0.03)", 
+          border: "1px dashed rgba(255, 255, 255, 0.2)", 
+          padding: "30px", 
+          borderRadius: "24px", 
+          marginTop: "80px",
+          textAlign: "center",
+          maxWidth: "600px",
+          marginLeft: "auto",
+          marginRight: "auto"
+      }}>
+        <h3 style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "10px" }}>🎟️ 単位救済チケット (90分)</h3>
+        <p style={{ color: "#9ca3af", marginBottom: "15px", lineHeight: "1.6" }}>
+            テスト直前なのに枠が足りない…そんな時の救世主。<br/>
+            ジュース1本分の価格で、90分間の解析時間をチャージできます。<br/>
+            <span style={{ fontSize: "0.9em" }}>※サブスクではありません。有効期限なし。</span>
+        </p>
+        <Link href="/pricing" style={{ textDecoration: "none" }}>
+            <button className="neo-button" style={{ 
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", 
+                border: "none", 
+                color: "white", 
+                padding: "12px 40px", 
+                borderRadius: "30px", 
+                cursor: "pointer", 
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+                boxShadow: "0 4px 15px rgba(245, 158, 11, 0.3)",
+                transition: "all 0.3s"
+            }}
+            onMouseOver={(e) => {
+                e.currentTarget.style.transform = "scale(1.05)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(245, 158, 11, 0.5)";
+            }}
+            onMouseOut={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 15px rgba(245, 158, 11, 0.3)";
+            }}
+            >
+                ¥99 でチャージする
+            </button>
+        </Link>
       </div>
     </div>
   );

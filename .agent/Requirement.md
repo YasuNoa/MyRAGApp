@@ -21,7 +21,7 @@
 *   **マルチモーダルインポート**:
     *   **ドキュメント**: PDF, Word (DOCX), PowerPoint (PPTX), Excel (XLSX), CSV, テキスト, Markdown。
     *   **画像**: JPG, PNG, WebP (Gemini 2.0 FlashによるOCRと説明生成)。
-    *   **音声**: MP3, M4A, WAV (Gemini 2.0 Flashによる文字起こし)。
+    *   **音声**: MP3, M4A, WAV (Gemini 2.0 Flash)。最大3時間の長尺録音を、分割処理により高精度に文字起こし・要約。
 *   **手動入力**: Web UIからの直接テキスト入力。
 *   **LINE連携**: "メモ"モードでメッセージや画像を即座に知識ベースへ保存。
 *   **タグ付け**: 柔軟なタグ付けによる整理。

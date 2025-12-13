@@ -1,8 +1,20 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, FileText, MessageSquare, Smartphone, Zap, Shield, Brain, Mic, Search, Folder } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileText, MessageSquare, Smartphone, Zap, Shield, Brain, Mic, Search, Folder, Gift } from "lucide-react";
 import PlansSection from "./PlansSection";
+import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function LandingPage() {
+  const searchParams = useSearchParams();
+  const invited = searchParams.get("invited");
+  const [showInviteBanner, setShowInviteBanner] = useState(false);
+
+  useEffect(() => {
+    if (invited === "true") {
+      setShowInviteBanner(true);
+    }
+  }, [invited]);
+
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -50,6 +62,33 @@ export default function LandingPage() {
         zIndex: 100,
         backgroundColor: "rgba(0, 0, 0, 0.5)"
       }}>
+        {/* Referral Banner */}
+        {showInviteBanner && (
+          <div style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            width: "100%",
+            background: "linear-gradient(90deg, #4ade80, #22c55e)",
+            color: "black",
+            padding: "10px",
+            textAlign: "center",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
+          }}>
+            <Gift size={20} />
+            招待特典が適用されました！7日間の無料トライアルが利用可能です。
+            <button 
+              onClick={() => setShowInviteBanner(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", marginLeft: "20px", fontWeight: "bold" }}
+            >✕</button>
+          </div>
+        )}
+
         {/* Left: Logo */}
         <div style={{ fontSize: "24px", fontWeight: "bold", background: "linear-gradient(to right, #8ab4f8, #c58af9)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
           じぶんAI
@@ -315,7 +354,7 @@ export default function LandingPage() {
                   {item.step}
                 </div>
                 <div style={{ position: "relative", zIndex: 1 }}>
-                  <h3 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "15px" }}>{item.title}</h3>
+
                   <p style={{ color: "#9ca3af", lineHeight: "1.6" }}>{item.desc}</p>
                 </div>
               </div>

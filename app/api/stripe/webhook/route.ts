@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import Stripe from "stripe";
 import { headers } from "next/headers";
+import { Plan } from "@prisma/client";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
     // apiVersion: "2024-11-20.acacia", // Use default
@@ -64,31 +65,65 @@ export async function POST(req: NextRequest) {
             else if (type === "subscription" && session.subscription) {
                 console.log(`Processing Subscription for user ${userId} to plan ${plan}`);
 
-                // Fetch full subscription details to get period end
+                // Fetch full subscription details to get period end AND status
                 const sub = await stripe.subscriptions.retrieve(session.subscription as string) as any;
+
+                let finalPlan = plan as Plan;
+
+                // --- Status Mapping Logic ---
+                if (sub.status === "trialing" && plan === "STANDARD") {
+                    console.log(`Subscription ${sub.id} is in TRIAL mode. Mapping to STANDARD_TRIAL.`);
+                    finalPlan = "STANDARD_TRIAL" as Plan;
+                }
 
                 await prisma.userSubscription.upsert({
                     where: { userId },
                     create: {
                         userId,
-                        plan: plan as "STANDARD" | "PREMIUM",
+                        plan: finalPlan as Plan,
                         stripeCustomerId: session.customer as string,
                         stripeSubscriptionId: sub.id,
                         currentPeriodEnd: new Date(sub.current_period_end * 1000),
                     },
                     update: {
-                        plan: plan as "STANDARD" | "PREMIUM",
+                        plan: finalPlan as Plan,
                         stripeCustomerId: session.customer as string,
                         stripeSubscriptionId: sub.id,
                         currentPeriodEnd: new Date(sub.current_period_end * 1000),
                     }
                 });
-                console.log(`Updated plan for user ${userId}`);
-            }
+                console.log(`Updated plan for user ${userId} to ${finalPlan}`);
 
-            // TODO: Handle invoice.payment_succeeded for subscription renewals updates
-            // But usually checkout.session.completed covers the initial setup.
-            // You should implement invoice.payment_succeeded to keep currentPeriodEnd updated in the future.
+                // --- 3. Referral Tracking ---
+                const referralSourceId = session.metadata?.referralSource;
+                if (referralSourceId && referralSourceId !== "unknown" && referralSourceId !== userId) {
+                    try {
+                        // Check if referral already exists to prevent duplicates
+                        const existingReferral = await prisma.referral.findFirst({
+                            where: { refereeId: userId }
+                        });
+
+                        if (!existingReferral) {
+                            await prisma.referral.create({
+                                data: {
+                                    referrerId: referralSourceId,
+                                    refereeId: userId,
+                                    status: "PENDING", // Wait for first voice processing
+                                }
+                            });
+                            console.log(`Referral created: ${referralSourceId} -> ${userId}`);
+                        } else {
+                            console.log(`Referral already exists for user ${userId}`);
+                        }
+                    } catch (err) {
+                        console.error("Error linking referral:", err);
+                    }
+                }
+
+                // TODO: Handle invoice.payment_succeeded for subscription renewals updates
+                // But usually checkout.session.completed covers the initial setup.
+                // You should implement invoice.payment_succeeded to keep currentPeriodEnd updated in the future.
+            }
         }
 
         // Handle Renovals (Invoice Payment Succeeded)
@@ -131,7 +166,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Handle Updates (e.g. Plan Change, or Cancellation scheduled)
+        // Handle Updates (e.g. Plan Change, or Cancellation scheduled, or Trial -> Active)
         else if (event.type === "customer.subscription.updated") {
             const sub = event.data.object as any;
             const priceId = sub.items.data[0].price.id;
@@ -144,18 +179,34 @@ export async function POST(req: NextRequest) {
                 [process.env.STRIPE_PRICE_ID_PREMIUM_YEARLY!]: "PREMIUM",
             };
 
-            const newPlan = PRICE_ID_TO_PLAN[priceId];
+            let newPlan = PRICE_ID_TO_PLAN[priceId];
 
             if (newPlan) {
                 const dbSub = await prisma.userSubscription.findFirst({ where: { stripeSubscriptionId: sub.id } });
+
+                // --- Status Mapping Logic for Updates ---
+                if (sub.status === "trialing" && newPlan === "STANDARD") {
+                    // Default: Map to Trial
+                    let mappedPlan = "STANDARD_TRIAL";
+
+                    // PROTECTION: If user is ALREADY STANDARD (Paid), do NOT downgrade to Trial.
+                    // This happens when we extend their period via API (Referral Reward).
+                    if (dbSub && dbSub.plan === "STANDARD") {
+                        console.log(`User ${dbSub.userId} is already STANDARD. Maintaining STANDARD plan despite 'trialing' status (Reward Extension).`);
+                        mappedPlan = "STANDARD";
+                    } else {
+                        console.log(`Subscription ${sub.id} updated is trialing. Setting local plan to STANDARD_TRIAL.`);
+                    }
+
+                    newPlan = mappedPlan as any;
+                }
+
                 if (dbSub) {
                     await prisma.userSubscription.update({
                         where: { id: dbSub.id },
                         data: {
-                            plan: newPlan,
+                            plan: newPlan as Plan,
                             currentPeriodEnd: new Date(sub.current_period_end * 1000),
-                            // If status is past_due or unpaid, we might want to downgrade, but usually we wait for deletion.
-                            // For now, trust the existence of the subscription item as active intent.
                         }
                     });
                     console.log(`Subscription ${sub.id} updated. Plan set to ${newPlan}.`);

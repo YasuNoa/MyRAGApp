@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { cookies } from "next/headers"; // Import cookies
 import { prisma } from "@/src/lib/prisma";
 import Stripe from "stripe";
 
@@ -58,6 +59,25 @@ export async function POST(req: NextRequest) {
 
         const mode = plan === "TICKET" ? "payment" : "subscription";
 
+        // Check for Referral Cookie
+        const cookieStore = await cookies();
+        const referralSource = cookieStore.get("referral_source");
+        const isReferral = !!referralSource;
+
+        let subscriptionData = undefined;
+        if (mode === "subscription" && plan === "STANDARD" && isReferral) {
+            // Launch Campaign: 30 days
+            // Standard: 7 days
+            const TRIAL_DAYS = 30; // Set to 30 for Launch Campaign
+            console.log(`Applying ${TRIAL_DAYS}-day trial for referred user ${session.user.id} (Ref: ${referralSource?.value})`);
+            subscriptionData = {
+                trial_period_days: TRIAL_DAYS,
+                metadata: {
+                    referralSource: referralSource?.value || "unknown"
+                }
+            };
+        }
+
         const checkoutSession = await stripe.checkout.sessions.create({
             mode: mode,
             customer_email: session.user.email || undefined,
@@ -73,7 +93,9 @@ export async function POST(req: NextRequest) {
                 userId: session.user.id,
                 plan: plan,
                 type: mode === "payment" ? "ticket" : "subscription",
+                isReferral: isReferral ? "true" : "false"
             },
+            subscription_data: subscriptionData, // Add trial data here
             allow_promotion_codes: true, // Enable Coupon Codes
         });
 

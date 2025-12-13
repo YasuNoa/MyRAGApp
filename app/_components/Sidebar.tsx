@@ -5,6 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 import { useSidebar } from "@/app/_context/SidebarContext";
 import { useChat } from "@/app/_context/ChatContext";
+import { useSession } from "next-auth/react";
+import InviteModal from "./InviteModal";
+import { Gift } from "lucide-react";
 
 type Document = {
   id: string;
@@ -19,6 +22,8 @@ export default function Sidebar() {
   const { refreshTrigger, triggerRefresh } = useKnowledge();
   const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
   const { clearChat } = useChat();
+  const { data: session } = useSession();
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const handleMobileClick = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -81,8 +86,9 @@ export default function Sidebar() {
     { href: "/knowledge", label: "知識登録", icon: <PlusCircle size={20} /> },
     { href: "/note", label: "授業ノート", icon: <FileText size={20} /> },
     { href: "/knowledge/list", label: "学習済みデータ", icon: <Database size={20} /> },
+    { href: "#invite", label: "友達招待", icon: <Gift size={20} color="#fbbf24" /> },
     { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
-    { href: "/feedback", label: "フィードバック", icon: <MessageSquarePlus size={20} /> },
+    { href: "/feedback", label: "お問い合わせ", icon: <MessageSquarePlus size={20} /> },
     { href: "/pricing", label: "アップグレード", icon: <Sparkles size={20} color="#fbbf24" /> },
     { href: "/profile", label: "設定", icon: <Settings size={20} /> },
   ];
@@ -186,7 +192,14 @@ export default function Sidebar() {
         <nav style={{ padding: "10px 10px 20px 10px" }}>
           {navItems.map((item) => (
             <Link
-              onClick={handleMobileClick}
+              onClick={(e) => {
+                if (item.href === "#invite") {
+                    e.preventDefault();
+                    setIsInviteOpen(true);
+                    return;
+                }
+                handleMobileClick();
+              }}
               key={item.href}
               href={item.href}
               className={`neo-nav-link ${pathname === item.href ? "active" : ""}`}
@@ -213,14 +226,13 @@ export default function Sidebar() {
 
         <div style={{ borderBottom: "1px solid var(--border-color)", margin: "10px 0" }}></div>
 
-        {/* 最近のチャット (履歴) */}
+        {/* Recently Chat History */}
         <div style={{ padding: "10px 10px 0 10px" }}>
             <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "5px", paddingLeft: "10px" }}>最近のチャット</div>
             <ChatHistoryList />
         </div>
 
-
-
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} userId={session?.user?.id || ""} />
 
       </aside>
     </>

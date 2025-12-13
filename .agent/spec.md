@@ -62,21 +62,24 @@ graph TD
 ## 4. データフロー
 
 ### 3.1 音声/ファイルインポートフロー
-1.  **アップロード**: ユーザーがWeb UI からファイルをアップロード。
-2.  **APIコール**: Next.js (`/api/voice/process`) が Python Backend (`/process-voice-memo`) にファイルを送信。
-3.  **事前チェック & 抽出**:
-    *   **プラン確認**: `get_user_plan` でプランを取得 (Dual Safeguard)。
+1.  **アップロード**: ユーザーがWeb UI からファイルをアップロード（`ManualAdd.tsx`）。
+2.  **APIコール**: Next.js (`/api/voice/process`) 経由または直接 Python Backend (`/process-voice-memo`) へ送信。
+3.  **セーフガード & 前処理**:
+    *   **プラン取得**: `get_user_plan` でユーザーのプラン (Free/Standard/Premium) を特定。
     *   **制限チェック**:
-        *   **Storage Limit**: 全ファイルの合計数がプラン上限 (Free: 5, Std: 200...) 未満かチェック。
-        *   **Voice Limit**: `UserSubscription.dailyVoiceCount` (Free: 5回/日) をチェック & インクリメント。
-    *   **一時保存**: `/tmp` にファイルを保存。
-    *   **Gemini処理**: Gemini 2.0 Flash にアップロードし、文字起こし (transcript) と要約 (summary) を生成。
-4.  **分割・埋め込み**:
-    *   **チャンク分割**: `RecursiveCharacterTextSplitter` (Size: 1500, Overlap: 150)。
-    *   **ベクトル化**: `text-embedding-004` で埋め込み生成。
-5.  **保存**:
-    *   **ベクトル**: Pinecone にメタデータ (`userId`, `fileId`, `tags`, `type="transcript"|"summary"`) と共に保存(Batch Upsert)。
-    *   **コンテンツ**: 全文テキストと要約を PostgreSQL の `Document` レコードに更新 (Client側で作成した `dbId` を使用)。
+        *   **Storage Limit**: ファイル数上限チェック。
+        *   **Voice Limit**: `dailyVoiceCount` チェック & インクリメント。
+    *   **時間制限 (Truncation)**: プランに応じて `ffmpeg` で音声をカット (Free: 20分, Std: 90分, Pre: 180分)。
+    *   **分割 (Chunking)**: Geminiのトークン制限 (約25分) を回避するため、`ffmpeg` で **10分 (600秒) 区切り** に物理分割。
+4.  **AI処理 (Sequential Transcribe & Summarize)**:
+    *   **文字起こし**: 各チャンクを順番に Gemini 2.0 Flash へ送信。
+        *   *Retry Logic*: 429エラー (Rate Limit) 発生時は指数バックオフで自動再試行。
+        *   *Rate Control*: チャンク間に待機時間 (`time.sleep`) を挿入。
+    *   **統合 & 要約**: 全チャンクの文字起こしを結合 (`full_transcript`) し、最後にまとめて Gemini で要約 (`final_summary`) を生成。
+        *   *Robust Parsing*: JSONではなく独自の区切り文字 (`[SUMMARY]`, `[TRANSCRIPT]`) を用いてパースエラーを防止。
+5.  **保存 (Persistence)**:
+    *   **ベクトルDB**: 文字起こしテキストをチャンク分割して Pinecone に保存。
+    *   **RDB**: 全文と要約を PostgreSQL (`Document` table) に保存。
 
 ### 3.2 RAGチャットフロー
 1.  **クエリ**: ユーザーがチャットUI (`/api/ask`) またはLINEからメッセージを送信。

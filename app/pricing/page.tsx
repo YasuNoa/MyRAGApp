@@ -240,7 +240,7 @@ export default function PricingPage() {
 
       {/* Ticket Section */}
       <div className="neo-card" style={{ textAlign: "center", border: "1px dashed var(--border-color)" }}>
-        <h3 style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "10px" }}>🎟️ 音声解析チャージ (90分)</h3>
+        <h3 style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "10px" }}>🎟️ 単位救済チケット (90分)</h3>
         <p style={{ color: "var(--text-secondary)", marginBottom: "15px" }}>
             テスト直前なのに枠が足りない…そんな時の救世主。<br/>
             ジュース1本分の価格で、90分間の解析時間をチャージできます。<br/>

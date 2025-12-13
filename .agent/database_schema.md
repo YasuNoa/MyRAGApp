@@ -12,7 +12,7 @@
 *   `email`: String - ユニークなメールアドレス
 *   `image`: String - プロフィール画像URL
 *   `metadata`: Json - 追加設定 (例: AIの名前)
-*   *リレーション*: `accounts`, `sessions`, `messages`, `documents`, `feedbacks`
+*   *リレーション*: `accounts`, `sessions`, `messages`, `documents`, `feedbacks`, `sentReferrals`, `receivedReferral`
 
 ### `Document` (ドキュメント)
 知識ベースのアイテム（ファイル、ノート）を管理します。
@@ -52,6 +52,15 @@ OAuth認証情報 (NextAuth) を管理します。
 *   `voiceCount`: Int - 音声利用回数 (Max 1)
 *   `messages`: Json[] - チャット履歴
 *   `voiceMemo`: String - 音声要約結果
+
+### `Referral` (紹介システム)
+招待コード経由の登録履歴を管理します。
+*   `id`: String (CUID) - 主キー
+*   `referrerId`: String - 紹介した人のユーザーID
+*   `refereeId`: String - 紹介された人のユーザーID (Unique)
+*   `status`: String - "PENDING" (登録済・条件未達) | "COMPLETED" (特典付与済)
+*   `createdAt`: DateTime - 登録日時
+*   `completedAt`: DateTime - 条件達成日時
 
 ### `UserSubscription` (サブスクリプション)
 ユーザーのプランと利用制限を管理します。

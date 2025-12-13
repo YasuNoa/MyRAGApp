@@ -40,6 +40,20 @@ Base URL: `http://backend:8000` (内部) / `https://...` (本番)
 指定ファイルのタグを更新。
 *   **Input**: JSON `{ "fileId": "uuid...", "userId": "cuid...", "tags": ["new_tag"] }`
 
+#### `POST /process-voice-memo`
+音声ファイルの文字起こしと要約生成（長尺対応）。
+*   **Input**: `Multipart/Form-Data`
+    *   `file`: Binary (MP3, M4A, WAV等)
+    *   `metadata`: JSON String `{ "userId": "cuid...", "fileId": "uuid...", "tags": [], "save": "true" }`
+    *   `save`: "true" | "false" (DB保存するかどうか)
+*   **処理フロー**:
+    1.  プラン確認 (`get_user_plan`).
+    2.  トリミング (Free:20m/Std:90m/Pre:180m).
+    3.  チャンク分割 (10分ごと).
+    4.  Gemini文字起こし (順次処理・リトライ付き).
+    5.  Gemini全文要約.
+    6.  保存 (Pinecone & Postgres).
+
 ### AI操作
 
 #### `POST /query`

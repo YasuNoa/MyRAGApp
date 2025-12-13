@@ -31,6 +31,8 @@ model User {
   documents     Document[]                     // 1人のユーザーはたくさんの「ドキュメント」を登録する
   feedbacks     Feedback[]                     // 1人のユーザーはたくさんの「フィードバック」を送る
   subscription  UserSubscription?              // サブスクリプション情報
+  sentReferrals Referral[]    @relation("SentReferrals")      // 紹介した友達
+  receivedReferral Referral?  @relation("ReceivedReferral")   // 誰から紹介されたか
   
   createdAt     DateTime  @default(now())      // 作成日時
   updatedAt     DateTime  @updatedAt           // 更新日時
@@ -134,6 +136,7 @@ model Feedback {
 enum Plan {
   FREE        // 梅
   STANDARD    // 竹
+  STANDARD_TRIAL // 紹介/お試し (期間限定Standard)
   PREMIUM     // 松
 }
 
@@ -191,4 +194,21 @@ model GuestSession {
   // 一時データ（ログイン時に移行するため）
   messages    Json[]   @default([]) // チャット履歴
   voiceMemo   String?  // 音声メモの要約結果
+}
+
+// --- 友達招待システム ---
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String   // 紹介者
+  refereeId   String   // 被紹介者 (招待された人)
+  status      String   @default("PENDING") // PENDING, COMPLETED, EXPIRED
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  // Relations
+  referrer    User     @relation("SentReferrals", fields: [referrerId], references: [id])
+  referee     User     @relation("ReceivedReferral", fields: [refereeId], references: [id])
+
+  @@unique([refereeId]) // ひとりが招待されるのは1回まで
+  @@index([referrerId])
 }

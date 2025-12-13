@@ -352,10 +352,10 @@ async def process_voice_memo(
             needs_truncation = True
             truncate_seconds = 1200 # 20 mins
             logger.info("Free Plan detected: Truncating to 20 mins.")
-        elif user_plan == "STANDARD":
+        elif user_plan == "STANDARD" or user_plan == "STANDARD_TRIAL":
             needs_truncation = True
             truncate_seconds = 5400 # 90 mins
-            logger.info("Standard Plan detected: Truncating to 90 mins.")
+            logger.info(f"{user_plan} Plan detected: Truncating to 90 mins.")
         elif user_plan == "PREMIUM":
             needs_truncation = True
             truncate_seconds = 10800 # 180 mins (3 hours)
@@ -580,6 +580,10 @@ async def process_voice_memo(
         db_id = meta_dict.get("dbId")
         if save and db_id:
              await save_document_content(db_id, transcript, summary=summary)
+             
+             # Success Hook: Check for Referral Reward
+             # 音声アップロード成功(かつ保存)をトリガーとして、紹介報酬を付与
+             await process_referral_reward(user_id)
         
         return {
             "status": "success", 
@@ -604,8 +608,13 @@ from pptx import Presentation
 import csv
 from docx import Document as DocxDocument
 import pandas as pd
+from datetime import datetime, timedelta, timezone
+import stripe
 
 # ... (Previous imports)
+
+# Setup Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # --- 共通処理用ヘルパー関数 (Helper Function for Common Processing) ---
 async def process_and_save_content(
@@ -859,10 +868,26 @@ async def get_user_plan(user_id: str) -> str:
     try:
         async with db_pool.acquire() as conn:
             # Check existing subscription
-            row = await conn.fetchrow('SELECT plan FROM "UserSubscription" WHERE "userId" = $1', user_id)
+            row = await conn.fetchrow('SELECT plan, "currentPeriodEnd" FROM "UserSubscription" WHERE "userId" = $1', user_id)
             
             if row:
-                return row['plan']
+                plan = row['plan']
+                current_period_end = row['currentPeriodEnd']
+                
+                # Expiration Logic (Trial)
+                # Stripe Webhooks handle Paid Plan expiration, but local-only trials (from referrals) need self-check.
+                if plan == 'STANDARD_TRIAL':
+                    if current_period_end:
+                         # Ensure awareness
+                        if current_period_end.tzinfo is None:
+                            current_period_end = current_period_end.replace(tzinfo=timezone.utc)
+                        
+                        now = datetime.now(timezone.utc)
+                        if now > current_period_end:
+                            logger.info(f"User {user_id} trial expired at {current_period_end}. Treating as FREE.")
+                            return "FREE"
+
+                return plan
             
             # Create default FREE plan if missing
             logger.info(f"No subscription found for user {user_id}. Creating default FREE plan.")
@@ -884,6 +909,156 @@ async def get_user_plan(user_id: str) -> str:
         logger.error(f"Error fetching/creating user plan: {e}")
         return "FREE" # Fallback to FREE on error
 
+async def process_referral_reward(user_id: str):
+    """
+    紹介報酬処理 (Referral Reward Logic):
+    ユーザー(referee)が条件達成(音声保存)した瞬間に、紹介者(referrer)と本人(referee)の標準プラン期間を延長する。
+    """
+    if not db_pool:
+        logger.warning("Database pool not initialized, skipping referral check.")
+        return
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.transaction():
+                # 1. Check for pending referral where user is referee
+                # 紹介されていて、かつまだ報酬を受け取っていない(PENDING)か確認
+                row = await conn.fetchrow(
+                    'SELECT id, "referrerId" FROM "Referral" WHERE "refereeId" = $1 AND status = \'PENDING\'',
+                    user_id
+                )
+                if not row:
+                    return # No pending referral
+
+                referral_id = row['id']
+                referrer_id = row['referrerId']
+
+                logger.info(f"Processing referral reward: referral={referral_id}, referee={user_id}, referrer={referrer_id}")
+
+                # 2. Update Referral status to COMPLETED
+                await conn.execute(
+                    'UPDATE "Referral" SET status = \'COMPLETED\', "completedAt" = NOW() WHERE id = $1',
+                    referral_id
+                )
+
+                # Referral Campaign Logic
+                # LAUNCH: 30 days for Referee, 30 days (1st time) for Referrer, 7 days (2nd+) for Referrer
+                # STANDARD: 7 days for Everyone
+                REFERRAL_CAMPAIGN_MODE = "LAUNCH" 
+
+                if REFERRAL_CAMPAIGN_MODE == "LAUNCH":
+                    REFEREE_BONUS_DAYS = 30
+                    REFEREE_PLAN_TYPE = "STANDARD" # Full Standard
+                    
+                    # Referrer Logic: Check history
+                    completed_count = await conn.fetchval(
+                        'SELECT COUNT(*) FROM "Referral" WHERE "referrerId" = $1 AND status = \'COMPLETED\'',
+                        referrer_id
+                    )
+                    # completed_count includes the one we JUST updated in step 2? 
+                    # Yes, step 2 updated this referral to COMPLETED.
+                    # So if count == 1, it's their first success.
+                    if completed_count == 1:
+                        REFERRER_BONUS_DAYS = 30
+                        REFERRER_PLAN_TYPE = "STANDARD"
+                    else:
+                        REFERRER_BONUS_DAYS = 7
+                        REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+                else:
+                    # Normal Mode
+                    REFEREE_BONUS_DAYS = 7
+                    REFEREE_PLAN_TYPE = "STANDARD_TRIAL"
+                    REFERRER_BONUS_DAYS = 7
+                    REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+
+                # 3. Reward Referee (本人)
+                referee_sub = await conn.fetchrow(
+                    'SELECT id, plan, "currentPeriodEnd", "stripeSubscriptionId" FROM "UserSubscription" WHERE "userId" = $1',
+                    user_id
+                )
+                
+                if referee_sub:
+                    current_plan = referee_sub['plan']
+                    current_end = referee_sub['currentPeriodEnd']
+                    
+                    # Date Logic
+                    now = datetime.now(timezone.utc)
+                    if current_end and current_end > now:
+                         new_end = current_end + timedelta(days=REFEREE_BONUS_DAYS)
+                    else:
+                         new_end = now + timedelta(days=REFEREE_BONUS_DAYS)
+
+                    # Plan Logic: Upgrade FREE 
+                    new_plan = current_plan
+                    if current_plan == 'FREE':
+                        new_plan = REFEREE_PLAN_TYPE
+                    
+                    await conn.execute(
+                        'UPDATE "UserSubscription" SET plan = $1::"Plan", "currentPeriodEnd" = $2 WHERE "userId" = $3',
+                         new_plan, new_end, user_id
+                    )
+                    logger.info(f"Referee reward applied: {user_id} -> {new_plan} until {new_end} ({REFERRAL_CAMPAIGN_MODE})")
+
+                    # Stripe API Extension
+                    stripe_sub_id = referee_sub.get('stripeSubscriptionId')
+                    # Apply logic if mapped plan matches (e.g. Standard Trial or Standard)
+                    # Actually we should just extend trial_end regardless if they are in trial mode on Stripe
+                    if stripe_sub_id:
+                        try:
+                            # Only if status is trialing? Or always?
+                            # Safer to try extending if mapped plan is a "Trial" or "Standard" with trial
+                            # Just try extending.
+                            stripe.Subscription.modify(
+                                stripe_sub_id,
+                                trial_end=int(new_end.timestamp()),
+                                proration_behavior='none'
+                            )
+                            logger.info(f"Stripe Trial Extended for referee {stripe_sub_id} to {new_end}")
+                        except Exception as se:
+                            logger.error(f"Stripe API Error (Referee): {se}")
+
+                # 4. Reward Referrer (紹介者)
+                referrer_sub = await conn.fetchrow(
+                    'SELECT id, plan, "currentPeriodEnd", "stripeSubscriptionId" FROM "UserSubscription" WHERE "userId" = $1',
+                    referrer_id
+                )
+                if referrer_sub:
+                    current_end = referrer_sub['currentPeriodEnd']
+                    current_plan = referrer_sub['plan']
+                    referrer_stripe_sub_id = referrer_sub['stripeSubscriptionId']
+                    
+                    now = datetime.now(timezone.utc)
+                    if current_end and current_end > now:
+                         new_end = current_end + timedelta(days=REFERRER_BONUS_DAYS)
+                    else:
+                         new_end = now + timedelta(days=REFERRER_BONUS_DAYS)
+                    
+                    # If referrer is FREE, also upgrade
+                    new_ref_plan = current_plan
+                    if current_plan == 'FREE':
+                        new_ref_plan = REFERRER_PLAN_TYPE
+
+                    await conn.execute(
+                        'UPDATE "UserSubscription" SET plan = $1::"Plan", "currentPeriodEnd" = $2 WHERE "userId" = $3',
+                        new_ref_plan, new_end, referrer_id
+                    )
+                    logger.info(f"Referrer reward applied: {referrer_id} -> {new_ref_plan} until {new_end} (Count: {completed_count})")
+
+                    # Stripe API Extension (Referrer)
+                    if referrer_stripe_sub_id:
+                        try:
+                             stripe.Subscription.modify(
+                                referrer_stripe_sub_id,
+                                trial_end=int(new_end.timestamp()),
+                                proration_behavior='none'
+                            )
+                             logger.info(f"Stripe Extension (Trial/Pause) for referrer {referrer_stripe_sub_id} to {new_end}")
+                        except Exception as se:
+                             logger.error(f"Stripe API Error (Referrer): {se}")
+
+    except Exception as e:
+        logger.error(f"Error processing referral reward: {e}")
+
 # --- Usage Limit Helpers ---
 
 
@@ -891,6 +1066,7 @@ async def check_storage_limit(user_id: str, plan: str):
     LIMITS = {
         "FREE": 5,
         "STANDARD": 200,
+        "STANDARD_TRIAL": 200, # Same as Standard
         "PREMIUM": 1000,
     }
     limit = LIMITS.get(plan, 5)
@@ -968,6 +1144,7 @@ async def record_audio_usage(user_id: str, plan: str, duration_sec: float):
     # Monthly Limit (Minutes)
     MONTHLY_LIMITS = {
         "STANDARD": 1800, # 30 hours
+        "STANDARD_TRIAL": 120, # 2 hours (Trial Limit)
         "PREMIUM": 6000,  # 100 hours
     }
     monthly_limit = MONTHLY_LIMITS.get(plan, 1800)
@@ -993,7 +1170,21 @@ async def record_audio_usage(user_id: str, plan: str, duration_sec: float):
         now_jst = now_utc.astimezone(jst)
         last_reset_jst = last_reset.astimezone(jst)
         
-        if last_reset_jst.month != now_jst.month or last_reset_jst.year != now_jst.year:
+        # Reset Logic
+        # STANDARD/PREMIUM: Monthly Reset (Calendar Month)
+        # STANDARD_TRIAL: Weekly Reset (Every 7 Days) for "Refill" effect
+        should_reset = False
+        
+        if plan == "STANDARD_TRIAL":
+            # 7-day rolling reset
+            if (now_jst - last_reset_jst).days >= 7:
+                should_reset = True
+        else:
+             # Calendar monthly reset
+             if last_reset_jst.month != now_jst.month or last_reset_jst.year != now_jst.year:
+                 should_reset = True
+        
+        if should_reset:
             current_usage = 0
             # update last_reset to now_utc? Yes.
         

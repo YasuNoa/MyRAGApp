@@ -76,7 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ...authConfig.callbacks,
         async signIn({ account, profile }) {
             // Check for existing session cookies to prevent multiple logins
-            const cookieStore = cookies();
+            const cookieStore = await cookies();
             const sessionToken = cookieStore.get("authjs.session-token") ||
                 cookieStore.get("__Secure-authjs.session-token") ||
                 cookieStore.get("next-auth.session-token") ||
