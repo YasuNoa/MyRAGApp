@@ -5,6 +5,8 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
+
+
 datasource db {
   provider = "postgresql"      // データベースの種類はPostgreSQLを使います
   url      = env("DATABASE_URL") // 接続URLは .env ファイルの "DATABASE_URL" から読み込みます
@@ -13,202 +15,207 @@ datasource db {
 // --- データモデル（テーブル）の定義 ---
 
 // ユーザー情報を管理するテーブル
+// アプリケーションの利用者全員がここに登録されます。
 model User {
-  id            String    @id @default(cuid()) // ID: ユーザーを一意に識別するID
-  name          String                         // 名前: ユーザーの表示名
-  phoneNumber   String?   @unique              // 電話番号: 任意項目
-  password      String?                        // パスワード: メールアドレスログイン用
-  email         String    @unique              // メールアドレス: 必須項目、重複不可
-  emailVerified DateTime?                      // メアド確認日時
-  image         String?                        // アイコン画像: プロフィール画像のURL
-  metadata      Json?                          // メタデータ: その他の情報
+  id            String    @id @default(cuid()) // ユーザーID: システム内部で使う一意のID (CUID形式)
+  name          String                         // ユーザー名: 表示用 (例: "山田 太郎")
+  phoneNumber   String?   @unique              // 電話番号: 重複不可 (オプショナル)
+  password      String?                        // パスワード: メール/パスワードログイン用 (Firebase認証なら未使用の可能性あり)
+  email         String    @unique              // メールアドレス: 必須・重複不可 (ユーザー識別の要)
+  emailVerified DateTime?                      // メールアドレス確認日時 (確認済みかどうかのフラグ)
+  image         String?                        // プロフィール画像URL: アバター表示用
+  metadata      Json?                          // その他のメタデータ: 将来的な拡張用 (自由形式のJSON)
   
-  // --- リレーション ---
-  accounts      Account[]                      // 1人のユーザーは複数の「アカウント連携」を持つ
-  sessions      Session[]                      // 1人のユーザーは複数の「ログインセッション」を持つ
-  messages      Message[]                      // 1人のユーザーはたくさんの「メッセージ」を送る
-  threads       Thread[]                       // 1人のユーザーはたくさんの「スレッド」を持つ
-  documents     Document[]                     // 1人のユーザーはたくさんの「ドキュメント」を登録する
-  feedbacks     Feedback[]                     // 1人のユーザーはたくさんの「フィードバック」を送る
-  subscription  UserSubscription?              // サブスクリプション情報
-  sentReferrals Referral[]    @relation("SentReferrals")      // 紹介した友達
-  receivedReferral Referral?  @relation("ReceivedReferral")   // 誰から紹介されたか
+  // --- リレーション（他のテーブルとの繋がり） ---
+  accounts      Account[]                      // 連携アカウント: Google, LINEなどの外部ログイン情報
+  messages      Message[]                      // 送信メッセージ履歴: ユーザーが送ったチャット
+  threads       Thread[]                       // チャットスレッド: 過去の会話のまとまり
+  documents     Document[]                     // 登録ドキュメント: ユーザーがアップロードした知識データ
+  feedbacks     Feedback[]                     // フィードバック: 運営への意見・要望
+  subscription  UserSubscription?              // サブスクリプション: プラン契約情報 (1対1)
+  sentReferrals Referral[]    @relation("SentReferrals")      // 自分が紹介した履歴 (友達招待機能)
+  receivedReferral Referral?  @relation("ReceivedReferral")   // 自分を紹介してくれた人の情報
   
-  createdAt     DateTime  @default(now())      // 作成日時
-  updatedAt     DateTime  @updatedAt           // 更新日時
+  createdAt     DateTime  @default(now())      // アカウント作成日時
+  updatedAt     DateTime  @updatedAt           // アカウント情報最終更新日時
 }
 
-// 登録された知識（ドキュメント）の目次テーブル
+// 登録された知識（ドキュメント）を管理するテーブル
+// ユーザーがアップロードしたPDFや録音データなどがここに保存されます。
 model Document {
-  id         String   @id @default(cuid()) // ID
-  userId     String                        // 誰のドキュメントか
-  title      String                        // タイトル: ファイル名など
-  content    String?                       // 本文: 全文検索・ロングコンテキスト用
-  summary    String?                       // 要約: 一覧表示・概要検索用
-  type       String   @default("knowledge") // 種類: "knowledge" (ファイル) or "note" (ノート)
-  tags       String[] @default([])         // タグ: 複数カテゴリ対応
-  source     String                        // 情報源: "google-drive" や "manual",voicememo
-  mimeType   String?                       // ファイル形式: "application/pdf", "image/jpeg" など
-  externalId String?                       // Pinecone（ベクトルDB）と PostgreSQL（リレーショナルDB）を紐付けるための共通ID
-  fileCreatedAt DateTime?                  // ファイル自体の作成日時（または最終更新日時）
-  createdAt  DateTime @default(now())      // 作成日時
+  id         String   @id @default(cuid()) // ドキュメントID
+  userId     String                        // 所有者のユーザーID (Userテーブルのidと紐付け)
+  title      String                        // タイトル: ファイル名やユーザーが付けた名前
+  content    String?                       // 本文テキスト: 全文検索やAIの参照用 (OCR結果や文字起こし)
+  summary    String?                       // 要約テキスト: 一覧画面での表示や概要検索用
+  type       String   @default("knowledge") // データの種類: "knowledge" (ファイル), "note" (音声メモ) など
+  tags       String[] @default([])         // タグ: "授業", "英語" などのカテゴリ分け (配列)
+  source     String                        // データ情報源: "google-drive" (ドライブ連携), "manual" (手動), "voicememo" (録音)
+  mimeType   String?                       // ファイル形式: "application/pdf", "audio/mpeg" など
   
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定
+  // 外部サービスとの連携用ID (重複防止・特定用)
+  googleDriveId String?   @unique        // Google Drive上のファイルID
+  lineMessageId String?   @unique        // LINEのメッセージID (LINEから送られたファイルの場合)
+  
+  fileCreatedAt DateTime?                  // ファイル自体の作成日時 (アップロード日時とは別に、ファイルの更新日を保持)
+  createdAt  DateTime @default(now())      // 登録日時 (システムへのアップロード日)
+  
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade) // ユーザーが削除されたらドキュメントも削除
 }
 
-// チャットの履歴テーブル
+// チャットのメッセージ履歴を管理するテーブル
+// ユーザーとAIの個別の発言がレコードとして保存されます。
 model Message {
-  id        String   @id @default(cuid()) // ID
-  content   String                        // 内容
-  role      String                        // 役割: "user" か "assistant"
-  category  String?  @default("その他")   // カテゴリ
-  userId    String                        // 誰のメッセージか
-  threadId  String?                       // スレッドID (履歴機能用)
+  id        String   @id @default(cuid()) // メッセージID
+  content   String                        // 発言内容: テキスト
+  role      String                        // 発言者の役割: "user" (ユーザー), "assistant" (AI)
+  category  String?  @default("その他")   // カテゴリ: 会話の内容分類 (自動タグ付け用)
+  userId    String                        // 発言したユーザーのID
+  threadId  String?                       // 所属するスレッドのID (どの会話の一部か)
   createdAt DateTime @default(now())      // 送信日時
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定
-  thread    Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade) // スレッドとのリレーション
-}
-
-// チャットスレッド（履歴のまとまり）
-model Thread {
-  id        String    @id @default(cuid())
-  userId    String
-  title     String    @default("New Chat") // スレッドのタイトル
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt           // 最終更新日時（並び替え用）
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages  Message[]
-}
-
-// 外部アカウント連携（Google, LINEなど）の鍵束テーブル
-model Account {
-  id                 String  @id @default(cuid()) // ID
-  userId             String                       // 誰の連携情報か
-  type               String                       // タイプ: "oauth"
-  provider           String                       // プロバイダ名: "google", "line"
-  providerAccountId  String                       // プロバイダ側のID
-  refresh_token      String?  @db.Text            // リフレッシュトークン
-  access_token       String?  @db.Text            // アクセストークン
-  expires_at         Int?                         // 有効期限
-  token_type         String?                      // トークンタイプ
-  scope              String?                      // スコープ
-  id_token           String?  @db.Text            // IDトークン
-  session_state      String?                      // セッション状態
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定
-
-  @@unique([provider, providerAccountId]) // 複合ユニーク制約
-}
-
-// ログイン中の状態（セッション）管理テーブル
-model Session {
-  id           String   @id @default(cuid()) // ID
-  sessionToken String   @unique              // セッショントークン
-  userId       String                        // 誰がログインしているか
-  expires      DateTime                      // 有効期限
   
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade) // リレーション設定
+  // リレーション
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade) // ユーザー削除で履歴も削除
+  thread    Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade) // スレッド削除でメッセージも削除
 }
 
-// メール認証用の一時トークン
+// チャットスレッド（会話のまとまり）を管理するテーブル
+// 履歴画面で「昨日の会話」「英語の勉強」のように表示される単位です。
+model Thread {
+  id        String    @id @default(cuid()) // スレッドID
+  userId    String                         // 所有者のユーザーID
+  title     String    @default("New Chat") // スレッドタイトル: 最初の会話から自動生成などが可能
+  createdAt DateTime  @default(now())      // スレッド作成日時
+  updatedAt DateTime  @updatedAt           // 最終更新日時: 会話履歴の並び替えに使用
+  
+  // リレーション
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]                    // このスレッドに含まれるメッセージ一覧
+}
+
+// 外部アカウント連携（Google, LINEなど）の認証情報を管理するテーブル
+// Firebase AuthenticationとユーザーIDを紐付けるための重要なテーブルです。
+model Account {
+  id                 String   @id @default(cuid()) // ID
+  userId             String                        // 紐付くユーザーのID
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  provider           String // プロバイダ名: "firebase" (基本), "google", "line" など
+  providerAccountId  String // プロバイダ側のID: FirebaseのUID (User ID) などが一意のキーになります
+  
+  refresh_token      String?  @db.Text // リフレッシュトークン: 長期間のログイン維持用
+  access_token       String?  @db.Text // アクセストークン: API利用時の一時的な鍵
+  
+  createdAt          DateTime @default(now()) // 連携日時
+  updatedAt          DateTime @updatedAt      // 情報更新日時
+  
+  @@unique([provider, providerAccountId]) // 同じプロバイダの同じIDは1回しか登録できない (重複ログイン防止)
+}
+
+// 認証用トークン（予備/Legacy）
+// 現在のFirebase認証フローでは主に使用されませんが、将来的なメール認証拡張などのために保持。
 model VerificationToken {
-  identifier String   // 識別子
-  token      String   @unique // トークン
-  expires    DateTime // 有効期限
-
-  @@unique([identifier, token]) // 複合ユニーク制約
+  identifier String   // 識別子: メールアドレスなど
+  token      String   @unique // トークン: 一時的な認証コード
+  expires    DateTime // 有効期限: この時間を過ぎると無効
+  
+  @@unique([identifier, token]) // 同じ識別子で同じトークンは重複しない
 }
 
-// ユーザーからのフィードバック
+// ユーザーからのフィードバック（ご意見箱）
+// 設定画面などから送られた意見を保存します。
 model Feedback {
-  id        String   @id @default(cuid()) // ID
-  userId    String                        // 送信者ID
-  content   String                        // 内容
+  id        String   @id @default(cuid()) // フィードバックID
+  userId    String                        // 送信したユーザーのID
+  content   String                        // 意見の内容（テキスト）
   createdAt DateTime @default(now())      // 送信日時
-
+  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // --- マネタイズ関連 (サブスク & チケット) ---
+// ユーザーの課金状態や、利用回数制限を管理します。
 
+// 料金プランの定義
 enum Plan {
-  FREE        // 梅
-  STANDARD    // 竹
-  STANDARD_TRIAL // 紹介/お試し (期間限定Standard)
-  PREMIUM     // 松
+  FREE        // フリープラン: 無料、制限きつめ
+  STANDARD    // スタンダードプラン: 月額課金、制限緩和
+  STANDARD_TRIAL // スタンダードお試し: 友達紹介などで付与される期間限定の有料級プラン
+  PREMIUM     // プレミアムプラン: 最上位、大量に使う人向け
 }
 
+// ユーザーのサブスクリプション状況を管理するテーブル
 model UserSubscription {
   id            String    @id @default(cuid()) // ID
-  userId        String    @unique              // ユーザーID
+  userId        String    @unique              // ユーザーID (1ユーザーにつき1レコードのみ)
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // --- 基本プラン設定 ---
-  plan          Plan      @default(FREE)       // 現在のプラン (FREE, STANDARD, PREMIUM)
   
-  // Stripe連携 (将来用)
-  stripeCustomerId       String?   @unique     // Stripeの顧客ID (cus_...)
-  stripeSubscriptionId   String?   @unique     // StripeのサブスクリプションID (sub_...)
-  currentPeriodEnd       DateTime?             // サブスク有効期限 (この日時まで有効)
-
+  // --- 基本プラン設定 ---
+  plan          Plan      @default(FREE)       // 現在の契約プラン (デフォルトは無料)
+  
+  // Stripe連携情報 (決済システムとの紐付け)
+  stripeCustomerId       String?   @unique     // Stripeの顧客ID (cus_...): 決済履歴の管理用
+  stripeSubscriptionId   String?   @unique     // StripeのサブスクID (sub_...): 定期課金の管理用
+  currentPeriodEnd       DateTime?             // サブスク有効期限: これを過ぎると更新または失効
+  
   // --- 制限管理 (Quota Management) ---
-
-  // 1. チャット制限 (汎用カウンタ)
-  // Free: 上限10回 / "lastChatResetAt" から2時間経てば 0 にリセット
-  // Standard: 上限100回 / 日付が変われば 0 にリセット
-  // Premium: 上限200回 / 日付が変われば 0 にリセット
-  dailyChatCount    Int       @default(0)       // 現在の送信数 (加算式)
-  lastChatResetAt   DateTime  @default(now())   // 最後にリセットした日時 (旧: lastChatDate)
-
+  
+  // 1. チャット制限 (日次/回数)
+  // AIとの会話回数をカウントします。
+  // Resetルール: FREEは2時間毎、有料プランは毎日リセットされます。
+  dailyChatCount    Int       @default(0)       // 今日の(または現在の)チャット送信回数
+  lastChatResetAt   DateTime  @default(now())   // 最後にカウントをリセットした日時
+  
   // 2. 音声回数制限 (Free専用)
-  // "Note録音 + Upload = 1日5回まで"
-  // Standard/Premium は無視(無制限)
-  dailyVoiceCount   Int       @default(0)       // 本日の音声処理回数
-  lastVoiceDate     DateTime  @default(now())   // 日付リセット判定用
-
-  // 3. 音声時間制限 (Standard/Premium専用)
-  // "Note録音 + Upload = 月間 1800分 or 6000分"
-  monthlyVoiceMinutes Int     @default(0)       // 今月の音声処理時間 (分)
-  lastVoiceResetDate  DateTime  @default(now()) // 月次リセット判定用
-
+  // 無料ユーザーが「音声アップロード」できる回数。
+  dailyVoiceCount   Int       @default(0)       // 今日の音声処理回数
+  lastVoiceDate     DateTime  @default(now())   // 最後にリセットした日
+  
+  // 3. 音声時間制限 (Pro/Premium専用)
+  // 有料ユーザーの「月間音声処理可能時間（分）」を管理。
+  // 例: スタンダードなら月1800分まで。
+  monthlyVoiceMinutes Int     @default(0)       // 今月の利用済み時間(分)
+  lastVoiceResetDate  DateTime  @default(now()) // 月次リセット日 (毎月1日にリセットなど)
+  
   // 4. 追加購入枠 (チケット残高)
-  // 300円課金で +270分 されるチャージ残高 (売価は90分100円)
-  purchasedVoiceBalance Int   @default(0)       // 追加購入した音声処理時間 (分)
-
-  updatedAt     DateTime  @updatedAt            // 更新日時
+  // プラン上限を超えて使いたい場合に購入した「追加チャージ分」。
+  purchasedVoiceBalance Int   @default(0)       // チャージ残高(分): 使うと減っていきます
+  
+  updatedAt     DateTime  @updatedAt            // データ更新日時
 }
 
 // --- 体験版（未ログイン）ユーザー管理 ---
+// ログインせずに使っているゲストユーザーの一時データを管理します。
 model GuestSession {
-  id          String   @id @default(cuid())
-  ipAddress   String?  // IPアドレス（レート制限用）
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime // 有効期限（1時間）
+  id          String   @id @default(cuid()) // セッションID
+  ipAddress   String?  // IPアドレス: 不正利用の防止やレート制限に使用
+  createdAt   DateTime @default(now())      // 開始日時
+  expiresAt   DateTime // 有効期限: 通常は1時間程度で無効化
   
-  // 利用回数制限
-  chatCount   Int      @default(0) // 上限2回
-  voiceCount  Int      @default(0) // 上限1回
+  // 利用回数制限 (体験版としての制限)
+  chatCount   Int      @default(0) // チャット送信数 (例: 上限2回)
+  voiceCount  Int      @default(0) // 音声アップロード数 (例: 上限1回)
   
-  // 一時データ（ログイン時に移行するため）
-  messages    Json[]   @default([]) // チャット履歴
-  voiceMemo   String?  // 音声メモの要約結果
+  // 一時データ保管場所
+  // ユーザーが体験中に作ったデータを一時保存し、ログイン後に引き継ぐために使います。
+  messages    Json[]   @default([]) // チャット履歴の実体 (JSON)
+  voiceMemo   String?  // 音声メモの要約結果テキスト
 }
 
 // --- 友達招待システム ---
+// 「誰が誰を紹介したか」を記録するテーブルです。
 model Referral {
-  id          String   @id @default(cuid())
-  referrerId  String   // 紹介者
-  refereeId   String   // 被紹介者 (招待された人)
-  status      String   @default("PENDING") // PENDING, COMPLETED, EXPIRED
-  createdAt   DateTime @default(now())
-  completedAt DateTime?
-
-  // Relations
-  referrer    User     @relation("SentReferrals", fields: [referrerId], references: [id])
-  referee     User     @relation("ReceivedReferral", fields: [refereeId], references: [id])
-
-  @@unique([refereeId]) // ひとりが招待されるのは1回まで
-  @@index([referrerId])
+  id          String   @id @default(cuid()) // 招待ID
+  referrerId  String   // 紹介者ID (招待した人)
+  refereeId   String   // 被紹介者ID (招待された人)
+  status      String   @default("PENDING") // ステータス: PENDING(招待中), COMPLETED(登録完了), EXPIRED(期限切れ)
+  createdAt   DateTime @default(now())      // 招待リンク発行日時
+  completedAt DateTime?                     // 登録完了日時
+  
+  // リレーション
+  referrer    User     @relation("SentReferrals", fields: [referrerId], references: [id]) // 紹介者情報
+  referee     User     @relation("ReceivedReferral", fields: [refereeId], references: [id]) // 被紹介者情報
+  
+  @@unique([refereeId]) // 一人のユーザーが「招待される」のは1回限り (重複特典防止)
+  @@index([referrerId]) // 紹介者のIDで検索しやすくする (紹介実績のカウント用)
 }

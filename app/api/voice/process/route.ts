@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import { PythonBackendService } from "@/src/services/python-backend";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
-    const session = await auth();
+    const user = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         const fileId = uuidv4();
 
         const result = await PythonBackendService.processVoiceMemo(file, {
-            userId: session.user.id,
+            userId: user.uid,
             fileId: fileId,
             tags: ["Voice Memo"]
         });

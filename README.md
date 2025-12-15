@@ -11,18 +11,21 @@ RAG (Retrieval-Augmented Generation) 技術を活用し、過去の会話や記�
 *   **ユーザー管理**: LINEログイン認証と連携し、ユーザーごとのデータをセキュアに管理。
 
 ## 技術スタック
-*   **Frontend / Backend**: Next.js 15 (App Router), TypeScript
-*   **Database**: PostgreSQL (Prisma ORM)
+*   **Frontend**: Next.js 15 (App Router), TypeScript, Auth.js
+*   **Backend**: Python (FastAPI)
+*   **Database**: PostgreSQL (Prisma ORM for schema management)
 *   **Vector Database**: Pinecone
 *   **LLM**: Google Gemini API (gemini-2.0-flash)
 *   **Messaging Platform**: LINE Messaging API
-*   **Infrastructure**: Vercel, Docker (開発環境)
+*   **Infrastructure**: Vercel (Frontend), Google Cloud Run (Backend), Docker (Dev Experience)
 
 ## ディレクトリ構成
-*   `app/`: Next.js アプリケーションコード
-*   `src/lib/`: 外部サービス連携ロジック (Gemini, Pinecone, LINE)
+*   `app/`: Next.js アプリケーションコード (Frontend / BFF)
+*   `backend/`: Python FastAPI アプリケーションコード (AI Logic / RAG)
+*   `src/lib/`: 外部サービス連携ロジック (Shared Utilities)
 *   `prisma/`: データベーススキーマとマイグレーション
 *   `docs/`: 要件定義書および仕様書
+*   `report2025/`: 開発進捗ログ (旧 agent_manegemant)
 
 ## セットアップ手順 (開発環境)
 

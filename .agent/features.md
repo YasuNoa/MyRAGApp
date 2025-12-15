@@ -1,43 +1,37 @@
-# 機能一覧 (Features List)
+# Features
 
-## 🧠 知識管理 (Knowledge Management)
-*   **ユニバーサルインポート**:
-    *   **ドキュメント**: PDF, DOCX, PPTX, XLSX, CSV, TXT, MD。
-    *   **画像**: JPG, PNG, WebP (Gemini 2.0 FlashによるOCRと説明生成)。
-    *   **音声**: MP3, M4A, WAV (Gemini 2.0 Flash)。最大3時間(Premium)の長尺録音に対応。自動チャンク分割による高精度な全文文字起こしと包括的な要約生成。
-*   **手動入力**: メモやアイデアのクイックテキスト入力。
-*   **タグシステム**: 柔軟なタグ付けによる整理と絞り込み検索。
-*   **Google Drive連携**: Google Driveからファイルを直接インポート (OAuth)。
+## AI & RAG
+-   **Chat Interface**: Thread-based conversation with context retention.
+-   **Document Ingestion**:
+    -   Supports PDF, DOCX, PPTX, XLSX, CSV.
+    -   Google Drive Picker integration.
+    -   OCR for image-heavy PDFs (via Gemini).
+-   **Search**:
+    -   Semantic Search (Vector Embeddings).
+    -   Keyword/Filename Search (Postgres).
+    -   Web Search fallback (DuckDuckGo).
+    -   Tag-based filtering.
+-   **Voice AI**:
+    -   Transcribes audio files (mp3, wav, m4a).
+    -   Generates concise summaries.
+    -   Speaker diarization (implied by Gemini capabilities, though code implementation depends on prompt).
 
-## 💬 チャット & RAG
-*   **コンテキスト認識チャット**: 会話履歴を記憶し、文脈を踏まえた対話が可能。
-*   **RAG (検索拡張生成)**: アップロードした知識に基づいて回答。
-*   **ロングコンテキスト**: 断片的な情報だけでなく、ドキュメント全文を文脈として利用。
-*   **Google検索グラウンディング**: 必要に応じてWeb検索を行い、最新情報を回答に反映。
-*   **ソース引用**: 回答の根拠となったドキュメントを明示。
+## User System
+-   **Authentication**:
+    -   Sign in with Google.
+    -   Sign in with LINE.
+    -   Guest/Trial Mode (limited usage without login).
+-   **Dashboard**:
+    -   Usage statistics (Chat count, Voice minutes).
+    -   Plan management.
+    -   Knowledge base management (List, Delete, Update Tags).
 
-## 📱 インターフェース
-*   **Webアプリケーション**:
-    *   レスポンシブデザイン (スマホ/PC対応)。
-    *   ダーク/ライトモード (ネオブルータリズムスタイル)。
-    *   PWA対応 (スマホアプリとしてインストール可能)。
-*   **LINEボット**:
-    *   **チャット**: 自然な会話でAIを利用。
-    *   **メモ**: テキストや画像を送信して即座に保存。
-    *   **デイリーレビュー**: 今日のインプットを振り返り。
+## Monetization
+-   **Subscription Plans**: Free, Standard, Premium.
+-   **Ticket System**: Pay-as-you-go top-ups for voice processing time.
+-   **Referral Program**: Invite friends to get free Standard plan access.
+-   **Coupons**: Stripe promotion code support.
 
-## 🎁 体験版 (Trial Experience)（今はアンカーリンク消して保留にしている。）
-*   **登録不要の試用**: アカウント作成前に主要機能を体験可能。
-*   **機能制限**:
-    *   **チャット**: 最大2回まで。
-    *   **音声メモ**: 最大1回 (30秒制限)。
-*   **データ一時保存**: ゲストセッションとしてデータを一時保存 (1時間)。
-*   **リッチUI**: LPと統一された没入感のあるデザイン。
-
-## ⚙️ システム & インフラ
-*   **認証**: Google および LINE アカウントによるセキュアなログイン。
-*   **ベクトル検索**: Pineconeによる高速な類似度検索。
-*   **スケーラブルなバックエンド**: Cloud Run 上の Python FastAPI。
-*   **データ分離**: ユーザーごとの厳格なデータ分離設計。
-*   **堅牢なクォータ管理**: バックエンドとAuth層の二重チェックによる確実な利用制限 (Dual Safeguard)。
-*   **堅牢な音声処理パイプライン**: 10分ごとのチャンク分割、レート制限回避(自動リトライ)、独自のパーサーによるエラー耐性向上。
+## Platform
+-   **PWA**: Installable as a home screen app.
+-   **LINE Bot**: Chat capability directly from LINE (utilizing the same RAG backend).

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { KnowledgeService, KnowledgeSource } from "@/src/services/knowledge";
 import { PythonBackendService } from "@/src/services/python-backend";
 import { prisma } from "@/src/lib/prisma";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
-    const session = await auth();
+    const user = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,16 +47,15 @@ export async function POST(req: NextRequest) {
 
         // We need 'plan' to pass to Python for audio trimming logic (even if limit check is there)
         const subscription = await prisma.userSubscription.findUnique({
-            where: { userId: session.user.id },
+            where: { userId: user.uid },
         });
         const plan = subscription?.plan || "FREE";
 
         // 1. Create Document record in DB FIRST
         const document = await KnowledgeService.registerDocument(
-            session.user.id,
+            user.uid,
             file.name,
             source as KnowledgeSource,
-            fileId,
             tags,
             file.type,
             fileCreatedAt
@@ -65,12 +64,12 @@ export async function POST(req: NextRequest) {
         // 2. Send to Python Backend with dbId
         try {
             await PythonBackendService.importFile(file, {
-                userId: session.user.id,
-                fileId: fileId,
+                userId: user.uid,
+                fileId: document.id, // Use DB ID as fileId for Python logic
                 mimeType: file.type,
                 fileName: file.name,
                 tags: tags,
-                dbId: document.id, // Pass dbId so Python can update content
+                dbId: document.id, // Explicitly pass dbId
                 userPlan: plan // Pass user plan for audio trimming
             });
         } catch (e: any) {

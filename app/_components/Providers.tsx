@@ -1,14 +1,14 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
 import { KnowledgeProvider } from "@/app/_context/KnowledgeContext";
 import { SidebarProvider } from "@/app/_context/SidebarContext";
 import { ChatProvider } from "@/app/_context/ChatContext";
 import { NoteProvider } from "@/app/_context/NoteContext";
+import { AuthProvider } from "@/src/context/AuthContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <AuthProvider>
       <KnowledgeProvider>
         <SidebarProvider>
           <ChatProvider>
@@ -18,6 +18,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           </ChatProvider>
         </SidebarProvider>
       </KnowledgeProvider>
-    </SessionProvider>
+    </AuthProvider>
   );
 }

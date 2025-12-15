@@ -1,5 +1,6 @@
 import { useState, KeyboardEvent, useEffect, useRef } from "react";
 import { X, Tag, ChevronDown } from "lucide-react";
+import { useAuth } from "@/src/context/AuthContext";
 
 interface TagInputProps {
   tags: string[];
@@ -12,11 +13,12 @@ export default function TagInput({ tags, onChange, placeholder = "タグを入�
   const [recentTags, setRecentTags] = useState<string[]>([]);
   const [showRecent, setShowRecent] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { fetchWithAuth } = useAuth();
 
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const res = await fetch("/api/tags");
+        const res = await fetchWithAuth("/api/tags");
         if (res.ok) {
           const data = await res.json();
           setRecentTags(data.tags);

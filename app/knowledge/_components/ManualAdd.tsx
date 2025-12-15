@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/context/AuthContext";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 
 import TagInput from "@/app/_components/TagInput";
 
 export default function ManualAdd() {
-  const { data: session } = useSession();
+  const { fetchWithAuth } = useAuth();
   const { triggerRefresh } = useKnowledge();
   const [mode, setMode] = useState<"text" | "file">("text");
   const [text, setText] = useState("");
@@ -30,7 +30,7 @@ export default function ManualAdd() {
           setIsLoading(false);
           return;
         }
-        const res = await fetch("/api/add", {
+        const res = await fetchWithAuth("/api/add", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text, tags }),
@@ -89,7 +89,7 @@ export default function ManualAdd() {
             }
             
             // Start Request
-            const res = await fetch("/api/upload", {
+            const res = await fetchWithAuth("/api/upload", {
               method: "POST",
               body: formData,
             });
@@ -295,7 +295,8 @@ export default function ManualAdd() {
                   <span style={{ marginRight: "5px" }}>⚠️</span>
                   {(() => {
                       // @ts-ignore
-                      const plan = session?.user?.plan || "FREE";
+                      // const plan = session?.user?.plan || "FREE";
+                      const plan: string = "FREE"; // TODO: Fetch real user plan from API/Claims
                       if (plan === "PREMIUM") return "Premiumプラン: データ保護のため、最大3時間(180分)でカットされます。";
                       if (plan === "STANDARD") return "Standardプラン: 冒頭90分のみ解析されます。（91分以降はカット）";
                       return "Freeプラン: 冒頭20分のみ解析されます。（21分以降はカット）";

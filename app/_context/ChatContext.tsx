@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/src/context/AuthContext";
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
 type Message = {
@@ -25,6 +26,7 @@ type ChatContextType = {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
+  const { fetchWithAuth } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +44,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const loadThread = async (id: string) => {
     setIsLoading(true);
     try {
-        const res = await fetch(`/api/thread/${id}`);
+        const res = await fetchWithAuth(`/api/thread/${id}`);
         if (res.ok) {
             const data = await res.json();
             setMessages(data.messages);

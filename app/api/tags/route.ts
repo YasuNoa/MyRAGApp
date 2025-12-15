@@ -1,11 +1,11 @@
-import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
-import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
-        const session = await auth();
-        if (!session || !session.user?.id) {
+        const user = await verifyAuth(req);
+        if (!user) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
@@ -13,7 +13,7 @@ export async function GET() {
         // We fetch more than 10 because some might have no tags or duplicate tags
         const docs = await prisma.document.findMany({
             where: {
-                userId: session.user.id,
+                userId: user.uid,
             },
             orderBy: {
                 createdAt: "desc",

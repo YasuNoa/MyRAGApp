@@ -19,26 +19,28 @@ export async function POST(req: NextRequest) {
         for (const event of events) {
             if (event.type === "message" && event.message.type === "text") {
                 const userMessage = event.message.text;
+                const messageId = event.message.id; // Extract Message ID
                 const replyToken = event.replyToken;
                 const lineUserId = event.source.userId;
 
                 console.log(`[LINE] 受信: ${userMessage} (from ${lineUserId})`);
 
                 try {
-                    // 1. LINE IDからアプリのユーザーIDを特定
-                    const account = await prisma.account.findFirst({
-                        where: {
-                            provider: "line",
-                            providerAccountId: lineUserId,
-                        },
+                    // 1. LINE IDからアプリのユーザーIDを特定 (Firebase UID = line:<lineUserId>)
+                    const expectedUserId = `line:${lineUserId}`;
+
+                    const user = await prisma.user.findUnique({
+                        where: { id: expectedUserId },
                     });
 
                     // ユーザーが特定できた場合のみ処理を続行
-                    if (!account) {
-                        console.log(`[LINE] Unknown user: ${lineUserId}`);
-                        await replyMessage(replyToken, "ユーザー情報が見つかりません。こちらからLINEログインしてください。https://jibun-ai.com/login");
+                    if (!user) {
+                        console.log(`[LINE] Unknown user: ${lineUserId} (Expected: ${expectedUserId})`);
+                        await replyMessage(replyToken, "ユーザー情報が見つかりません。まずはこちらからLINEログインをしてアカウントを作成してください。\nhttps://jibun-ai.com/login");
                         continue; // 次のイベントへ
                     }
+
+                    const account = { userId: user.id }; // Adapter for subsequent code
 
                     // 2. ユーザーの意図とタグを分類 (Python Backend)
                     const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
                                     userId: account.userId,
                                     title: title,
                                     source: "line",
-                                    externalId: `line-${Date.now()}`, // Temporary ID
+                                    lineMessageId: messageId, // Use dedicated column
                                     content: userMessage, // Save content immediately
                                     tags: tags
                                 },
@@ -124,13 +126,8 @@ export async function POST(req: NextRequest) {
 
                             const result = await res.json();
 
-                            // Update externalId with fileId from Python
-                            if (result.fileId) {
-                                await prisma.document.update({
-                                    where: { id: document.id },
-                                    data: { externalId: result.fileId }
-                                });
-                            }
+                            // Update externalId no longer needed as we use dbId
+                            // if (result.fileId) { ... }
 
                             replyText = `覚えました！🧠 (タグ: ${tags.join(", ")})`;
                         } catch (e) {

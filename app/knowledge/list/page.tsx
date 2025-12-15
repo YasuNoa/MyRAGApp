@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
+import { useAuth } from "@/src/context/AuthContext";
 import LayoutWrapper from "@/app/_components/LayoutWrapper";
 import { FileText, Trash2, Database, Filter, Edit2, X, Check, Loader2 } from "lucide-react";
 import TagInput from "@/app/_components/TagInput";
@@ -16,6 +17,7 @@ type Document = {
 
 export default function KnowledgeListPage() {
   const { refreshTrigger, triggerRefresh } = useKnowledge();
+  const { fetchWithAuth } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export default function KnowledgeListPage() {
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/knowledge/list");
+      const res = await fetchWithAuth("/api/knowledge/list");
       if (res.ok) {
         const data = await res.json();
         setDocuments(data.documents);
@@ -53,7 +55,7 @@ export default function KnowledgeListPage() {
 
     setDeletingId(id);
     try {
-      const res = await fetch("/api/knowledge/delete", {
+      const res = await fetchWithAuth("/api/knowledge/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
@@ -87,7 +89,7 @@ export default function KnowledgeListPage() {
     if (!editingDoc) return;
     setIsUpdating(true);
     try {
-      const res = await fetch("/api/knowledge/update", {
+      const res = await fetchWithAuth("/api/knowledge/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

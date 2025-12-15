@@ -1,20 +1,29 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { listDriveFiles } from "@/src/lib/google-drive";
+import { prisma } from "@/src/lib/prisma";
 
-export async function GET() {
-    const session = await auth();
+export async function GET(req: NextRequest) {
+    const authResult = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!authResult || !authResult.uid) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const accessToken = session.accessToken as string;
+    // Retrieve Google Access Token from Account table
+    const account = await prisma.account.findFirst({
+        where: {
+            userId: authResult.uid,
+            provider: "google" // Assuming we store it as 'google'
+        },
+        select: { access_token: true, refresh_token: true }
+    });
+
+    const accessToken = account?.access_token;
 
     if (!accessToken) {
         return NextResponse.json(
-            { error: "No access token found. Please sign in with Google." },
+            { error: "No access token found. Please sign in with Google or Link Google Account." },
             { status: 401 }
         );
     }

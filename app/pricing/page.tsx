@@ -2,23 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function PricingPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { user, fetchWithAuth } = useAuth();
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handleCheckout = async (plan: string, selectedInterval: "month" | "year" | "one_time") => {
-    if (!session) {
+    if (!user) {
       router.push("/login");
       return;
     }
 
     setLoadingPlan(plan);
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetchWithAuth("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan, interval: selectedInterval }),

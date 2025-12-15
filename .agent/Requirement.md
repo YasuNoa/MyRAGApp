@@ -1,60 +1,24 @@
-# 要件定義書 (Requirement Definition)
+# Requirements
 
-## 1. プロジェクトビジョン
-**プロジェクト名**: じぶんAI (Jibun AI) / MyRAGApp
-**コンセプト**: "Your Second Brain" - あなたのデータを学習し、あなたと共に成長するパーソナルAIアシスタント。
-**ターゲット**: 学生、生涯学習者、ナレッジワーカー。
+## Core Concept
+A multi-modal AI assistant focused on Japanese users, capable of processing text, voice, and documents to provide intelligent responses and summaries.
 
-## 2. コアバリュー (提供価値)
-*   **"Remember Everything" (全てを記憶する)**:
-    *   PDF、音声、画像、LINEメッセージなど、あらゆるソースから知識を収集。
-*   **"Recall Instantly" (瞬時に想起する)**:
-    *   セマンティック検索とRAG (Retrieval-Augmented Generation) で、必要な情報を即座に引き出す。
-*   **"Understand Deeply" (深く理解する)**:
-    *   Gemini 2.0 Flashのロングコンテキストを活用し、複数のドキュメントを横断して回答を生成。
-*   **"Accessible Everywhere" (どこでも使える)**:
-    *   WebアプリとLINEボットの両方からアクセス可能。
+## User Requirements
+1.  **Context-Aware Chat**: Users want to chat with an AI that remembers previous conversations (Threads).
+2.  **Document Understanding (RAG)**: Users want to upload files (PDF, Word, PPT, Excel) and have the AI answer questions based on them.
+3.  **Voice Memos**: Users want to record or upload audio notes and get high-quality transcriptions and summaries.
+4.  **External Integrations**:
+    -   **Google Drive**: Direct import of files from cloud storage.
+    -   **LINE**: Interaction with the bot via LINE messaging app.
+5.  **Multilingual Support**: Primary focus on **Japanese** (JST timezone, Japanese prompts), but underlying models support multi-language.
 
-## 3. 主な機能要件
+## Technical Requirements
+1.  **Performance**: Fast response times for RAG searches (Pinecone).
+2.  **Accuracy**: High-quality embeddings and LLM responses (Gemini 2.0 Flash).
+3.  **Scalability**: Microservices architecture (Next.js + Python/FastAPI) deployable on Cloud Run.
+4.  **Security**: Secure authentication (NextAuth) and data protection.
 
-### 3.1 知識管理 (Input)
-*   **マルチモーダルインポート**:
-    *   **ドキュメント**: PDF, Word (DOCX), PowerPoint (PPTX), Excel (XLSX), CSV, テキスト, Markdown。
-    *   **画像**: JPG, PNG, WebP (Gemini 2.0 FlashによるOCRと説明生成)。
-    *   **音声**: MP3, M4A, WAV (Gemini 2.0 Flash)。最大3時間の長尺録音を、分割処理により高精度に文字起こし・要約。
-*   **手動入力**: Web UIからの直接テキスト入力。
-*   **LINE連携**: "メモ"モードでメッセージや画像を即座に知識ベースへ保存。
-*   **タグ付け**: 柔軟なタグ付けによる整理。
-
-### 3.2 インテリジェンス (Processing)
-*   **RAG (検索拡張生成)**:
-    *   ハイブリッドアプローチ: ベクトル検索 (Pinecone) で関連チャンクを検索 + ロングコンテキスト (Postgres) で全文理解。
-    *   **Google検索グラウンディング**: 最新情報が必要な場合、AIがWeb検索を行って知識を補完。
-*   **意図分類**: ユーザーが「チャットしたい」のか「覚えさせたい」のか「振り返りたい」のかを自動判別。
-
-### 3.3 ユーザーインターフェース (Output)
-*   **Webアプリ**:
-    *   チャットUI: 履歴付きのChatGPTライクなインターフェース。
-    *   知識ベース管理: アップロード済みファイルの閲覧・削除・タグ編集。
-    *   レスポンシブデザイン: モバイル最適化されたサイドバーとレイアウト。
-*   **LINEボット**:
-    *   **チャットモード**: AIと自然に会話。
-    *   **保存モード**: メモやアイデアを即座に保存。
-    *   **振り返りモード**: その日に学んだ/保存した内容のサマリーを受け取る。
-
-### 3.4 体験版 (Trial)
-*   **登録前の価値体験**:
-    *   ログイン不要でチャットと音声メモを試用可能。
-    *   **制限**: チャット2回、音声1回 (30秒)。
-    *   **データ保持**: ゲストセッションで一時保存し、登録時に引き継ぎ (予定)。
-
-## 4. マネタイズ戦略 (Freemium)
-*   **Freeプラン**: チャット制限(10回/2h)、保存数制限(5件)、音声トリミング(20分)、音声回数制限(5回/日)。
-*   **Standardプラン**: チャット制限(100回/日)、保存数制限(200件)、音声時間制限(月1800分)。
-*   **Premiumプラン**: チャット制限(200回/日)、保存数制限(1000件)、音声時間制限(月6000分)。
-*   **マイクロトランザクション**: 音声解析時間の追加購入チケット (90分/100円)。
-
-## 5. 非機能要件
-*   **パフォーマンス**: Gemini 2.0 Flashによる高速レスポンス。
-*   **スケーラビリティ**: ベクトルDB (Pinecone) と Cloud Run によるオートスケーリング。
-*   **セキュリティ**: OAuth (Google/LINE) による認証。アプリ層でのユーザーデータ分離 (RLSライクなロジック)。
+## Business Requirements
+1.  **Monetization**: tiered subscription model (Free, Standard, Premium) managed via Stripe.
+2.  **Growth**: Referral system to incentivize user acquisition with trial extensions.
+3.  **Cross-Platform**: Web App (PWA) and LINE Bot interface.

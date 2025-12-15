@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 
 export async function GET(req: NextRequest) {
-    const session = await auth();
-    if (!session || !session.user?.id) {
+    const user = await verifyAuth(req);
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
         const documents = await prisma.document.findMany({
             where: {
-                userId: session.user.id,
+                userId: user.uid,
             },
             orderBy: {
                 createdAt: "desc",

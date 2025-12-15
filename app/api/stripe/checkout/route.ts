@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { cookies } from "next/headers"; // Import cookies
 import { prisma } from "@/src/lib/prisma";
 import Stripe from "stripe";
@@ -19,8 +19,8 @@ const PRICE_IDS = {
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await auth();
-        if (!session || !session.user) {
+        const user = await verifyAuth(req);
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
         // Determine Change Type (Upgrade vs Downgrade)
         const currentSub = await prisma.userSubscription.findUnique({
-            where: { userId: session.user.id },
+            where: { userId: user.uid },
             select: { plan: true }
         });
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
             // Launch Campaign: 30 days
             // Standard: 7 days
             const TRIAL_DAYS = 30; // Set to 30 for Launch Campaign
-            console.log(`Applying ${TRIAL_DAYS}-day trial for referred user ${session.user.id} (Ref: ${referralSource?.value})`);
+            console.log(`Applying ${TRIAL_DAYS}-day trial for referred user ${user.uid} (Ref: ${referralSource?.value})`);
             subscriptionData = {
                 trial_period_days: TRIAL_DAYS,
                 metadata: {
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
         const checkoutSession = await stripe.checkout.sessions.create({
             mode: mode,
-            customer_email: session.user.email || undefined,
+            customer_email: user.email || undefined,
             line_items: [
                 {
                     price: priceId,
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
             success_url: `${process.env.AUTH_URL}/dashboard?checkout_success=true&type=${changeType}`,
             cancel_url: `${process.env.AUTH_URL}/pricing`,
             metadata: {
-                userId: session.user.id,
+                userId: user.uid,
                 plan: plan,
                 type: mode === "payment" ? "ticket" : "subscription",
                 isReferral: isReferral ? "true" : "false"

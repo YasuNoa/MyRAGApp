@@ -14,14 +14,25 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
-COPY requirements.txt .
+# Copy requirements file (relative to root context)
+COPY backend/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
+# Copy Prisma schema and generate client
+COPY prisma ./prisma
+# Append Python generator config to schema.prisma
+RUN echo '\n\
+    generator client_py {\n\
+    provider             = "prisma-client-py"\n\
+    recursive_type_depth = 5\n\
+    }' >> ./prisma/schema.prisma
+
+RUN prisma generate --schema=./prisma/schema.prisma
+
 # Copy application code
-COPY . .
+COPY backend .
 
 # Expose port
 EXPOSE 8000

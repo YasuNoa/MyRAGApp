@@ -1,120 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/src/lib/prisma";
+import { verifyAuth } from "@/src/lib/auth-check";
 
 export async function POST(req: NextRequest) {
     try {
-        // 認証チェック
-        const session = await auth();
-        if (!session || !session.user?.id) {
+        // 1. Auth Check
+        const user = await verifyAuth(req);
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const userId = session.user.id;
+        const userId = user.uid;
 
-        // Check Chat Limits -> Delegated to Python Backend
-        // If limit exceeded, Python will return 403.
-
-        // リクエストボディ取得
+        // 2. Parse Request
         const { query, tags, threadId } = await req.json();
         if (!query) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        console.log(`[検索中] 質問: ${query}, タグ: ${tags}, ThreadID: ${threadId}`);
+        console.log(`[Ask Proxy] Forwarding to Python: ${query}, Thread: ${threadId}`);
 
-        // 0. Thread Handling
-        let currentThreadId = threadId;
-        if (!currentThreadId) {
-            // Create new thread
-            // Generate title from query (simple truncation for now, could use AI later)
-            const title = query.length > 30 ? query.substring(0, 30) + "..." : query;
-            const thread = await prisma.thread.create({
-                data: {
-                    userId,
-                    title,
-                },
-            });
-            currentThreadId = thread.id;
-        } else {
-            // Verify thread ownership and update timestamp
-            const thread = await prisma.thread.findUnique({
-                where: { id: currentThreadId },
-            });
-            if (!thread || thread.userId !== userId) {
-                // If invalid thread, create a new one (or error? Creating new is safer for UX)
-                const title = query.length > 30 ? query.substring(0, 30) + "..." : query;
-                const newThread = await prisma.thread.create({
-                    data: {
-                        userId,
-                        title,
-                    },
-                });
-                currentThreadId = newThread.id;
-            } else {
-                await prisma.thread.update({
-                    where: { id: currentThreadId },
-                    data: { updatedAt: new Date() },
-                });
-            }
-        }
-
-        // 1. ユーザーのメッセージをDBに保存
-        await prisma.message.create({
-            data: {
-                content: query,
-                role: "user",
-                userId: userId,
-                threadId: currentThreadId,
-            },
-        });
-
-        // 1.5 Get User Plan
-        const userSubscription = await prisma.userSubscription.findUnique({
-            where: { userId },
-            select: { plan: true }
-        });
-        const userPlan = userSubscription?.plan || "FREE";
-
-        // 2. Pythonバックエンドに問い合わせ
+        // 3. Forward to Python Backend
+        // We do NOT fetch plan here anymore. Backend handles it (defaults to checking DB).
         const pythonUrl = process.env.PYTHON_BACKEND_URL || "http://backend:8000";
-        const response = await fetch(`${pythonUrl}/query`, {
+        const response = await fetch(`${pythonUrl}/ask`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                query: query,
-                userId: userId,
-                tags: tags || [], // Pass tags to backend
-                userPlan: userPlan, // Pass user plan
+                query,
+                userId,
+                threadId,
+                tags: tags || [],
+                // userPlan is omitted, backend handles it
             }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[Ask] Python Backend Error: ${response.status} ${errorText}`);
-            throw new Error(`Python Backend failed: ${errorText}`);
+            console.error(`[Ask Proxy] Backend Error: ${response.status} ${errorText}`);
+            try {
+                const errorJson = JSON.parse(errorText);
+                return NextResponse.json(errorJson, { status: response.status });
+            } catch {
+                return NextResponse.json({ error: "Backend failed", details: errorText }, { status: response.status });
+            }
         }
 
         const result = await response.json();
-        const answer = result.answer;
-        const sources = result.sources;
+        return NextResponse.json(result);
 
-        // 3. AIの回答をDBに保存
-        await prisma.message.create({
-            data: {
-                content: answer,
-                role: "assistant",
-                userId: userId,
-                threadId: currentThreadId,
-            },
-        });
-
-        console.log(`[回答] ${answer}`);
-        return NextResponse.json({ answer, sources, threadId: currentThreadId });
     } catch (e: any) {
-        console.error(e);
-        return NextResponse.json({ error: "Failed to get answer", details: e.message }, { status: 500 });
+        console.error("[Ask Proxy] Error:", e);
+        return NextResponse.json({ error: "Internal Server Error", details: e.message }, { status: 500 });
     }
 }
 

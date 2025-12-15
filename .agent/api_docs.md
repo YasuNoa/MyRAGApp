@@ -1,118 +1,64 @@
-# API仕様書 (API Documentation)
+# API Documentation
 
-## Python Backend (FastAPI)
-Base URL: `http://backend:8000` (内部) / `https://...` (本番)
+## Backend API (Python/FastAPI)
+Base URL: `http://localhost:8000` (Internal)
 
-### ファイル操作
-
-#### `POST /import-file`
-ファイルインポートの統合エンドポイント。
-*   **Input**: `Multipart/Form-Data`
-    *   `file`: Binary (PDF, JPG, PNG, MP3, M4A, WAV, PPTX, DOCX, XLSX, CSV, TXT)
-    *   `metadata`: JSON String
+### Chat
+- **POST** `/ask`
+    - **Body**:
         ```json
         {
-          "fileId": "uuid...",
-          "tags": ["tag1", "tag2"],
-          "dbId": "cuid...", // Optional: Postgres Document ID
-          "userPlan": "FREE" // Optional: "FREE" | "STANDARD" | "PREMIUM"
+          "query": "string",
+          "userId": "string",
+          "threadId": "string (optional)",
+          "tags": ["string"]
         }
         ```
-*   **処理**: OCR/文字起こし -> チャンク分割 -> 埋め込み -> Pinecone & Postgres保存。
+    - **Logic**:
+        1. Checks User Subscription & quotas.
+        2. Generates Embedding (Gemini).
+        3. searches Pinecone & Local DB.
+        4. Performs Web Search (DuckDuckGo via SearchService) if needed.
+        5. Generates Answer (Gemini 2.0 Flash).
+    - **Returns**: `{ "answer": "...", "sources": [], "threadId": "..." }`
 
-#### `POST /import-text`
-テキストデータの直接インポート。
-*   **Input**: JSON
-    ```json
-    {
-      "text": "...",
-      "userId": "cuid...",
-      "source": "manual",
-      "tags": ["tag1"]
-    }
-    ```
+### Voice
+- **POST** `/process-voice-memo` (or `/voice/process-voice-memo`)
+    - **Content-Type**: `multipart/form-data`
+    - **Body**:
+        - `file`: Audio file
+        - `metadata`: JSON string `{"userId": "...", "fileId": "...", "tags": []}`
+        - `save`: boolean
+    - **Logic**:
+        1. Checks Plan Limits (Free: 20min, Std: 90min, Prem: 180min). Truncates if needed.
+        2. Splits audio into 10-minute chunks.
+        3. Transcribes using Gemini 2.0 Flash.
+        4. Generates Summary.
+        5. Embeds chunks -> Pinecone.
+        6. Saves Text/Summary -> `Document` (Postgres).
+        7. Triggers Referral Reward if applicable.
 
-#### `POST /delete-file`
-指定ファイルの全ベクトルを削除。
-*   **Input**: JSON `{ "fileId": "uuid...", "userId": "cuid..." }`
+### Health
+- **GET** `/health`: Returns `{"status": "ok"}`
+- **GET** `/`: Returns `{"message": "Python Backend is running!"}`
 
-#### `POST /update-tags`
-指定ファイルのタグを更新。
-*   **Input**: JSON `{ "fileId": "uuid...", "userId": "cuid...", "tags": ["new_tag"] }`
+## Frontend API (Next.js App Router)
 
-#### `POST /process-voice-memo`
-音声ファイルの文字起こしと要約生成（長尺対応）。
-*   **Input**: `Multipart/Form-Data`
-    *   `file`: Binary (MP3, M4A, WAV等)
-    *   `metadata`: JSON String `{ "userId": "cuid...", "fileId": "uuid...", "tags": [], "save": "true" }`
-    *   `save`: "true" | "false" (DB保存するかどうか)
-*   **処理フロー**:
-    1.  プラン確認 (`get_user_plan`).
-    2.  トリミング (Free:20m/Std:90m/Pre:180m).
-    3.  チャンク分割 (10分ごと).
-    4.  Gemini文字起こし (順次処理・リトライ付き).
-    5.  Gemini全文要約.
-    6.  保存 (Pinecone & Postgres).
+### Stripe
+- **POST** `/api/stripe/checkout`
+    - **Body**: `{"plan": "STANDARD" | "PREMIUM" | "TICKET", "interval": "month" | "year" | "one_time"}`
+    - **Returns**: `{"url": "stripe_checkout_url"}`
+- **POST** `/api/stripe/webhook`
+    - Handles `checkout.session.completed`:
+        - Activates Subscription.
+        - Adds Ticket Balance (if TICKET).
+        - Links Referral (if `referralSource` cookie present).
+    - Handles `customer.subscription.updated`, `deleted`, `invoice.payment_succeeded`.
 
-### AI操作
+### Knowledge / Upload (Inferred)
+- **POST** `/api/knowledge/list`: List user documents.
+- **POST** `/api/knowledge/delete`: Delete document (and calling specific backend cleanup if needed).
+- **POST** `/api/upload`: Handled likely by direct upload to Backend or via Next.js proxying to backend `process-and-save-content` logic (which is modular in `main.py`).
 
-#### `POST /query`
-RAG検索 & チャット応答生成。
-*   **Input**: JSON
-    ```json
-    {
-      "query": "...",
-      "userId": "cuid...",
-      "tags": [], // Optional filtering
-      "userPlan": "FREE" // Required for search/grounding limits
-    }
-    ```
-*   **Output**: JSON `{ "answer": "..." }`
-*   **ロジック**: クエリ埋め込み -> Pinecone検索 (Top-K) -> 全文取得 (Postgres) -> Gemini回答生成 (Google検索付き)。
-
-#### `POST /classify`
-ユーザー意図の分類。
-*   **Input**: JSON `{ "text": "..." }`
-*   **Output**: JSON
-    ```json
-    {
-      "intent": "CHAT" | "STORE" | "REVIEW",
-      "category": "General" // Optional
-    }
-    ```
-
-## Next.js API Routes
-Base URL: `/api`
-
-### `POST /api/upload`
-Backend `/import-file` へのラッパー。
-1.  Postgresに `Document` レコードを作成。
-2.  Backend `/import-file` を `dbId` 付きで呼び出し。
-3.  成功/失敗を返す。
-
-### `POST /api/voice/process`
-ボイスメモ処理用ラッパー。
-*   Backend `/process-voice-memo` を呼び出す。
-
-### `POST /api/trial/chat`
-体験版チャット。
-*   **制限**: 1セッションあたり2回まで。
-*   **機能**: Gemini 2.0 Flashによる単純応答 (検索なし)。
-*   **保存**: `GuestSession` に履歴を保存。
-
-### `POST /api/trial/voice`
-体験版音声メモ。
-*   **制限**: 1セッションあたり1回まで。
-*   **機能**: 音声アップロード -> Gemini要約。
-*   **保存**: `GuestSession` に要約を保存。
-
-### `POST /api/webhook/line`
-LINE Messaging API Webhook。
-*   **ロジック**:
-    1.  署名検証。
-    2.  `Account` テーブルからユーザー特定。
-    3.  意図分類 (`/classify` またはローカルGemini)。
-    4.  **STORE**: メッセージをDocumentとして保存。
-    5.  **REVIEW**: 今日のメッセージを取得して要約。
-    6.  **CHAT**: `/query` を呼び出して回答。
-    7.  LINE API経由で返信。
+### Auth
+- **GET/POST** `/api/auth/[...nextauth]`: NextAuth.js endpoints for Login/Logout/Session.

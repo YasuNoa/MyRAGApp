@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { KnowledgeService } from "@/src/services/knowledge";
 
 export async function POST(req: NextRequest) {
@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
 
         console.log(`[保存中] テキスト: ${text}, タグ: ${tags}`);
 
-        const session = await auth();
-        if (!session?.user?.id) {
+        const user = await verifyAuth(req);
+        if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         // We can't easily delete the record without the ID.
         // Strategy: Modify KnowledgeService to cleanup on error.
 
-        const { id } = await KnowledgeService.addTextKnowledge(session.user.id, text, "manual", tags || []);
+        const { id } = await KnowledgeService.addTextKnowledge(user.uid, text, "manual", tags || []);
 
         console.log(`[完了] ID: ${id} で保存しました。`);
         return NextResponse.json({ success: true, id });

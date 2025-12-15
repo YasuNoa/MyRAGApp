@@ -1,18 +1,32 @@
+"use client";
+
 import Link from "next/link";
 import PlansSection from "@/app/_components/PlansSection";
-import { auth } from "@/auth";
-import { prisma } from "@/src/lib/prisma";
+import { useAuth } from "@/src/context/AuthContext";
+import { useEffect, useState } from "react";
 
-export default async function PlanPage() {
-  const session = await auth();
-  let subscription = null;
-
-  if (session?.user?.id) {
-    subscription = await prisma.userSubscription.findUnique({
-      where: { userId: session.user.id },
-      select: { plan: true },
-    });
-  }
+export default function PlanPage() {
+  const { user } = useAuth();
+  const [subscription, setSubscription] = useState(null);
+  
+  useEffect(() => {
+    async function fetchSub() {
+        if (!user) return;
+        try {
+            const idToken = await user.getIdToken();
+            const res = await fetch("/api/user/profile", {
+                headers: { "Authorization": `Bearer ${idToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSubscription(data.subscription);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    fetchSub();
+  }, [user]);
 
   return (
     <div style={{ 
@@ -42,30 +56,34 @@ export default async function PlanPage() {
           </div>
         </Link>
         <div style={{ display: "flex", gap: "10px" }}>
-            <Link href="/login" style={{ textDecoration: "none" }}>
-                <button className="neo-button" style={{ 
-                    padding: "8px 20px", 
-                    fontSize: "14px",
-                    background: "transparent",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    fontWeight: "bold"
-                }}>
-                    ログイン
-                </button>
-            </Link>
-            <Link href="/register" style={{ textDecoration: "none" }}>
-                <button className="neo-button" style={{ 
-                    padding: "8px 20px", 
-                    fontSize: "14px",
-                    background: "white",
-                    color: "black",
-                    border: "none",
-                    fontWeight: "bold"
-                }}>
-                    新規登録
-                </button>
-            </Link>
+            {!user && (
+                <>
+                <Link href="/login" style={{ textDecoration: "none" }}>
+                    <button className="neo-button" style={{ 
+                        padding: "8px 20px", 
+                        fontSize: "14px",
+                        background: "transparent",
+                        color: "white",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        fontWeight: "bold"
+                    }}>
+                        ログイン
+                    </button>
+                </Link>
+                <Link href="/register" style={{ textDecoration: "none" }}>
+                    <button className="neo-button" style={{ 
+                        padding: "8px 20px", 
+                        fontSize: "14px",
+                        background: "white",
+                        color: "black",
+                        border: "none",
+                        fontWeight: "bold"
+                    }}>
+                        新規登録
+                    </button>
+                </Link>
+                </>
+            )}
         </div>
       </header>
 

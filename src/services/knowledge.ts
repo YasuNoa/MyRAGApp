@@ -20,7 +20,6 @@ export const KnowledgeService = {
                 title,
                 source,
                 tags, // Save tags
-                externalId: `temp-${Date.now()}`, // Temporary
                 content: text // Save content immediately
             },
         });
@@ -43,14 +42,7 @@ export const KnowledgeService = {
             throw new Error(`Python backend failed: ${await response.text()}`);
         }
 
-        const result = await response.json();
-        const fileId = result.fileId;
-
-        // 3. Update Document with fileId (if needed)
-        await prisma.document.update({
-            where: { id: document.id },
-            data: { externalId: fileId }
-        });
+        // No need to update externalId anymore!
 
         return { id: document.id, document };
     },
@@ -59,16 +51,17 @@ export const KnowledgeService = {
      * ドキュメント（ファイル）のメタデータを登録する
      * ※ ベクトル化とPinecone保存は呼び出し元で行う（チャンク処理などが複雑なため）
      */
-    async registerDocument(userId: string, title: string, source: KnowledgeSource, externalId: string, tags: string[] = [], mimeType?: string, fileCreatedAt?: Date) {
+    async registerDocument(userId: string, title: string, source: KnowledgeSource, tags: string[] = [], mimeType?: string, fileCreatedAt?: Date, googleDriveId?: string, lineMessageId?: string) {
         return await prisma.document.create({
             data: {
                 userId,
                 title,
                 source,
-                externalId,
                 tags,
                 mimeType,
                 fileCreatedAt,
+                googleDriveId,
+                lineMessageId
             },
         });
     }

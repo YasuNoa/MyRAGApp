@@ -1,29 +1,53 @@
 "use client";
 
 import { useState } from "react";
-import { submitFeedback } from "@/app/actions/feedback";
+import { auth } from "@/src/lib/firebase"; // Add import
 
 export default function FeedbackPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setLoading(true);
     setMessage("");
     setError("");
 
-    const result = await submitFeedback(formData);
+    const formData = new FormData(e.currentTarget);
+    const content = formData.get("content");
 
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setMessage(result.success || "送信しました");
-      // フォームをリセットするためにリロードするか、stateで管理するか
-      // ここではシンプルにメッセージ表示のみ
-      (document.getElementById("feedback-form") as HTMLFormElement).reset();
+    try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+            setError("ログインしてください");
+            setLoading(false);
+            return;
+        }
+
+        const res = await fetch("/api/feedback", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${idToken}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ content })
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+            setError(result.error || "エラーが発生しました");
+        } else {
+            setMessage(result.message || "送信しました");
+            (document.getElementById("feedback-form") as HTMLFormElement).reset();
+        }
+    } catch (err: any) {
+        console.error(err);
+        setError("送信中にエラーが発生しました");
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -36,7 +60,7 @@ export default function FeedbackPage() {
           頂いた内容は今後の開発の参考にさせていただきます。
         </p>
 
-        <form id="feedback-form" action={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <form id="feedback-form" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           <div>
             <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
               内容

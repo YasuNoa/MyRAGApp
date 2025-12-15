@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import { PythonBackendService } from "@/src/services/python-backend";
 
 export async function POST(req: NextRequest) {
-    const session = await auth();
+    const user = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -27,13 +27,17 @@ export async function POST(req: NextRequest) {
         });
 
         // 2. Update Pinecone (via Python Backend)
-        // We need externalId to update Pinecone
-        if (document.externalId) {
-            await PythonBackendService.updateTags(
-                session.user.id,
-                document.externalId,
-                tags
-            );
+        // We need dbId to update Pinecone lookup
+        if (document.id) {
+            try {
+                await PythonBackendService.updateTags(
+                    user.uid,
+                    document.id, // Use dbId
+                    tags
+                );
+            } catch (e) {
+                console.warn("Failed to update tags in Pinecone (ignoring):", e);
+            }
         }
 
         return NextResponse.json({ success: true, document });

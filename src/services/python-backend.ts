@@ -129,13 +129,18 @@ export const PythonBackendService = {
         formData.append("metadata", JSON.stringify(metadata));
         formData.append("save", "true"); // Save to DB/Pinecone immediately
 
-        console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/process-voice-memo`, metadata);
+        console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/voice/process`, metadata);
 
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/process-voice-memo`, {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout for audio processing
+
+            const response = await fetch(`${PYTHON_BACKEND_URL}/voice/process`, {
                 method: "POST",
                 body: formData,
+                signal: controller.signal,
             });
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -148,6 +153,37 @@ export const PythonBackendService = {
             return result;
         } catch (error) {
             console.error(`[PythonService] Network or Server Error:`, error);
+            throw error;
+        }
+    },
+
+    /**
+     * Saves a voice memo to the backend (DB + Pinecone).
+     */
+    async saveVoiceMemo(data: {
+        userId: string;
+        transcript: string;
+        summary: string;
+        title: string;
+        tags: string[];
+    }) {
+        console.log(`[PythonService] Saving voice memo for user ${data.userId}`);
+        try {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/voice/save`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[PythonService] Save Voice Error: ${response.status} ${errorText}`);
+                throw new Error(`Python Backend save failed: ${errorText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`[PythonService] Save Voice Network Error:`, error);
             throw error;
         }
     },

@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { getDriveFileContent } from "@/src/lib/google-drive";
 import { KnowledgeService } from "@/src/services/knowledge";
 import { PythonBackendService } from "@/src/services/python-backend";
 import { prisma } from "@/src/lib/prisma";
 
 export async function POST(req: NextRequest) {
-    const session = await auth();
+    const user = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // @ts-ignore
-    const accessToken = session.accessToken as string;
+    // Access Token must be passed from Client (via GoogleAuthProvider)
+    const accessToken = req.headers.get("x-google-access-token");
 
     if (!accessToken) {
         return NextResponse.json(
-            { error: "No access token found" },
+            { error: "No access token provided (x-google-access-token header)" },
             { status: 401 }
         );
     }
@@ -48,12 +48,13 @@ export async function POST(req: NextRequest) {
         // 2. Create Document record in DB FIRST
         console.log(`[Import] Step 2: Saving metadata to Database...`);
         const document = await KnowledgeService.registerDocument(
-            session.user.id,
+            user.uid,
             fileName || fileId,
             "google-drive",
-            fileId,
             tags, // Pass tags
-            mimeType // Pass mimeType
+            mimeType, // Pass mimeType
+            undefined, // fileCreatedAt
+            fileId // googleDriveId
         );
         console.log(`[Import] Step 2: Saved metadata to Database`);
 
@@ -64,12 +65,12 @@ export async function POST(req: NextRequest) {
         try {
             // Unified Import: The service handles dispatching based on MIME type
             const result = await PythonBackendService.importFile(blob, {
-                userId: session.user.id,
-                fileId: fileId,
+                userId: user.uid,
+                fileId: document.id, // Use DB ID
                 mimeType: mimeType,
                 fileName: fileName,
                 tags: tags,
-                dbId: document.id // Pass dbId so Python can update content
+                dbId: document.id // Pass dbId
             });
 
             console.log(`[Import] Step 3: Python processing complete. Result:`, result);

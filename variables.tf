@@ -101,3 +101,46 @@ variable "stripe_webhook_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "firebase_api_key" {
+  description = "Firebase API Key"
+  type        = string
+  sensitive   = true
+}
+
+variable "firebase_auth_domain" {
+  description = "Firebase Auth Domain"
+  type        = string
+}
+
+variable "firebase_project_id" {
+  description = "Firebase Project ID"
+  type        = string
+}
+
+variable "firebase_storage_bucket" {
+  description = "Firebase Storage Bucket"
+  type        = string
+}
+
+variable "firebase_messaging_sender_id" {
+  description = "Firebase Messaging Sender ID"
+  type        = string
+}
+
+variable "firebase_app_id" {
+  description = "Firebase App ID"
+  type        = string
+}
+
+variable "firebase_measurement_id" {
+  description = "Firebase Measurement ID"
+  type        = string
+  default     = ""
+}
+
+variable "firebase_service_account_key" {
+  description = "Path to the Firebase Service Account Key JSON or the content itself"
+  type        = string
+  # sensitive   = true  # 必要に応じて追加
+}

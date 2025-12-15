@@ -21,3 +21,4 @@ terraform.tfvars
 *.tfstate.backup
 .env.local
 terraform.tfstate
+env_dump.txt

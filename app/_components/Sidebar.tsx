@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
 import { useSidebar } from "@/app/_context/SidebarContext";
 import { useChat } from "@/app/_context/ChatContext";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/context/AuthContext";
 import InviteModal from "./InviteModal";
 import { Gift } from "lucide-react";
 
@@ -22,7 +22,7 @@ export default function Sidebar() {
   const { refreshTrigger, triggerRefresh } = useKnowledge();
   const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
   const { clearChat } = useChat();
-  const { data: session } = useSession();
+  const { user, fetchWithAuth } = useAuth();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const handleMobileClick = () => {
@@ -42,7 +42,7 @@ export default function Sidebar() {
     // ... (existing fetch logic)
     setIsLoading(true);
     try {
-      const res = await fetch("/api/knowledge/list");
+      const res = await fetchWithAuth("/api/knowledge/list");
       if (res.ok) {
         const data = await res.json();
         setDocuments(data.documents);
@@ -61,7 +61,7 @@ export default function Sidebar() {
 
     setDeletingId(id);
     try {
-      const res = await fetch("/api/knowledge/delete", {
+      const res = await fetchWithAuth("/api/knowledge/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
@@ -232,7 +232,7 @@ export default function Sidebar() {
             <ChatHistoryList />
         </div>
 
-        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} userId={session?.user?.id || ""} />
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} userId={user?.uid || ""} />
 
       </aside>
     </>
@@ -242,15 +242,16 @@ export default function Sidebar() {
 function ChatHistoryList() {
     const { loadThread, threadId } = useChat();
     const [threads, setThreads] = useState<{id: string, title: string}[]>([]);
-    const { refreshTrigger } = useKnowledge(); // Use this to trigger refresh if needed, or add new context
+    const { refreshTrigger } = useKnowledge();
+    const { fetchWithAuth } = useAuth(); // Add useAuth
 
     useEffect(() => {
         fetchThreads();
-    }, [threadId]); // Refresh when thread changes (e.g. new thread created)
+    }, [threadId]);
 
     const fetchThreads = async () => {
         try {
-            const res = await fetch("/api/thread");
+            const res = await fetchWithAuth("/api/thread");
             if (res.ok) {
                 const data = await res.json();
                 setThreads(data.threads);

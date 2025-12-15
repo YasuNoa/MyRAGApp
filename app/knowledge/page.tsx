@@ -1,8 +1,6 @@
-import { auth } from "@/auth";
 import KnowledgeManager from "./_components/KnowledgeManager";
 
 export default async function KnowledgePage() {
-  const session = await auth();
 
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>

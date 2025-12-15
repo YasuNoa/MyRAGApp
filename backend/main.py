@@ -98,7 +98,12 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 db_pool = None
 
+from routers import ask, voice
+
 app = FastAPI()
+
+app.include_router(ask.router)
+app.include_router(voice.router, prefix="/voice")
 
 class TextImportRequest(BaseModel):
     text: str
@@ -123,29 +128,34 @@ app.add_middleware(
 )
 
 # --- Startup ---
+from db import connect_db, disconnect_db
+
+# ...
+
 @app.on_event("startup")
 async def startup_event():
-    # try:
-    #     print("Listing available Gemini models...")
-    #     for m in genai.list_models():
-    #         if 'generateContent' in m.supported_generation_methods:
-    #             print(f"Available model: {m.name}")
-    # except Exception as e:
-    #     print(f"Error listing models: {e}")
+    # ... (existing logging code) ...
+    
+    # Initialize Prisma
+    try:
+        logger.info("Connecting to Prisma...")
+        await connect_db()
+        logger.info("Prisma connected.")
+    except Exception as e:
+        logger.error(f"Error connecting to Prisma: {e}")
 
     global db_pool
     try:
-        logger.info("Connecting to Database...")
-        # データベース接続プールを作成します。
-        # statement_cache_size=0 は、Supabase等の Transaction Pooler (ポート6543) との互換性のため必須です。
-        # これを設定しないと、Prepared Statement エラーが発生する可能性があります。
+        logger.info("Connecting to Database (asyncpg)...") # Keep asyncpg for now until full migration
         db_pool = await asyncpg.create_pool(DATABASE_URL, statement_cache_size=0)
-        logger.info("Database connected.")
+        logger.info("Database (asyncpg) connected.")
     except Exception as e:
-        logger.error(f"Error connecting to database: {e}")
+        logger.error(f"Error connecting to database (asyncpg): {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    logger.info("Shutting down...")
+    await disconnect_db()
     if db_pool:
         await db_pool.close()
 
@@ -240,35 +250,13 @@ async def save_document_content(
 
     try:
         async with db_pool.acquire() as conn:
-            # IDで更新を試み、失敗したらexternalIdで試みます
-            # 注意: Documentモデルのスキーマを確認し、存在するカラムのみを更新します。
-            # categoryカラムは存在しないため、mimeTypeなどを更新対象としています。
-            
+            # IDで更新
             query = """
                 UPDATE "Document"
                 SET content = $1, summary = $2, "mimeType" = $3
                 WHERE id = $4
             """
             result = await conn.execute(query, content, summary, mime_type, doc_id)
-            
-            if result == "UPDATE 0":
-                 # IDで見つからない場合、externalId (Google Drive IDなど) で更新を試みます
-                 query_ext = """
-                    UPDATE "Document"
-                    SET content = $1, summary = $2, "mimeType" = $3
-                    WHERE "externalId" = $4
-                """
-                 await conn.execute(query_ext, content, summary, mime_type, doc_id)
-                 
-            if result == "UPDATE 0":
-                 # 重複して実行されていますが、念のため (前のブロックと同じロジックです)
-                 query_ext = """
-                    UPDATE "Document"
-                    SET content = $1, summary = $2, "mimeType" = $3
-                    WHERE "externalId" = $4
-                """
-                 await conn.execute(query_ext, content, summary, mime_type, doc_id)
-                 
             logger.info(f"Saved content for document {doc_id}")
     except Exception as e:
         logger.error(f"Error saving content to DB: {e}")
@@ -281,11 +269,7 @@ async def get_document_content(doc_id: str) -> str:
     
     try:
         async with db_pool.acquire() as conn:
-            # IDで検索し、なければexternalIdで検索します
             row = await conn.fetchrow('SELECT content FROM "Document" WHERE id = $1', doc_id)
-            if not row:
-                row = await conn.fetchrow('SELECT content FROM "Document" WHERE "externalId" = $1', doc_id)
-            
             if row:
                 return row['content'] or ""
             return ""
@@ -1574,8 +1558,10 @@ async def import_text(request: TextImportRequest):
         # テキストのチャンク分割
         chunks = chunk_text(request.text)
         
-        # このテキストエントリ用の一意なfileIdを生成
-        file_id = str(uuid.uuid4())
+        if request.dbId:
+            file_id = request.dbId
+        else:
+            file_id = str(uuid.uuid4()) # Should not happen with new frontend logic
 
         # ベクトル化とPineconeへの保存
         vectors = []
@@ -1588,7 +1574,8 @@ async def import_text(request: TextImportRequest):
                 "values": embedding,
                 "metadata": {
                     "userId": request.userId,
-                    "fileId": file_id,
+                    "dbId": file_id, # Use dbId
+                    "fileId": file_id, # Keep for legacy compat for a moment
                     "fileName": "Text Entry", # プレースホルダー
                     "text": chunk,
                     "chunkIndex": i,
@@ -1606,6 +1593,7 @@ async def import_text(request: TextImportRequest):
                 "metadata": {
                     "userId": request.userId,
                     "fileId": file_id,
+                    "dbId": file_id, # Added dbId
                     "fileName": "Text Entry",
                     "text": request.summary,
                     "chunkIndex": -1,

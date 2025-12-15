@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
 import useDrivePicker from "react-google-drive-picker";
 import { useKnowledge } from "@/app/_context/KnowledgeContext";
+import { useAuth } from "@/src/context/AuthContext";
 import TagInput from "@/app/_components/TagInput";
 
 export default function GoogleDriveImport() {
-  const { data: session } = useSession();
+  const { user, googleAccessToken, setGoogleAccessToken, fetchWithAuth } = useAuth();
   const { triggerRefresh } = useKnowledge();
   const [openPicker] = useDrivePicker();
   
@@ -16,9 +18,23 @@ export default function GoogleDriveImport() {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
 
+  const handleAuth = async () => {
+      const provider = new GoogleAuthProvider();
+      provider.addScope("https://www.googleapis.com/auth/drive.readonly");
+      try {
+          const result = await signInWithPopup(auth, provider);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          const token = credential?.accessToken;
+          if (token) setGoogleAccessToken(token);
+      } catch (error) {
+          console.error("Google Auth Error:", error);
+          alert("Google認証に失敗しました");
+      }
+  };
+
   const handleOpenPicker = () => {
-    if (!session?.accessToken) {
-      alert("Googleアカウントでログインしてください");
+    if (!googleAccessToken) {
+      handleAuth();
       return;
     }
 
@@ -26,7 +42,7 @@ export default function GoogleDriveImport() {
       clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
       developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY!,
       viewId: "DOCS",
-      token: session.accessToken,
+      token: googleAccessToken,
       showUploadView: true,
       showUploadFolders: true,
       supportDrives: true,
@@ -54,9 +70,12 @@ export default function GoogleDriveImport() {
       setProgress(Math.round(((i) / docs.length) * 100));
 
       try {
-        const res = await fetch("/api/drive/import", {
+        const res = await fetchWithAuth("/api/drive/import", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+              "Content-Type": "application/json",
+              "x-google-access-token": googleAccessToken || "" // Pass Google Token for backend to use
+          },
           body: JSON.stringify({ 
             fileId: doc.id, 
             mimeType: doc.mimeType, 
@@ -84,22 +103,33 @@ export default function GoogleDriveImport() {
     }
   };
 
-  if (!session) {
+  if (!user) {
     return (
       <div className="neo-card" style={{ textAlign: "center", padding: "40px" }}>
-        <h3>Google Driveと連携する</h3>
+        <h3>ログインしてください</h3>
         <p style={{ marginBottom: "20px", color: "var(--text-secondary)" }}>
-          Google Drive内のPDFやテキストファイルをインポートして、AIに学習させることができます。
+          この機能を使用するにはログインが必要です。
         </p>
-        <button
-          onClick={() => signIn("google")}
-          className="neo-button"
-          style={{ backgroundColor: "#DB4437", color: "white", border: "none" }}
-        >
-          Google Driveに接続
-        </button>
       </div>
     );
+  }
+
+  if (!googleAccessToken) {
+      return (
+        <div className="neo-card" style={{ textAlign: "center", padding: "40px" }}>
+            <h3>Google Driveと連携する</h3>
+            <p style={{ marginBottom: "20px", color: "var(--text-secondary)" }}>
+            Google Drive内のPDFやテキストファイルをインポートして、AIに学習させることができます。
+            </p>
+            <button
+            onClick={handleAuth}
+            className="neo-button"
+            style={{ backgroundColor: "#DB4437", color: "white", border: "none" }}
+            >
+            Google Driveに接続
+            </button>
+        </div>
+      );
   }
 
   return (

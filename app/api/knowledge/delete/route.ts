@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import { PythonBackendService } from "@/src/services/python-backend";
 
 
 export async function DELETE(req: NextRequest) {
-    const session = await auth();
-    if (!session || !session.user?.id) {
+    const user = await verifyAuth(req);
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,21 +26,19 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "Document not found" }, { status: 404 });
         }
 
-        if (document.userId !== session.user.id) {
+        if (document.userId !== user.uid) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         // 3. Delete vectors from Pinecone via Python Backend
-        if (document.externalId) {
+        // Use dbId as Pinecone ID
+        if (document.id) {
             try {
-                await PythonBackendService.deleteFile(session.user.id, document.externalId);
-                console.log(`[Delete] Successfully requested vector deletion for ${document.externalId}`);
+                await PythonBackendService.deleteFile(user.uid, document.id);
+                console.log(`[Delete] Successfully requested vector deletion for ${document.id}`);
             } catch (e) {
-                console.error("Failed to call Python backend for deletion:", e);
-                return NextResponse.json(
-                    { error: "Failed to delete from Vector DB. Document was NOT deleted from database." },
-                    { status: 500 }
-                );
+                console.error("[Delete] Failed to delete execution vectors:", e);
+                // Continue to delete from DB
             }
         }
 

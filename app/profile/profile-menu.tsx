@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { logout } from "@/app/actions/auth";
 import ProfileForm from "./profile-form";
 import NameForm from "./name-form";
 import AiNameForm from "./ai-name-form";
 import { ChevronDown, ChevronUp, LogOut, MessageSquare, Settings, Slack, User, Globe, FileText, ChevronRight, CreditCard } from "lucide-react";
-import { signIn, signOut } from "next-auth/react";
+import { auth } from "@/src/lib/firebase";
 
 export default function ProfileMenu({ user, providers = [], subscription }: { user: any, providers?: string[], subscription?: any }) {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -14,11 +13,13 @@ export default function ProfileMenu({ user, providers = [], subscription }: { us
   const [isAiProfileOpen, setIsAiProfileOpen] = useState(false);
 
   const handleLinkLine = () => {
-    signIn("line", { callbackUrl: "/profile" });
+    // signIn("line", { callbackUrl: "/profile" });
+    alert("この機能は現在メンテナンス中です");
   };
 
   const handleLinkGoogle = () => {
-    signIn("google", { callbackUrl: "/profile" });
+    // signIn("google", { callbackUrl: "/profile" });
+    alert("この機能は現在メンテナンス中です");
   };
 
   return (
@@ -307,7 +308,9 @@ export default function ProfileMenu({ user, providers = [], subscription }: { us
           <button 
             onClick={() => {
               if (window.confirm("ログアウトしますか？")) {
-                signOut({ callbackUrl: "/" });
+                auth.signOut().then(() => {
+                  window.location.href = "/";
+                });
               }
             }}
             style={{ 

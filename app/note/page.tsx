@@ -7,9 +7,11 @@ import TagInput from "@/app/_components/TagInput";
 import { useRouter } from "next/navigation";
 
 import { useNote } from "@/app/_context/NoteContext";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function NotePage() {
     const router = useRouter();
+    const { fetchWithAuth } = useAuth();
     const [isRecording, setIsRecording] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     
@@ -163,7 +165,7 @@ export default function NotePage() {
                 setProcessingStatus("AIが音声を文字起こし・要約中...");
             }, 2000);
 
-            const response = await fetch("/api/voice/process", {
+            const response = await fetchWithAuth("/api/voice/process", {
                 method: "POST",
                 body: formData,
             });
@@ -214,7 +216,7 @@ export default function NotePage() {
         setIsSaving(true);
         try {
             // 1. Save Voice Memo (Create Document & Embed)
-            const res = await fetch("/api/voice/save", {
+            const res = await fetchWithAuth("/api/voice/save", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -238,7 +240,7 @@ export default function NotePage() {
                         formData.append("fileCreatedAt", file.lastModified.toString());
                     }
 
-                    const uploadRes = await fetch("/api/upload", {
+                    const uploadRes = await fetchWithAuth("/api/upload", {
                         method: "POST",
                         body: formData,
                     });
@@ -344,11 +346,15 @@ export default function NotePage() {
                 {/* Right: Result & Actions */}
                 <div className="neo-card" style={{ display: "flex", flexDirection: "column", gap: "24px", position: "relative", overflow: "hidden" }}>
                     {isProcessing ? (
-                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(19, 19, 20, 0.9)", zIndex: 10, gap: "24px" }}>
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(19, 19, 20, 0.9)", zIndex: 10, gap: "24px", padding: "24px" }}>
                             <Loader2 size={48} className="animate-spin" style={{ color: "var(--primary-color)" }} />
                             <div style={{ textAlign: "center" }}>
-                                <p style={{ fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>AI解析中...</p>
-                                <p style={{ fontSize: "14px", color: "var(--text-secondary)" }}>AIが文字起こしと要約を生成しています</p>
+                                <p style={{ fontSize: "18px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>{processingStatus || "AI解析中..."}</p>
+                                <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "12px" }}>AIが文字起こしと要約を生成しています</p>
+                                <p style={{ fontSize: "12px", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                                    <AlertCircle size={14} />
+                                    ※音声時間が長い場合、処理に数分かかることがあります
+                                </p>
                             </div>
                         </div>
                     ) : null}

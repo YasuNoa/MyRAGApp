@@ -1,71 +1,41 @@
-# じぶんAI マネタイズ戦略書 (The Monetization Playbook)
+# Monetization & Pricing
 
-## 1. 全体戦略: "Niche to Win"
-*   **ターゲット**: 大学生（特に「楽して単位を取りたい層」および「就活生」）。
-*   **バリュー**: 「ツール」ではなく**「時間と成果（単位・内定）」**を売る。
-*   **勝ち筋**: 大手（Notion/ChatGPT）が拾えない「音声＋PDFの同時処理」と「大学生活特化のUX」で一点突破する。
+## Plans
 
-## 2. プラン設計 (The 3 Tiers)
-「安かろう悪かろう」ではなく、「課金すると『頭脳』と『情報源』がアップグレードされる」という納得感のある設計にします。
+### FREE (梅)
+- **Price**: 0 JPY
+- **Chat Limit**: 10 messages / cooldown period (1 hour cooldown if exceeded? Logic suggests 1h rolling or manual reset check).
+- **Voice Limit**: 5 files / day.
+- **Voice Duration Limit**: 20 minutes per file (Truncated).
+- **Storage**: ?
 
-| 項目 | 🐣 Free (梅) | 🐢 Standard (竹) | 🦄 Premium (松) |
-| :--- | :--- | :--- | :--- |
-| **ターゲット** | 新入生、ライト層 | テスト前の学生 | 就活生、卒論生 |
-| **価格** | ¥0 | ¥980/月<br>**(年払 ¥5,800)** | ¥2,980/月<br>**(年払 ¥19,800)** |
-| **チャット制限** | 10回 / 2時間<br><small>(1時間クールダウン)</small> | 100回 / 日<br><small>(JST 0時リセット)</small> | 200回 / 日<br><small>(JST 0時リセット)</small> |
-| **資料保存数** | 5ファイル<br><small>(Knowledgeのみ)</small> | 200ファイル<br><small>(全教科・サークル資料)</small> | 1000ファイル<br><small>(過去問アーカイブ)</small> |
-| **音声解析 (回数)** | **2回 / 日**<br><small>(JST 0時リセット)</small> | 無制限 | 無制限 |
-| **音声解析 (時間)** | **最大 20分 / 回**<br><small>「会議・講義導入部分」</small> | **最大 90分 / 回** (自動カット)<br>月間 1800分 (30時間) | **最大 180分 / 回** (自動カット)<br>月間 6000分 (100時間) |
-| **検索エンジン** | DuckDuckGo (0円) | Google検索 (Serper) | Google Custom Search |
-| **AIモデル** | Gemini 2.0 Flash | Gemini 2.0 Flash | Gemini 2.0 Flash |
+### STANDARD (竹)
+- **Price**: 980 JPY / Month (approx)
+- **Chat Limit**: 100 messages / day (Resets at JST midnight).
+- **Voice Limit**: Unlimited count.
+- **Voice Duration Limit**: 90 minutes per file.
+- **Monthly Voice Quota**: 1800 minutes / month.
 
-### 🎟️ チケット課金 (Micro-transactions)
-サブスクに抵抗がある学生向けに、**「必要な時だけ買う」** オプションを用意します。
-*   **音声解析チケット**: ¥100 / 90分 (チケット制)
-    *   ターゲット: 「テスト前だけ授業の録音を文字起こししたい」層。
-    *   メリット: 課金のハードルを極限まで下げる。
+### PREMIUM (松)
+- **Price**: 1980 JPY / Month (approx)
+- **Chat Limit**: 200 messages / day.
+- **Voice Limit**: Unlimited count.
+- **Voice Duration Limit**: 180 minutes per file (3 hours).
+- **Monthly Voice Quota**: 6000 minutes / month.
 
-## 3. コスト・利益構造 (Unit Economics)
-「サーバーレス × 激安API」の組み合わせにより、驚異的な利益率を実現します。
+## Add-ons (Tickets)
+- **Voice Ticket**: 300 JPY (Sales logic in `checkout/route.ts` implies price ID `TICKET_90`).
+    - Grants **+90 minutes** (or 270? DB logic `purchasedVoiceBalance: 90` says 90, comment says "+270 mins for 300 yen"). *Code `checkout/route.ts` creates session, `webhook` adds 90 mins.*
+    - One-time purchase.
 
-**Standardユーザー (¥980) 1人あたりの月間収支**
-*   **売上**: ¥945 (決済手数料引後)
-*   **原価 (変動費)**:
-    *   Gemini Flash (チャット/音声): 約 ¥50
-    *   Google検索 (Serper.dev @0.15円 × 100回): 約 ¥15
-    *   インフラ (Cloud Run/DB): 約 ¥10
-    *   **合計原価**: 約 ¥75
-*   **粗利**: **¥870 (利益率 92%)** 💰
-    *   ※1,000人いれば、月87万円の利益。
+## Referral Program
+- **Mechanism**:
+    - User shares link.
+    - Referee signs up & uploads first voice memo.
+    - **Referee Reward**: 30 Days of STANDARD Plan (Trial).
+    - **Referrer Reward**: ? (Likely same or extension, logic needs confirmation in `process_referral_reward`).
 
-**安全装置 (Safety Nets)**
-*   Cloud Run: インスタンス最大数「1」で破産防止。
-*   Storage: テキスト本体は GCS (USリージョン無料枠) に逃がしてDB代節約。
-*   検索: 公式Grounding (5円) ではなく Serper.dev (0.15円) を使用。
-
-## 4. 集客・成長戦略 (Go-to-Market)
-広告費ゼロで、大学キャンパス内の口コミ（バイラル）を狙います。
-
-### Phase 1: キャンパス・ドミネーション (0〜100人)
-*   **リアル口コミ**: 友人、彼女、バイト先に「招待コード」を配る。
-*   **特典 (Referral Program)**:
-    *   **紹介した人**: Standardプラン 1ヶ月無料
-    *   **紹介された人**: 初月無料 (クレカ登録必須)
-    *   **狙い**: 「サークル長」などのインフルエンサーを味方につける。
-*   **ゲリラ戦**: 学食や喫煙所、「楽単」系オープンチャットに「神アプリ見つけた」と投下。
-*   **訴求**: 「授業中に寝てても、これ回しとけばテスト範囲わかるぞ」
-
-### Phase 2: PLG (Product-Led Growth) (100〜1,000人)
-*   **共有機能**: 「AIが作ったテスト対策まとめ」をLINEで友人に送れるようにする。受け取った友人は、アプリを入れないと続きが見れない。
-*   **キャンペーン**: 「新学期応援！今だけ検索チケット増量中」
-
-## 5. 将来のロードマップ (LTV Maximization)
-ユーザーの成長に合わせてアプリも進化させ、解約を防ぎます。
-
-*   **現在**: 「授業・単位特化」 (Smart Tutor)
-*   **3年生〜**: 「就活特化」 (Career Partner)
-    *   機能: 企業HPのPDFを読ませて「面接の逆質問」を考えさせる。ES添削。
-*   **卒業後**: 「ビジネス特化」 (Executive Secretary)
-    *   機能: 会議議事録、日報作成。
-
-
+## Payment Infrastructure
+- **Provider**: Stripe
+- **Modes**: Subscription (Recurring), Payment (One-time).
+- **Webhooks**: comprehensive handling of subscription states and trial mapping.

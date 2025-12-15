@@ -1,48 +1,53 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const errorParam = searchParams?.get("error");
 
-  if (errorParam === "EmailRequired" && !error) {
-    setError("LINEログインでメールアドレスが取得できませんでした。LINEアプリの設定でメールアドレスの提供を許可してください。");
-  } else if (errorParam === "SessionExists" && !error) {
-    setError("1つのブラウザで複数のアカウントに同時にログインすることはできません。一度ログアウトしてからお試しください。");
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle Google Login
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError("");
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/drive.file"); // For Google Drive Integration
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Sync with Backend
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/auth/sync", {
+          method: "POST",
+          headers: {
+              "Authorization": `Bearer ${idToken}`
+          }
       });
 
-      if (result?.error) {
-        setError("ログインに失敗しました。メールアドレスかパスワードが違います。");
+      if (res.ok) {
+          router.push("/dashboard");
       } else {
-        router.push("/");
-        router.refresh();
+          setError("アカウントの同期に失敗しました。");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("エラーが発生しました");
+      setError("Googleログインに失敗しました: " + err.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle LINE Login (Custom Flow)
+  const handleLineLogin = () => {
+    setIsLoading(true);
+    // Redirect to our backend logic which handles LINE OAuth
+    window.location.href = "/api/auth/line/login";
   };
 
   return (
@@ -75,7 +80,8 @@ export default function LoginPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
           {/* LINE Login Button */}
           <button
-            onClick={() => signIn("line", { callbackUrl: "/" })}
+            onClick={handleLineLogin}
+            disabled={isLoading}
             className="neo-button"
             style={{
               width: "100%",
@@ -88,6 +94,8 @@ export default function LoginPage() {
               justifyContent: "center",
               gap: "10px",
               height: "44px",
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.7 : 1
             }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -98,7 +106,8 @@ export default function LoginPage() {
 
           {/* Google Login Button */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
             className="neo-button"
             style={{
               width: "100%",
@@ -112,6 +121,8 @@ export default function LoginPage() {
               gap: "10px",
               height: "44px",
               fontFamily: "'Roboto', arial, sans-serif",
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.7 : 1
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -124,60 +135,7 @@ export default function LoginPage() {
           </button>
         </div>
 
-
-        {/* 
-        <div style={{ display: "flex", alignItems: "center", margin: "20px 0" }}>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-          <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>または</span>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>メールアドレス</label>
-            <input
-              type="email"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@email.com"
-              required
-            />
-          </div>
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>パスワード</label>
-            <input
-              type="password"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="password"
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: "#ff6b6b", fontSize: "14px", textAlign: "center" }}>
-              {error}
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            className="neo-button"
-            style={{ marginTop: "10px", width: "100%" }}
-            disabled={isLoading}
-          >
-            {isLoading ? "確認中..." : "ログイン"}
-          </button>
-        </form>
-        */}
-
         <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <a href="/register" style={{ color: "var(--primary-color)", textDecoration: "none" }}>
-            アカウントをお持ちでない方はこちら
-          </a>
           
           <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "left", lineHeight: "1.5" }}>
             ※セキュリティのため、1つのブラウザで複数のアカウントに同時にログインすることはできません。

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Trash2, FileText, Database } from "lucide-react";
+import { useAuth } from "@/src/context/AuthContext";
 
 type Document = {
   id: string;
@@ -14,6 +15,7 @@ export default function KnowledgeList({ refreshTrigger }: { refreshTrigger?: num
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { fetchWithAuth } = useAuth();
 
   useEffect(() => {
     fetchDocuments();
@@ -22,7 +24,7 @@ export default function KnowledgeList({ refreshTrigger }: { refreshTrigger?: num
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/knowledge/list");
+      const res = await fetchWithAuth("/api/knowledge/list");
       if (res.ok) {
         const data = await res.json();
         setDocuments(data.documents);
@@ -39,7 +41,7 @@ export default function KnowledgeList({ refreshTrigger }: { refreshTrigger?: num
 
     setDeletingId(id);
     try {
-      const res = await fetch("/api/knowledge/delete", {
+      const res = await fetchWithAuth("/api/knowledge/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),

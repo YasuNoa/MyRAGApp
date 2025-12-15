@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 
 // GET: Fetch messages for a specific thread
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    if (!session || !session.user?.id) {
+    const user = await verifyAuth(req);
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             where: { id: threadId },
         });
 
-        if (!thread || thread.userId !== session.user.id) {
+        if (!thread || thread.userId !== user.uid) {
             return NextResponse.json({ error: "Thread not found" }, { status: 404 });
         }
 
@@ -35,8 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // DELETE: Delete a thread
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    if (!session || !session.user?.id) {
+    const user = await verifyAuth(req);
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
             where: { id: threadId },
         });
 
-        if (!thread || thread.userId !== session.user.id) {
+        if (!thread || thread.userId !== user.uid) {
             return NextResponse.json({ error: "Thread not found" }, { status: 404 });
         }
 
@@ -65,8 +65,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
 // PATCH: Update thread title
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    if (!session || !session.user?.id) {
+    const user = await verifyAuth(req);
+    if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             where: { id: threadId },
         });
 
-        if (!thread || thread.userId !== session.user.id) {
+        if (!thread || thread.userId !== user.uid) {
             return NextResponse.json({ error: "Thread not found" }, { status: 404 });
         }
 

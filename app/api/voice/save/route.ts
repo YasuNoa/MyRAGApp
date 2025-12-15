@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import { PythonBackendService } from "@/src/services/python-backend";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
-    const session = await auth();
+    const authResult = await verifyAuth(req);
 
-    if (!session || !session.user) {
+    if (!authResult || !authResult.uid) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = authResult.uid; // This is the CUID
 
     try {
         const body = await req.json();
@@ -19,42 +20,18 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Transcript is required" }, { status: 400 });
         }
 
-        // Combine summary and transcript for better searchability (matching file upload logic)
-        let combinedContent = "";
-        if (summary) {
-            combinedContent += `【AI要約】\n${summary}\n\n`;
-        }
-        if (transcript) {
-            combinedContent += `【文字起こし】\n${transcript}`;
-        }
-        if (!combinedContent) combinedContent = transcript;
+        console.log(`[Voice Save] Proxying save request for user: ${userId}`);
 
-        // 1. Create Document record
-        const fileId = uuidv4();
-        const document = await prisma.document.create({
-            data: {
-                userId: session.user.id,
-                title: title || `Voice Memo ${new Date().toLocaleString()}`,
-                type: "note",
-                source: "voice_memo",
-                externalId: fileId,
-                content: combinedContent,
-                summary: summary || "",
-                tags: tags || [],
-                fileCreatedAt: new Date() // Set creation time for note
-            }
+        // Forward to Python Backend
+        const result = await PythonBackendService.saveVoiceMemo({
+            userId: userId,
+            transcript: transcript,
+            summary: summary || "",
+            title: title || `Voice Memo ${new Date().toLocaleString()}`,
+            tags: tags || []
         });
 
-        // 2. Send to Python Backend to Embed and Save to Pinecone
-        // We use importText which now supports summary
-        await PythonBackendService.importText(combinedContent, {
-            userId: session.user.id,
-            dbId: document.id,
-            tags: tags || [],
-            summary: summary
-        });
-
-        return NextResponse.json({ success: true, id: document.id });
+        return NextResponse.json({ success: true, id: result.id, status: result.status });
 
     } catch (error: any) {
         console.error("[Voice Save] Error:", error);

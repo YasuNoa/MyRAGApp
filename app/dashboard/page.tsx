@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/src/context/AuthContext";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@/app/_context/ChatContext";
@@ -10,8 +10,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
-  const aiName = (session?.user as any)?.aiName || "じぶんAI";
+  const { user, loading, fetchWithAuth } = useAuth();
+  const aiName = user?.displayName || "じぶんAI"; // Use displayName or default
   const searchParams = useSearchParams();
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -41,11 +41,11 @@ export default function DashboardPage() {
     // Middleware should handle auth check, but keeping client-side guard just in case is safe, 
     // though for performance we rely on middleware.
     // If we are here, we should be authenticated.
-    if (status === "unauthenticated") return; 
+    if (!user && !loading) return; 
 
     const fetchTags = async () => {
       try {
-        const res = await fetch("/api/knowledge/categories");
+        const res = await fetchWithAuth("/api/knowledge/categories"); // Use fetchWithAuth
         if (res.ok) {
           const data = await res.json();
           setTags(data.tags);
@@ -54,10 +54,10 @@ export default function DashboardPage() {
         console.error("Failed to fetch tags:", error);
       }
     };
-    fetchTags();
-  }, [status]);
+    if (user) fetchTags();
+  }, [user, loading]);
 
-  if (status === "loading") {
+  if (loading) {
       return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#000", color: "#fff" }}>Loading...</div>;
   }
 
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/ask", {
+      const res = await fetchWithAuth("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

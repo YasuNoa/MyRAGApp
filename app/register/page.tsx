@@ -2,30 +2,55 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { registerUser } from "../actions/register";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
+
 
 export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Handle Google Login
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError("");
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/drive.file"); 
 
-    const formData = new FormData(e.currentTarget);
-    const result = await registerUser(formData);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Sync with Backend
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/auth/sync", {
+          method: "POST",
+          headers: {
+              "Authorization": `Bearer ${idToken}`
+          }
+      });
 
-    if (result.error) {
-      setError(result.error);
+      if (res.ok) {
+          router.push("/dashboard");
+      } else {
+          setError("アカウントの同期に失敗しました。");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError("Googleログインに失敗しました: " + err.message);
+    } finally {
       setIsLoading(false);
-    } else {
-      // 登録成功したらログイン画面へ
-      router.push("/login?registered=true");
     }
   };
+
+  // Handle LINE Login
+  const handleLineLogin = () => {
+    setIsLoading(true);
+    window.location.href = "/api/auth/line/login";
+  };
+
+
 
   return (
     <div style={{ 
@@ -42,7 +67,7 @@ export default function RegisterPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
           {/* LINE Login Button */}
           <button
-            onClick={() => signIn("line", { callbackUrl: "/" })}
+            onClick={handleLineLogin}
             className="neo-button"
             style={{
               width: "100%",
@@ -55,7 +80,10 @@ export default function RegisterPage() {
               justifyContent: "center",
               gap: "10px",
               height: "44px",
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.7 : 1
             }}
+            disabled={isLoading}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 5.86 2 10.62C2 14.75 5.56 18.24 10.4 19.09L9.85 21.05C9.76 21.41 10.15 21.7 10.46 21.5L14.7 19.1C14.7 19.1 14.7 19.1 14.71 19.1C19.26 18.39 22 14.83 22 10.62C22 5.86 17.52 2 12 2Z" fill="white"/>
@@ -65,7 +93,7 @@ export default function RegisterPage() {
 
           {/* Google Login Button */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={handleGoogleLogin}
             className="neo-button"
             style={{
               width: "100%",
@@ -79,7 +107,10 @@ export default function RegisterPage() {
               gap: "10px",
               height: "44px",
               fontFamily: "'Roboto', arial, sans-serif",
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.7 : 1
             }}
+            disabled={isLoading}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -91,78 +122,12 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        {/*
-        <div style={{ display: "flex", alignItems: "center", margin: "10px 0" }}>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
-          <span style={{ padding: "0 10px", color: "var(--text-secondary)", fontSize: "12px" }}>またはメールアドレスで登録</span>
-          <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-color)" }}></div>
+
+        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
+          <a href="/login" style={{ color: "var(--primary-color)", textDecoration: "none" }}>
+            すでにアカウントをお持ちの方はこちら
+          </a>
         </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>お名前</label>
-            <input
-              name="name"
-              type="text"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              placeholder="山田 太郎"
-              required
-            />
-          </div>
-
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>電話番号</label>
-            <input
-              name="phoneNumber"
-              type="tel"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              placeholder="09012345678"
-              required
-            />
-          </div>
-
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>メールアドレス</label>
-            <input
-              name="email"
-              type="email"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              placeholder="test@example.com"
-              required
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: "block", marginBottom: "8px", color: "var(--text-secondary)", fontSize: "14px" }}>パスワード</label>
-            <input
-              name="password"
-              type="password"
-              className="neo-input"
-              style={{ width: "100%", boxSizing: "border-box" }}
-              placeholder="password"
-              required
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: "#ff6b6b", fontSize: "14px", textAlign: "center" }}>
-              {error}
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            className="neo-button"
-            style={{ marginTop: "10px", width: "100%" }}
-            disabled={isLoading}
-          >
-            {isLoading ? "登録中..." : "登録する"}
-          </button>
-        </form>
-        */}
 
         <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
           <a href="/login" style={{ color: "var(--primary-color)", textDecoration: "none" }}>

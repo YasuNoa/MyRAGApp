@@ -1,31 +1,18 @@
 "use client";
 
-import { updateProfile } from "@/app/actions/profile";
 import { useState } from "react";
 
 export default function ProfileForm({ user }: { user: any }) {
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
-    setLoading(true);
-    setMessage("");
-    setError("");
-    
-    const result = await updateProfile(formData);
-    
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setMessage(result.success || "更新しました");
-    }
-    setLoading(false);
-  }
+  // Email and Password management is now handled by Firebase Auth providers (Google/LINE)
+  // or via Firebase Console for email/pass users. 
+  // We simply display the current email here.
 
   return (
     <div style={{ maxWidth: "100%", margin: "0 auto" }}>
-      <form action={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
           <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>
             メールアドレス
@@ -34,43 +21,20 @@ export default function ProfileForm({ user }: { user: any }) {
             type="email" 
             name="email" 
             defaultValue={user.email || ""} 
-            placeholder="example@email.com"
+            readOnly
             className="neo-input"
             style={{ 
               width: "100%", 
               boxSizing: "border-box",
-              opacity: user.email ? 0.7 : 1,
-              color: user.email ? "var(--text-secondary)" : "var(--text-color)"
+              opacity: 0.7,
+              color: "var(--text-secondary)"
             }}
-            readOnly={!!user.email}
           />
-          {user.email && (
-            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
-              ※メールアドレスは変更できません
-            </p>
-          )}
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+            ※メールアドレスの変更はサポートにお問い合わせください。
+          </p>
         </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "14px" }}>
-            新しいパスワード
-          </label>
-          <input 
-            type="password" 
-            name="password" 
-            placeholder="6文字以上"
-            className="neo-input"
-            style={{ width: "100%", boxSizing: "border-box" }}
-          />
-        </div>
-
-        {error && <p style={{ color: "#ff6b6b", fontSize: "14px" }}>{error}</p>}
-        {message && <p style={{ color: "#4ade80", fontSize: "14px" }}>{message}</p>}
-
-        <button type="submit" className="neo-button" disabled={loading}>
-          {loading ? "更新中..." : "保存する"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
