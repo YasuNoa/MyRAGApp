@@ -75,6 +75,35 @@ export default function ProfileMenu({ user, providers = [], subscription }: { us
               {subscription?.plan || "FREE"} プラン
             </span>
           </div>
+          {subscription?.plan && subscription.plan !== "FREE" && (
+            <div style={{ padding: "0 24px 20px 24px", display: "flex", justifyContent: "flex-end" }}>
+                <button 
+                    onClick={async () => {
+                        try {
+                            const res = await fetch("/api/stripe/portal", { method: "POST" });
+                            if (res.ok) {
+                                const data = await res.json();
+                                window.location.href = data.url;
+                            } else {
+                                alert("管理画面への移動に失敗しました");
+                            }
+                        } catch (e) {
+                            alert("エラーが発生しました");
+                        }
+                    }}
+                    style={{
+                        fontSize: "13px",
+                        color: "#9ca3af",
+                        textDecoration: "underline",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer"
+                    }}
+                >
+                    サブスクリプションの管理・解約
+                </button>
+            </div>
+          )}
         </div>
         
         {/* Profile Settings Item (Name) */}

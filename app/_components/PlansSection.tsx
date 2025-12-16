@@ -80,6 +80,35 @@ export default function PlansSection({ id, subscription }: { id?: string, subscr
         いつでも変更・キャンセル可能です。
       </p>
 
+      {/* Trust Signals */}
+      <div style={{ 
+        display: "flex", 
+        flexDirection: "column", 
+        gap: "8px", 
+        marginBottom: "40px", 
+        fontSize: "0.9rem", 
+        color: "#d1d5db",
+        backgroundColor: "rgba(255,255,255,0.05)",
+        padding: "15px",
+        borderRadius: "16px",
+        maxWidth: "600px",
+        margin: "0 auto 40px auto",
+        border: "1px solid rgba(255,255,255,0.1)"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <span style={{ color: "#3b82f6" }}>✓</span>
+            <span><strong>バンドルカード / Kyash</strong> などプリペイドカード対応</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <span style={{ color: "#3b82f6" }}>✓</span>
+            <span>無料期間終了の<strong>7日前</strong>にメールでお知らせします</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <span style={{ color: "#3b82f6" }}>✓</span>
+            <span><strong>即時解約OK</strong> (登録直後に解約しても期間終了まで使えます)</span>
+        </div>
+      </div>
+
       {/* Toggle */}
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "15px", marginBottom: "50px" }}>
         <span style={{ color: interval === "month" ? "white" : "#6b7280", fontWeight: "bold" }}>月払い</span>

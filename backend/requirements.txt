@@ -5,7 +5,7 @@ asyncpg
 prisma
 google-generativeai
 pypdf
-pinecone-client
+pinecone==5.0.1
 tenacity
 langchain-community
 langchain-core
@@ -14,3 +14,6 @@ stripe
 python-multipart
 pydub
 tavily-python
+python-pptx
+python-docx
+openpyxl

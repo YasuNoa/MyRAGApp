@@ -1128,7 +1128,7 @@ async def record_audio_usage(user_id: str, plan: str, duration_sec: float):
     # Monthly Limit (Minutes)
     MONTHLY_LIMITS = {
         "STANDARD": 1800, # 30 hours
-        "STANDARD_TRIAL": 120, # 2 hours (Trial Limit)
+        "STANDARD_TRIAL": 1800, # 30 hours (Same as Standard)
         "PREMIUM": 6000,  # 100 hours
     }
     monthly_limit = MONTHLY_LIMITS.get(plan, 1800)
