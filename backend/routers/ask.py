@@ -73,7 +73,7 @@ async def check_and_increment_chat_limit(user_id: str, sub) -> None:
     if not last_reset:
          last_reset = datetime.now(timezone.utc)
 
-    LIMITS = {"FREE": 10, "STANDARD": 100, "PREMIUM": 200, "STANDARD_TRIAL": 100}
+    LIMITS = {"FREE": 5, "STANDARD": 100, "PREMIUM": 200, "STANDARD_TRIAL": 100}
     limit = LIMITS.get(current_plan, 10)
     
     now = datetime.now(timezone.utc)

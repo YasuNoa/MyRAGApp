@@ -127,7 +127,7 @@ export const PythonBackendService = {
         const fileName = (file as File).name || "voice_memo.webm";
         formData.append("file", file, fileName);
         formData.append("metadata", JSON.stringify(metadata));
-        formData.append("save", "true"); // Save to DB/Pinecone immediately
+        formData.append("save", "false"); // Don't save preview to Pinecone/DB (prevent ghost vectors)
 
         console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/voice/process`, metadata);
 

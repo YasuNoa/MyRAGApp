@@ -1188,7 +1188,7 @@ async def record_audio_usage(user_id: str, plan: str, duration_sec: float):
 
 async def check_and_increment_chat_limit(user_id: str, plan: str):
     LIMITS = {
-        "FREE": 10,
+        "FREE": 5,
         "STANDARD": 100,
         "PREMIUM": 200,
     }

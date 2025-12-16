@@ -144,3 +144,8 @@ variable "firebase_service_account_key" {
   type        = string
   # sensitive   = true  # 必要に応じて追加
 }
+variable "tavily_api_key" {
+  description = "Tavily API Key"
+  type        = string
+  sensitive   = true
+}

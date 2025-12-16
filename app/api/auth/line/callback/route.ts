@@ -91,9 +91,10 @@ export async function GET(req: NextRequest) {
         const customToken = await adminAuth.createCustomToken(firebaseUid);
 
         // 4. Redirect to Frontend with Custom Token
-        // Ideally we send checks, but for MVP we redirect to a special login handler page
-        const frontendCallbackUrl = `/login/callback?token=${customToken}`;
-        return NextResponse.redirect(new URL(frontendCallbackUrl, req.url));
+        // Use AUTH_URL from env or default to localhost:3000 to avoid 0.0.0.0 issues in Docker
+        const baseUrl = process.env.AUTH_URL || "http://localhost:3000";
+        const frontendCallbackUrl = `${baseUrl}/login/callback?token=${customToken}`;
+        return NextResponse.redirect(frontendCallbackUrl);
 
     } catch (e: any) {
         console.error("LINE Login Error:", e);

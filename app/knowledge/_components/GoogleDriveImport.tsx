@@ -20,7 +20,7 @@ export default function GoogleDriveImport() {
 
   const handleAuth = async () => {
       const provider = new GoogleAuthProvider();
-      provider.addScope("https://www.googleapis.com/auth/drive.readonly");
+      provider.addScope("https://www.googleapis.com/auth/drive.file");
       try {
           const result = await signInWithPopup(auth, provider);
           const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -38,9 +38,20 @@ export default function GoogleDriveImport() {
       return;
     }
 
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+    const appId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+
+    if (!clientId || !apiKey) {
+        console.error("Missing Google Drive Keys:", { clientId: !!clientId, apiKey: !!apiKey });
+        alert("Google Driveの設定が不足しています (CLIENT_ID / API_KEY)");
+        return;
+    }
+
     openPicker({
-      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-      developerKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY!,
+      clientId: clientId,
+      developerKey: apiKey,
+      appId: appId, // Required for drive.file permission inheritance
       viewId: "DOCS",
       token: googleAccessToken,
       showUploadView: true,
