@@ -16,6 +16,7 @@ export default function RegisterPage() {
     setIsLoading(true);
     setError("");
     const provider = new GoogleAuthProvider();
+  
     provider.addScope("https://www.googleapis.com/auth/drive.file"); 
 
     try {
@@ -122,12 +123,6 @@ export default function RegisterPage() {
           </button>
         </div>
 
-
-        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
-          <a href="/login" style={{ color: "var(--primary-color)", textDecoration: "none" }}>
-            すでにアカウントをお持ちの方はこちら
-          </a>
-        </div>
 
         <div style={{ marginTop: "20px", textAlign: "center", fontSize: "14px" }}>
           <a href="/login" style={{ color: "var(--primary-color)", textDecoration: "none" }}>

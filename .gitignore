@@ -22,3 +22,10 @@ terraform.tfvars
 .env.local
 terraform.tfstate
 env_dump.txt
+
+# iOS / Xcode
+*.DS_Store
+build/
+DerivedData/
+*.userschemed/
+*.xcuserdata/
