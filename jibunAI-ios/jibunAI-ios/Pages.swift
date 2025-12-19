@@ -58,12 +58,17 @@ enum Page: CaseIterable, Hashable {
 
 // MARK: - Chat View
 
+// MARK: - Chat View
+
 struct ChatView: View {
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var viewModel = ChatViewModel()
     
     @State private var messageText = ""
     @State private var selectedCategory = "すべて"
+    
+    // キーボードの自動スクロール用
+    @FocusState private var isInputFocused: Bool
     
     let categories = ["すべて", "数学", "英語", "物理", "化学"]
     
@@ -73,109 +78,181 @@ struct ChatView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // センタータイトルエリア
-                VStack(spacing: 16) {
-                    Text("じぶんAI")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    Text("あなたのためのAIアシスタント")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                .padding(.top, 60)
-                
-                Spacer()
-                
-                // クイックアクションボタン
+                // ヘッダー (メッセージがない場合のみ表示)
                 if viewModel.messages.isEmpty {
-                    HStack(spacing: 12) {
-                        QuickActionButton(title: "テストに出そうな所は？")
-                        QuickActionButton(title: "授業を3行で要約して")
-                        QuickActionButton(title: "出てきた専門用語の解説して")
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Text("じぶんAI")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text("あなたのためのAIアシスタント")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.6))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-                }
-                
-                // メッセージ入力エリア
-                HStack(spacing: 12) {
-                    // カテゴリ選択
-                    Menu {
-                        ForEach(categories, id: \.self) { category in
-                            Button(category) {
-                                selectedCategory = category
+                    .padding(.bottom, 40)
+                    
+                    // クイックアクション
+                    HStack(spacing: 12) {
+                        QuickActionButton(title: "テスト対策") { messageText = "テストに出そうな所を教えて" }
+                        QuickActionButton(title: "要約して") { messageText = "この授業を3行で要約して" }
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer()
+                } else {
+                    // チャット履歴
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 16) {
+                                ForEach(viewModel.messages) { msg in
+                                    MessageBubble(message: msg)
+                                }
+                                Color.clear.frame(height: 1).id("bottom")
+                            }
+                            .padding(.vertical, 20)
+                            .padding(.horizontal, 16)
+                        }
+                        .onChange(of: viewModel.messages) { _ in
+                            withAnimation {
+                                proxy.scrollTo("bottom")
                             }
                         }
-                    } label: {
-                        HStack {
-                            Text(selectedCategory)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                            Image(systemName: "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(8)
                     }
-                    
-                    // テキスト入力
-                    HStack {
-                        TextField("メッセージを入力...", text: $messageText)
-                            .foregroundColor(.white)
-                            .tint(.white)
-                        
-                        Button {
-                            sendMessage()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(messageText.isEmpty ? .gray : Color(red: 0.5, green: 0.6, blue: 1.0))
-                        }
-                        .disabled(messageText.isEmpty)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(red: 0.15, green: 0.15, blue: 0.15))
-                    .cornerRadius(12)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                
+                // 入力エリア
+                VStack(spacing: 0) {
+                    Divider().background(Color.white.opacity(0.1))
+                    
+                    HStack(spacing: 12) {
+                        // カテゴリ選択
+                        Menu {
+                            ForEach(categories, id: \.self) { category in
+                                Button(category) { selectedCategory = category }
+                            }
+                        } label: {
+                             HStack {
+                                Text(selectedCategory)
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.7))
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            .padding(8)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        
+                        // 入力フィールド
+                        HStack {
+                            TextField("メッセージを入力...", text: $messageText)
+                                .foregroundColor(.white)
+                                .focused($isInputFocused)
+                                .submitLabel(.send)
+                                .onSubmit {
+                                    sendMessage()
+                                }
+                            
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Button {
+                                    sendMessage()
+                                } label: {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(messageText.isEmpty ? .gray : Color(red: 0.5, green: 0.6, blue: 1.0))
+                                }
+                                .disabled(messageText.isEmpty)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(red: 0.15, green: 0.15, blue: 0.15))
+                        .cornerRadius(20)
+                    }
+                    .padding(16)
+                    .background(Color(red: 0.08, green: 0.08, blue: 0.08))
+                }
             }
         }
     }
     
     private func sendMessage() {
         guard !messageText.isEmpty else { return }
+        let text = messageText
+        messageText = ""
+        isInputFocused = false
         
         Task {
-            await viewModel.sendMessage(messageText, userId: appState.currentUser?.id ?? "")
-            messageText = ""
+            await viewModel.sendMessage(text, userId: appState.currentUser?.id ?? "unknown")
+        }
+    }
+}
+
+// チャットバブルコンポーネント
+struct MessageBubble: View {
+    let message: ChatMessage
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            if message.isUser {
+                Spacer()
+            } else {
+                // AIアイコン
+                Circle()
+                    .fill(Color(red: 0.2, green: 0.8, blue: 0.6))
+                    .frame(width: 32, height: 32)
+                    .overlay(Text("AI").font(.caption).bold().foregroundColor(.black))
+            }
+            
+            VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
+                if message.isThinking {
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.white).frame(width: 6, height: 6)
+                        Circle().fill(Color.white).frame(width: 6, height: 6)
+                        Circle().fill(Color.white).frame(width: 6, height: 6)
+                    }
+                    .padding(12)
+                    .background(Color(red: 0.15, green: 0.15, blue: 0.15))
+                    .cornerRadius(16)
+                } else {
+                    Text(message.text)
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(
+                            message.isUser
+                                ? Color(red: 0.3, green: 0.4, blue: 0.9) // ユーザー色
+                                : Color(red: 0.15, green: 0.15, blue: 0.15) // AI色
+                        )
+                        .cornerRadius(16)
+                }
+            }
+            
+            if !message.isUser {
+                Spacer()
+            }
         }
     }
 }
 
 struct QuickActionButton: View {
     let title: String
+    let action: () -> Void
     
     var body: some View {
-        Button {
-            // アクション
-        } label: {
+        Button(action: action) {
             Text(title)
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(.white.opacity(0.9))
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color.white.opacity(0.05))
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.1))
                 .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.3)))
         }
     }
 }
@@ -363,66 +440,138 @@ struct TagInputView: View {
 // MARK: - Note View (Voice Memo)
 
 struct NoteView: View {
+    @EnvironmentObject var appState: AppStateManager
+    @StateObject private var viewModel = VoiceNoteViewModel()
+    
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
             
             VStack(spacing: 24) {
+                // ヘッダー
                 Text("授業ノート (Voice Memo)")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .padding(.top, 20)
                 
-                Spacer()
-                
-                // 録音ボタン
-                VStack(spacing: 16) {
-                    Button {
-                        // 録音開始/停止
-                    } label: {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(red: 0.3, green: 0.4, blue: 0.9), Color(red: 0.5, green: 0.6, blue: 1.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .frame(width: 120, height: 120)
-                            .overlay(
-                                Image(systemName: "mic.fill")
-                                    .font(.system(size: 48))
+                if viewModel.isProcessing {
+                    // 処理中
+                    Spacer()
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(2.0)
+                            .tint(.white)
+                        Text("音声を解析中...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("要約を作成しています")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    Spacer()
+                } else if !viewModel.transcript.isEmpty {
+                    // 結果表示
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            // 要約カード
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("要約")
+                                    .font(.headline)
                                     .foregroundColor(.white)
-                            )
+                                Text(viewModel.summary)
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                            .padding()
+                            .background(Color(red: 0.15, green: 0.15, blue: 0.2))
+                            .cornerRadius(12)
+                            
+                            // 全文カード
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("文字起こし")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text(viewModel.transcript)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                            .padding()
+                            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+                            .cornerRadius(12)
+                            
+                            Button("新しい録音を作成") {
+                                viewModel.transcript = ""
+                                viewModel.summary = ""
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .foregroundColor(.white)
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                        }
+                        .padding()
+                    }
+                } else {
+                    // 待機/録音中画面
+                    Spacer()
+                    
+                    VStack(spacing: 30) {
+                        // 時間表示
+                        Text(formatTime(viewModel.recordingTime))
+                            .font(.system(size: 64, weight: .light, design: .monospaced))
+                            .foregroundColor(viewModel.isRecording ? .red : .white)
+                        
+                        // 録音ボタン
+                        Button {
+                            if viewModel.isRecording {
+                                viewModel.stopRecording(userId: appState.currentUser?.id ?? "")
+                            } else {
+                                viewModel.startRecording()
+                            }
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        viewModel.isRecording
+                                            ? Color.red.opacity(0.2)
+                                            : LinearGradient(
+                                                colors: [Color(red: 0.3, green: 0.4, blue: 0.9), Color(red: 0.5, green: 0.6, blue: 1.0)],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                    )
+                                    .frame(width: 120, height: 120)
+                                    .scaleEffect(viewModel.isRecording ? 1.1 : 1.0)
+                                    .animation(viewModel.isRecording ? Animation.easeInOut(duration: 1).repeatForever(autoreverses: true) : .default, value: viewModel.isRecording)
+                                
+                                Image(systemName: viewModel.isRecording ? "stop.fill" : "mic.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(viewModel.isRecording ? .red : .white)
+                            }
+                        }
+                        
+                        Text(viewModel.isRecording ? "録音中... (タップして停止・解析)" : "タップして録音開始")
+                            .font(.headline)
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        if let error = viewModel.errorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding()
+                        }
                     }
                     
-                    Text("START")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                    Spacer()
                 }
-                
-                // リアルタイム文字起こしエリア
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("REAL-TIME TRANSCRIPT")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-                    
-                    Text("録音を開始するとここに文字が表示されます。")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.7))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(Color(red: 0.1, green: 0.1, blue: 0.1))
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal, 20)
-                
-                Spacer()
             }
         }
+    }
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
 
