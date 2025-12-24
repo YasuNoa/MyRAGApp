@@ -62,6 +62,7 @@ struct LoginView: View {
                     }
                     
                     // Microsoftログインボタン
+                    /*
                     SocialLoginButton(
                         icon: "building.2",
                         title: "Microsoftでログイン",
@@ -70,6 +71,7 @@ struct LoginView: View {
                     ) {
                         handleMicrosoftLogin()
                     }
+                    */
                     
                     // LINEログインボタン（オプション）
                     SocialLoginButton(
@@ -121,21 +123,26 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
+        print("🔵 Google login started...")
+        
         Task {
             do {
+                print("🔵 Calling AuthService.signInWithGoogle()")
                 let (user, token) = try await authService.signInWithGoogle()
                 
+                print("✅ Google login success!")
+                print("   User ID: \(user.id)")
+                print("   Display Name: \(user.displayName ?? "nil")")
+                print("   Email: \(user.email ?? "nil")")
+                
                 await MainActor.run {
-                    // APIServiceにトークンをセット
-                    APIService.shared.authToken = token
-                    
-                    // AppStateを更新
-                    appState.currentUser = user
-                    appState.isLoggedIn = true
+                    // AppStateを更新 (ログイン成功処理)
+                    appState.loginSuccess(user: user, token: token)
                     
                     isLoading = false
                 }
             } catch {
+                print("❌ Google login failed: \(error)")
                 await MainActor.run {
                     isLoading = false
                     errorMessage = error.localizedDescription
@@ -148,19 +155,28 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
+        print("🍎 Apple login started...")
+        
         Task {
             do {
+                print("🍎 Calling SignInWithAppleCoordinator")
+                // Nonce生成
+                let nonce = AuthService.randomNonceString()
                 let coordinator = SignInWithAppleCoordinator()
-                let authorization = try await coordinator.signIn()
-                let (user, token) = try await authService.signInWithApple(authorization: authorization)
+                let authorization = try await coordinator.signIn(nonce: nonce)
+                
+                print("🍎 Got authorization, signing in with Firebase...")
+                let (user, token) = try await authService.signInWithApple(authorization: authorization, nonce: nonce)
+                
+                print("✅ Apple login success!")
+                print("   User ID: \(user.id)")
                 
                 await MainActor.run {
-                    APIService.shared.authToken = token
-                    appState.currentUser = user
-                    appState.isLoggedIn = true
+                    appState.loginSuccess(user: user, token: token)
                     isLoading = false
                 }
             } catch {
+                print("❌ Apple login failed: \(error)")
                 await MainActor.run {
                     isLoading = false
                     errorMessage = error.localizedDescription
@@ -178,9 +194,7 @@ struct LoginView: View {
                 let (user, token) = try await authService.signInWithMicrosoft()
                 
                 await MainActor.run {
-                    APIService.shared.authToken = token
-                    appState.currentUser = user
-                    appState.isLoggedIn = true
+                    appState.loginSuccess(user: user, token: token)
                     isLoading = false
                 }
             } catch {
@@ -196,13 +210,31 @@ struct LoginView: View {
         isLoading = true
         errorMessage = nil
         
-        // LINEログインの実装（LINE SDKが必要）
-        // TODO: LINE SDKの実装
+        print("🟢 LINE login started...")
         
         Task {
-            await MainActor.run {
-                isLoading = false
-                errorMessage = "LINE ログインは準備中です"
+            do {
+                print("🟢 Calling LineAuthManager.login()")
+                // LINE SDKでログイン
+                let lineAccessToken = try await LineAuthManager.shared.login()
+                
+                print("🟢 Got LINE access token, authenticating with backend...")
+                // バックエンド経由でFirebase認証
+                let (user, token) = try await authService.signInWithLINE(lineAccessToken: lineAccessToken)
+                
+                print("✅ LINE login success!")
+                print("   User ID: \(user.id)")
+                
+                await MainActor.run {
+                    appState.loginSuccess(user: user, token: token)
+                    isLoading = false
+                }
+            } catch {
+                print("❌ LINE login failed: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }

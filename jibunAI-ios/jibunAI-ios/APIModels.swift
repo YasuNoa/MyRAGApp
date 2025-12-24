@@ -108,6 +108,11 @@ struct ErrorResponse: Codable {
     let detail: String
 }
 
+/// カテゴリ（タグ）レスポンス
+struct CategoryResponse: Codable {
+    let tags: [String]
+}
+
 // MARK: - Helper Types
 
 /// 動的なJSONデータを扱うためのヘルパー

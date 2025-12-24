@@ -19,7 +19,7 @@ services:
     depends_on:
       - db
     # Force clean install to ensure no corruption
-    command: sh -c "rm -f package-lock.json && npm install && npx prisma generate && npm run dev"
+    command: sh -c "rm -f package-lock.json && npm install && npx prisma generate --generator client && npm run dev"
 
   backend:
     build:

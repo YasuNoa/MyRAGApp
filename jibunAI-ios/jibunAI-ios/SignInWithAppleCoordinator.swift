@@ -12,13 +12,15 @@ class SignInWithAppleCoordinator: NSObject, ASAuthorizationControllerDelegate, A
     
     private var continuation: CheckedContinuation<ASAuthorization, Error>?
     
-    func signIn() async throws -> ASAuthorization {
+    func signIn(nonce: String) async throws -> ASAuthorization {
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             
             let appleIDProvider = ASAuthorizationAppleIDProvider()
             let request = appleIDProvider.createRequest()
             request.requestedScopes = [.fullName, .email]
+            // Nonceをセット
+            request.nonce = AuthService.sha256(nonce)
             
             let authorizationController = ASAuthorizationController(authorizationRequests: [request])
             authorizationController.delegate = self

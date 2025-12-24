@@ -7,6 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BFC280A52EF5B56200152E1C /* ReceiptParser in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A42EF5B56200152E1C /* ReceiptParser */; };
+		BFC280A72EF5B56200152E1C /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A62EF5B56200152E1C /* RevenueCat */; };
+		BFC280A92EF5B56200152E1C /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A82EF5B56200152E1C /* RevenueCatUI */; };
+		BFC280AB2EF5B66700152E1C /* LineAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC280AA2EF5B66700152E1C /* LineAuthManager.swift */; };
+		BFC280B32EF6680600152E1C /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFC280B22EF6680600152E1C /* StoreKit.framework */; };
+		BFC2817A2EFAFDB300152E1C /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281632EFAFDB300152E1C /* APIModels.swift */; };
+		BFC2817B2EFAFDB300152E1C /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281642EFAFDB300152E1C /* APIService.swift */; };
+		BFC2817C2EFAFDB300152E1C /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281652EFAFDB300152E1C /* AppRootView.swift */; };
+		BFC2817D2EFAFDB300152E1C /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281672EFAFDB300152E1C /* AuthService.swift */; };
+		BFC2817E2EFAFDB300152E1C /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281682EFAFDB300152E1C /* ChatViewModel.swift */; };
+		BFC2817F2EFAFDB300152E1C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281692EFAFDB300152E1C /* ContentView.swift */; };
+		BFC281802EFAFDB300152E1C /* jibunAI_iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC2816E2EFAFDB300152E1C /* jibunAI_iosApp.swift */; };
+		BFC281812EFAFDB300152E1C /* LandingPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281702EFAFDB300152E1C /* LandingPageView.swift */; };
+		BFC281822EFAFDB300152E1C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281712EFAFDB300152E1C /* LoginView.swift */; };
+		BFC281832EFAFDB300152E1C /* MainAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281722EFAFDB300152E1C /* MainAppView.swift */; };
+		BFC281842EFAFDB300152E1C /* Pages.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281732EFAFDB300152E1C /* Pages.swift */; };
+		BFC281852EFAFDB300152E1C /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281742EFAFDB300152E1C /* PaywallView.swift */; };
+		BFC281862EFAFDB300152E1C /* SignInWithAppleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */; };
+		BFC281872EFAFDB300152E1C /* VoiceNoteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */; };
+		BFC281882EFAFDB300152E1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFC281662EFAFDB300152E1C /* Assets.xcassets */; };
+		BFC281892EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */; };
+		BFC2818A2EFAFDB300152E1C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */; };
+		BFC2818C2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */; };
+		BFC2818D2EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */; };
+		BFC2818E2EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */; };
 		BFE07E022EF54F26000C2C72 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BFE07E012EF54F26000C2C72 /* FirebaseAuth */; };
 		BFE07E052EF551A8000C2C72 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BFE07E042EF551A8000C2C72 /* GoogleSignIn */; };
 		BFE07E072EF551A8000C2C72 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BFE07E062EF551A8000C2C72 /* GoogleSignInSwift */; };
@@ -16,23 +41,43 @@
 
 /* Begin PBXFileReference section */
 		BF77382F2EF5389100806F3B /* jibunAI-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "jibunAI-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFC280AA2EF5B66700152E1C /* LineAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineAuthManager.swift; sourceTree = "<group>"; };
+		BFC280B22EF6680600152E1C /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		BFC281632EFAFDB300152E1C /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		BFC281642EFAFDB300152E1C /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
+		BFC281652EFAFDB300152E1C /* AppRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootView.swift; sourceTree = "<group>"; };
+		BFC281662EFAFDB300152E1C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BFC281672EFAFDB300152E1C /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		BFC281682EFAFDB300152E1C /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		BFC281692EFAFDB300152E1C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FIREBASE_SETUP_GUIDE.md; sourceTree = "<group>"; };
+		BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		BFC2816C2EFAFDB300152E1C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = INFO_PLIST_SETTINGS.md; sourceTree = "<group>"; };
+		BFC2816E2EFAFDB300152E1C /* jibunAI_iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = jibunAI_iosApp.swift; sourceTree = "<group>"; };
+		BFC2816F2EFAFDB300152E1C /* jibunAI-ios.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "jibunAI-ios.entitlements"; sourceTree = "<group>"; };
+		BFC281702EFAFDB300152E1C /* LandingPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingPageView.swift; sourceTree = "<group>"; };
+		BFC281712EFAFDB300152E1C /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		BFC281722EFAFDB300152E1C /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
+		BFC281732EFAFDB300152E1C /* Pages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages.swift; sourceTree = "<group>"; };
+		BFC281742EFAFDB300152E1C /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REVENUECAT_SETUP_GUIDE.md; sourceTree = "<group>"; };
+		BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETUP_INSTRUCTIONS.md; sourceTree = "<group>"; };
+		BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInWithAppleCoordinator.swift; sourceTree = "<group>"; };
+		BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceNoteViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		BF7738312EF5389100806F3B /* jibunAI-ios */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "jibunAI-ios";
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		BF77382C2EF5389100806F3B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BFC280B32EF6680600152E1C /* StoreKit.framework in Frameworks */,
+				BFC280A52EF5B56200152E1C /* ReceiptParser in Frameworks */,
 				BFE07E0C2EF5525A000C2C72 /* LineSDKObjC in Frameworks */,
+				BFC280A72EF5B56200152E1C /* RevenueCat in Frameworks */,
 				BFE07E072EF551A8000C2C72 /* GoogleSignInSwift in Frameworks */,
+				BFC280A92EF5B56200152E1C /* RevenueCatUI in Frameworks */,
 				BFE07E0A2EF5525A000C2C72 /* LineSDK in Frameworks */,
 				BFE07E022EF54F26000C2C72 /* FirebaseAuth in Frameworks */,
 				BFE07E052EF551A8000C2C72 /* GoogleSignIn in Frameworks */,
@@ -45,8 +90,10 @@
 		BF7738262EF5389100806F3B = {
 			isa = PBXGroup;
 			children = (
-				BF7738312EF5389100806F3B /* jibunAI-ios */,
+				BFC281792EFAFDB300152E1C /* jibunAI-ios */,
 				BF7738302EF5389100806F3B /* Products */,
+				BFC280AA2EF5B66700152E1C /* LineAuthManager.swift */,
+				BFC280B12EF6680600152E1C /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -56,6 +103,43 @@
 				BF77382F2EF5389100806F3B /* jibunAI-ios.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BFC280B12EF6680600152E1C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BFC280B22EF6680600152E1C /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BFC281792EFAFDB300152E1C /* jibunAI-ios */ = {
+			isa = PBXGroup;
+			children = (
+				BFC281632EFAFDB300152E1C /* APIModels.swift */,
+				BFC281642EFAFDB300152E1C /* APIService.swift */,
+				BFC281652EFAFDB300152E1C /* AppRootView.swift */,
+				BFC281662EFAFDB300152E1C /* Assets.xcassets */,
+				BFC281672EFAFDB300152E1C /* AuthService.swift */,
+				BFC281682EFAFDB300152E1C /* ChatViewModel.swift */,
+				BFC281692EFAFDB300152E1C /* ContentView.swift */,
+				BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */,
+				BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */,
+				BFC2816C2EFAFDB300152E1C /* Info.plist */,
+				BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */,
+				BFC2816E2EFAFDB300152E1C /* jibunAI_iosApp.swift */,
+				BFC2816F2EFAFDB300152E1C /* jibunAI-ios.entitlements */,
+				BFC281702EFAFDB300152E1C /* LandingPageView.swift */,
+				BFC281712EFAFDB300152E1C /* LoginView.swift */,
+				BFC281722EFAFDB300152E1C /* MainAppView.swift */,
+				BFC281732EFAFDB300152E1C /* Pages.swift */,
+				BFC281742EFAFDB300152E1C /* PaywallView.swift */,
+				BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */,
+				BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */,
+				BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */,
+				BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */,
+			);
+			path = "jibunAI-ios";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -73,9 +157,6 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				BF7738312EF5389100806F3B /* jibunAI-ios */,
-			);
 			name = "jibunAI-ios";
 			packageProductDependencies = (
 				BFE07E012EF54F26000C2C72 /* FirebaseAuth */,
@@ -83,6 +164,9 @@
 				BFE07E062EF551A8000C2C72 /* GoogleSignInSwift */,
 				BFE07E092EF5525A000C2C72 /* LineSDK */,
 				BFE07E0B2EF5525A000C2C72 /* LineSDKObjC */,
+				BFC280A42EF5B56200152E1C /* ReceiptParser */,
+				BFC280A62EF5B56200152E1C /* RevenueCat */,
+				BFC280A82EF5B56200152E1C /* RevenueCatUI */,
 			);
 			productName = "jibunAI-ios";
 			productReference = BF77382F2EF5389100806F3B /* jibunAI-ios.app */;
@@ -116,6 +200,7 @@
 				BFE07E002EF54F26000C2C72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				BFE07E032EF551A8000C2C72 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				BFE07E082EF5525A000C2C72 /* XCRemoteSwiftPackageReference "line-sdk-ios-swift" */,
+				BFC280A32EF5B56200152E1C /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BF7738302EF5389100806F3B /* Products */;
@@ -132,6 +217,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BFC281882EFAFDB300152E1C /* Assets.xcassets in Resources */,
+				BFC281892EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md in Resources */,
+				BFC2818A2EFAFDB300152E1C /* GoogleService-Info.plist in Resources */,
+				BFC2818C2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md in Resources */,
+				BFC2818D2EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md in Resources */,
+				BFC2818E2EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -142,6 +233,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BFC280AB2EF5B66700152E1C /* LineAuthManager.swift in Sources */,
+				BFC2817A2EFAFDB300152E1C /* APIModels.swift in Sources */,
+				BFC2817B2EFAFDB300152E1C /* APIService.swift in Sources */,
+				BFC2817C2EFAFDB300152E1C /* AppRootView.swift in Sources */,
+				BFC2817D2EFAFDB300152E1C /* AuthService.swift in Sources */,
+				BFC2817E2EFAFDB300152E1C /* ChatViewModel.swift in Sources */,
+				BFC2817F2EFAFDB300152E1C /* ContentView.swift in Sources */,
+				BFC281802EFAFDB300152E1C /* jibunAI_iosApp.swift in Sources */,
+				BFC281812EFAFDB300152E1C /* LandingPageView.swift in Sources */,
+				BFC281822EFAFDB300152E1C /* LoginView.swift in Sources */,
+				BFC281832EFAFDB300152E1C /* MainAppView.swift in Sources */,
+				BFC281842EFAFDB300152E1C /* Pages.swift in Sources */,
+				BFC281852EFAFDB300152E1C /* PaywallView.swift in Sources */,
+				BFC281862EFAFDB300152E1C /* SignInWithAppleCoordinator.swift in Sources */,
+				BFC281872EFAFDB300152E1C /* VoiceNoteViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,11 +380,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "jibunAI-ios/jibunAI-ios.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F2KY6KTH3H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -306,11 +414,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "jibunAI-ios/jibunAI-ios.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F2KY6KTH3H;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -357,6 +467,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		BFC280A32EF5B56200152E1C /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.51.0;
+			};
+		};
 		BFE07E002EF54F26000C2C72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -384,6 +502,21 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		BFC280A42EF5B56200152E1C /* ReceiptParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFC280A32EF5B56200152E1C /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = ReceiptParser;
+		};
+		BFC280A62EF5B56200152E1C /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFC280A32EF5B56200152E1C /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		BFC280A82EF5B56200152E1C /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BFC280A32EF5B56200152E1C /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
 		BFE07E012EF54F26000C2C72 /* FirebaseAuth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BFE07E002EF54F26000C2C72 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

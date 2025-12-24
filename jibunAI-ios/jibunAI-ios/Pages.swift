@@ -17,7 +17,7 @@ enum Page: CaseIterable, Hashable {
     case guide
     case feedback
     case settings
-    
+
     var title: String {
         switch self {
         case .chat: return "チャット"
@@ -29,7 +29,7 @@ enum Page: CaseIterable, Hashable {
         case .settings: return "設定"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .chat: return "message"
@@ -41,7 +41,7 @@ enum Page: CaseIterable, Hashable {
         case .settings: return "gearshape"
         }
     }
-    
+
     @ViewBuilder
     var view: some View {
         switch self {
@@ -63,20 +63,20 @@ enum Page: CaseIterable, Hashable {
 struct ChatView: View {
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var viewModel = ChatViewModel()
-    
+
     @State private var messageText = ""
     @State private var selectedCategory = "すべて"
-    
+
     // キーボードの自動スクロール用
     @FocusState private var isInputFocused: Bool
-    
-    let categories = ["すべて", "数学", "英語", "物理", "化学"]
-    
+
+    // let categories = ["すべて", "数学", "英語", "物理", "化学"] // 削除: viewModel.categoriesを使用
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 // ヘッダー (メッセージがない場合のみ表示)
                 if viewModel.messages.isEmpty {
@@ -85,20 +85,20 @@ struct ChatView: View {
                         Text("じぶんAI")
                             .font(.system(size: 36, weight: .bold))
                             .foregroundColor(.white)
-                        
+
                         Text("あなたのためのAIアシスタント")
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.6))
                     }
                     .padding(.bottom, 40)
-                    
+
                     // クイックアクション
                     HStack(spacing: 12) {
                         QuickActionButton(title: "テスト対策") { messageText = "テストに出そうな所を教えて" }
                         QuickActionButton(title: "要約して") { messageText = "この授業を3行で要約して" }
                     }
                     .padding(.horizontal)
-                    
+
                     Spacer()
                 } else {
                     // チャット履歴
@@ -118,21 +118,31 @@ struct ChatView: View {
                                 proxy.scrollTo("bottom")
                             }
                         }
+                        // キーボード表示時にもスクロール
+                        .onChange(of: isInputFocused) { isFocused in
+                            if isFocused {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    withAnimation {
+                                        proxy.scrollTo("bottom")
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                
+
                 // 入力エリア
                 VStack(spacing: 0) {
                     Divider().background(Color.white.opacity(0.1))
-                    
+
                     HStack(spacing: 12) {
                         // カテゴリ選択
                         Menu {
-                            ForEach(categories, id: \.self) { category in
+                            ForEach(viewModel.categories, id: \.self) { category in
                                 Button(category) { selectedCategory = category }
                             }
                         } label: {
-                             HStack {
+                            HStack {
                                 Text(selectedCategory)
                                     .font(.caption)
                                     .foregroundColor(.white.opacity(0.7))
@@ -144,7 +154,7 @@ struct ChatView: View {
                             .background(Color.white.opacity(0.1))
                             .cornerRadius(8)
                         }
-                        
+
                         // 入力フィールド
                         HStack {
                             TextField("メッセージを入力...", text: $messageText)
@@ -154,7 +164,7 @@ struct ChatView: View {
                                 .onSubmit {
                                     sendMessage()
                                 }
-                            
+
                             if viewModel.isLoading {
                                 ProgressView()
                                     .tint(.white)
@@ -164,7 +174,9 @@ struct ChatView: View {
                                 } label: {
                                     Image(systemName: "arrow.up.circle.fill")
                                         .font(.title2)
-                                        .foregroundColor(messageText.isEmpty ? .gray : Color(red: 0.5, green: 0.6, blue: 1.0))
+                                        .foregroundColor(
+                                            messageText.isEmpty
+                                                ? .gray : Color(red: 0.5, green: 0.6, blue: 1.0))
                                 }
                                 .disabled(messageText.isEmpty)
                             }
@@ -178,17 +190,26 @@ struct ChatView: View {
                     .background(Color(red: 0.08, green: 0.08, blue: 0.08))
                 }
             }
+            // .ignoresSafeArea(.keyboard, edges: .bottom) 削除: レイアウト制約エラー回避のため
+        }
+        .onAppear {
+            // 初期表示用
+        }
+        .task {
+            // カテゴリ（タグ）を最新化
+            await viewModel.loadCategories()
         }
     }
-    
+
     private func sendMessage() {
         guard !messageText.isEmpty else { return }
         let text = messageText
         messageText = ""
         isInputFocused = false
-        
+
         Task {
-            await viewModel.sendMessage(text, userId: appState.currentUser?.id ?? "unknown")
+            let tags = selectedCategory == "すべて" ? [] : [selectedCategory]
+            await viewModel.sendMessage(text, userId: appState.currentUser?.id ?? "unknown", tags: tags)
         }
     }
 }
@@ -196,7 +217,7 @@ struct ChatView: View {
 // チャットバブルコンポーネント
 struct MessageBubble: View {
     let message: ChatMessage
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if message.isUser {
@@ -208,7 +229,7 @@ struct MessageBubble: View {
                     .frame(width: 32, height: 32)
                     .overlay(Text("AI").font(.caption).bold().foregroundColor(.black))
             }
-            
+
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
                 if message.isThinking {
                     HStack(spacing: 4) {
@@ -225,13 +246,13 @@ struct MessageBubble: View {
                         .padding(12)
                         .background(
                             message.isUser
-                                ? Color(red: 0.3, green: 0.4, blue: 0.9) // ユーザー色
-                                : Color(red: 0.15, green: 0.15, blue: 0.15) // AI色
+                                ? Color(red: 0.3, green: 0.4, blue: 0.9)  // ユーザー色
+                                : Color(red: 0.15, green: 0.15, blue: 0.15)  // AI色
                         )
                         .cornerRadius(16)
                 }
             }
-            
+
             if !message.isUser {
                 Spacer()
             }
@@ -242,7 +263,7 @@ struct MessageBubble: View {
 struct QuickActionButton: View {
     let title: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -263,16 +284,16 @@ struct KnowledgeView: View {
     @State private var selectedTab: KnowledgeTab = .text
     @State private var inputText = ""
     @State private var selectedTags: [String] = []
-    
+
     enum KnowledgeTab {
         case text, file
     }
-    
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // タイトル
@@ -281,7 +302,7 @@ struct KnowledgeView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.top, 20)
-                    
+
                     // タブ切り替え
                     HStack(spacing: 16) {
                         TabButton(title: "テキスト", isSelected: selectedTab == .text) {
@@ -291,27 +312,27 @@ struct KnowledgeView: View {
                             selectedTab = .file
                         }
                     }
-                    
+
                     if selectedTab == .text {
                         // テキスト入力エリア
                         VStack(alignment: .leading, spacing: 12) {
                             Text("知識を手動で追加")
                                 .font(.headline)
                                 .foregroundColor(.white)
-                            
+
                             Text("タグ (任意)")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.6))
-                            
+
                             TagInputView(tags: $selectedTags)
-                            
+
                             TextEditor(text: $inputText)
                                 .frame(height: 200)
                                 .padding(12)
                                 .background(Color(red: 0.15, green: 0.15, blue: 0.15))
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
-                            
+
                             Button {
                                 // 保存処理
                             } label: {
@@ -322,7 +343,10 @@ struct KnowledgeView: View {
                                     .padding(.vertical, 16)
                                     .background(
                                         LinearGradient(
-                                            colors: [Color(red: 0.5, green: 0.6, blue: 1.0), Color(red: 0.4, green: 0.5, blue: 0.9)],
+                                            colors: [
+                                                Color(red: 0.5, green: 0.6, blue: 1.0),
+                                                Color(red: 0.4, green: 0.5, blue: 0.9),
+                                            ],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
@@ -336,12 +360,14 @@ struct KnowledgeView: View {
                             Text("Google Drive からインポート")
                                 .font(.headline)
                                 .foregroundColor(.white)
-                            
-                            Text("下のボタンを押すとGoogle Driveのファイル選択画面が開きます。\nインポートしたいファイル（PDF, Googleドキュメント等）を選択してください。")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                            
+
+                            Text(
+                                "下のボタンを押すとGoogle Driveのファイル選択画面が開きます。\nインポートしたいファイル（PDF, Googleドキュメント等）を選択してください。"
+                            )
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+
                             Button {
                                 // Google Drive連携
                             } label: {
@@ -369,7 +395,7 @@ struct TabButton: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -387,13 +413,13 @@ struct TabButton: View {
 struct TagInputView: View {
     @Binding var tags: [String]
     @State private var inputTag = ""
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "tag")
                     .foregroundColor(.white.opacity(0.6))
-                
+
                 TextField("タグを入力 (Enterで追加)", text: $inputTag)
                     .foregroundColor(.white)
                     .tint(.white)
@@ -407,7 +433,7 @@ struct TagInputView: View {
             .padding(12)
             .background(Color(red: 0.15, green: 0.15, blue: 0.15))
             .cornerRadius(8)
-            
+
             if !tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -416,7 +442,7 @@ struct TagInputView: View {
                                 Text(tag)
                                     .font(.caption)
                                     .foregroundColor(.white)
-                                
+
                                 Button {
                                     tags.removeAll { $0 == tag }
                                 } label: {
@@ -442,12 +468,12 @@ struct TagInputView: View {
 struct NoteView: View {
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var viewModel = VoiceNoteViewModel()
-    
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 24) {
                 // ヘッダー
                 Text("授業ノート (Voice Memo)")
@@ -455,7 +481,7 @@ struct NoteView: View {
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .padding(.top, 20)
-                
+
                 if viewModel.isProcessing {
                     // 処理中
                     Spacer()
@@ -486,7 +512,7 @@ struct NoteView: View {
                             .padding()
                             .background(Color(red: 0.15, green: 0.15, blue: 0.2))
                             .cornerRadius(12)
-                            
+
                             // 全文カード
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("文字起こし")
@@ -498,7 +524,7 @@ struct NoteView: View {
                             .padding()
                             .background(Color(red: 0.1, green: 0.1, blue: 0.1))
                             .cornerRadius(12)
-                            
+
                             Button("新しい録音を作成") {
                                 viewModel.transcript = ""
                                 viewModel.summary = ""
@@ -514,13 +540,13 @@ struct NoteView: View {
                 } else {
                     // 待機/録音中画面
                     Spacer()
-                    
+
                     VStack(spacing: 30) {
                         // 時間表示
                         Text(formatTime(viewModel.recordingTime))
                             .font(.system(size: 64, weight: .light, design: .monospaced))
                             .foregroundColor(viewModel.isRecording ? .red : .white)
-                        
+
                         // 録音ボタン
                         Button {
                             if viewModel.isRecording {
@@ -533,27 +559,35 @@ struct NoteView: View {
                                 Circle()
                                     .fill(
                                         viewModel.isRecording
-                                            ? Color.red.opacity(0.2)
-                                            : LinearGradient(
-                                                colors: [Color(red: 0.3, green: 0.4, blue: 0.9), Color(red: 0.5, green: 0.6, blue: 1.0)],
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
+                                            ? AnyShapeStyle(Color.red.opacity(0.2))
+                                            : AnyShapeStyle(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color(red: 0.3, green: 0.4, blue: 0.9),
+                                                        Color(red: 0.5, green: 0.6, blue: 1.0),
+                                                    ],
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                ))
                                     )
                                     .frame(width: 120, height: 120)
                                     .scaleEffect(viewModel.isRecording ? 1.1 : 1.0)
-                                    .animation(viewModel.isRecording ? Animation.easeInOut(duration: 1).repeatForever(autoreverses: true) : .default, value: viewModel.isRecording)
-                                
+                                    .animation(
+                                        viewModel.isRecording
+                                            ? Animation.easeInOut(duration: 1).repeatForever(
+                                                autoreverses: true) : .default,
+                                        value: viewModel.isRecording)
+
                                 Image(systemName: viewModel.isRecording ? "stop.fill" : "mic.fill")
                                     .font(.system(size: 48))
                                     .foregroundColor(viewModel.isRecording ? .red : .white)
                             }
                         }
-                        
+
                         Text(viewModel.isRecording ? "録音中... (タップして停止・解析)" : "タップして録音開始")
                             .font(.headline)
                             .foregroundColor(.white.opacity(0.8))
-                        
+
                         if let error = viewModel.errorMessage {
                             Text(error)
                                 .font(.caption)
@@ -561,13 +595,13 @@ struct NoteView: View {
                                 .padding()
                         }
                     }
-                    
+
                     Spacer()
                 }
             }
         }
     }
-    
+
     private func formatTime(_ timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
@@ -582,7 +616,7 @@ struct DataView: View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("学習済みデータ一覧")
@@ -590,18 +624,24 @@ struct DataView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.top, 20)
-                    
+
                     // フィルタ
                     HStack {
                         FilterButton(title: "すべてのソース")
                         FilterButton(title: "すべてのタグ")
                     }
-                    
+
                     // データリスト（ダミー）
                     VStack(spacing: 12) {
-                        DataItemCard(title: "明日やること、ディップの課題？成績証...", source: "手動アップロード", date: "2025/12/11", tags: ["Todo", "Work", "University"])
-                        DataItemCard(title: "New Recording 618.m4a", source: "手動アップロード", date: "2025/12/3", tags: ["な"])
-                        DataItemCard(title: "Receipt-2397-7768-3033.pdf", source: "Voice Memo", date: "2025/12/3", tags: ["あ"])
+                        DataItemCard(
+                            title: "明日やること、ディップの課題？成績証...", source: "手動アップロード", date: "2025/12/11",
+                            tags: ["Todo", "Work", "University"])
+                        DataItemCard(
+                            title: "New Recording 618.m4a", source: "手動アップロード", date: "2025/12/3",
+                            tags: ["な"])
+                        DataItemCard(
+                            title: "Receipt-2397-7768-3033.pdf", source: "Voice Memo",
+                            date: "2025/12/3", tags: ["あ"])
                     }
                 }
                 .padding(.horizontal, 20)
@@ -612,7 +652,7 @@ struct DataView: View {
 
 struct FilterButton: View {
     let title: String
-    
+
     var body: some View {
         Button {
             // フィルタ処理
@@ -638,20 +678,20 @@ struct DataItemCard: View {
     let source: String
     let date: String
     let tags: [String]
-    
+
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: "doc.text")
                 .font(.title2)
                 .foregroundColor(.white.opacity(0.6))
                 .frame(width: 40)
-            
+
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.body)
                     .foregroundColor(.white)
                     .lineLimit(1)
-                
+
                 HStack(spacing: 8) {
                     Text(source)
                         .font(.caption)
@@ -659,7 +699,7 @@ struct DataItemCard: View {
                     Text(date)
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.5))
-                    
+
                     ForEach(tags, id: \.self) { tag in
                         Text(tag)
                             .font(.caption)
@@ -671,9 +711,9 @@ struct DataItemCard: View {
                     }
                 }
             }
-            
+
             Spacer()
-            
+
             HStack(spacing: 16) {
                 Button {
                     // 編集
@@ -681,7 +721,7 @@ struct DataItemCard: View {
                     Image(systemName: "pencil")
                         .foregroundColor(.white.opacity(0.5))
                 }
-                
+
                 Button {
                     // 削除
                 } label: {
@@ -703,7 +743,7 @@ struct GuideView: View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Text("使い方ガイド")
@@ -711,13 +751,13 @@ struct GuideView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.top, 20)
-                    
+
                     GuideSection(
                         number: 1,
                         title: "授業ノート・文字起こし",
                         description: "授業や会議の音声をアップロードして、自動で文字起こしと要約ができます。サイドバーの「授業ノート」メニューから行えます。"
                     )
-                    
+
                     GuideSection(
                         number: 2,
                         title: "知識を登録する",
@@ -734,7 +774,7 @@ struct GuideSection: View {
     let number: Int
     let title: String
     let description: String
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Text("\(number)")
@@ -744,12 +784,12 @@ struct GuideSection: View {
                 .frame(width: 40, height: 40)
                 .background(Color.white.opacity(0.1))
                 .clipShape(Circle())
-            
+
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
                     .font(.headline)
                     .foregroundColor(.white)
-                
+
                 Text(description)
                     .font(.body)
                     .foregroundColor(.white.opacity(0.7))
@@ -766,35 +806,35 @@ struct GuideSection: View {
 
 struct FeedbackView: View {
     @State private var feedbackText = ""
-    
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             VStack(alignment: .leading, spacing: 24) {
                 Text("フィードバック")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .padding(.top, 20)
-                
+
                 Text("アプリに関するご意見・ご要望、バグ報告などをお聞かせください。\n頂いた内容は今後の開発の参考にさせていただきます。")
                     .font(.body)
                     .foregroundColor(.white.opacity(0.7))
                     .lineSpacing(4)
-                
+
                 Text("内容")
                     .font(.headline)
                     .foregroundColor(.white)
-                
+
                 TextEditor(text: $feedbackText)
                     .frame(height: 200)
                     .padding(12)
                     .background(Color(red: 0.15, green: 0.15, blue: 0.15))
                     .cornerRadius(12)
                     .foregroundColor(.white)
-                
+
                 Button {
                     // 送信処理
                 } label: {
@@ -805,14 +845,17 @@ struct FeedbackView: View {
                         .padding(.vertical, 16)
                         .background(
                             LinearGradient(
-                                colors: [Color(red: 0.5, green: 0.6, blue: 1.0), Color(red: 0.4, green: 0.5, blue: 0.9)],
+                                colors: [
+                                    Color(red: 0.5, green: 0.6, blue: 1.0),
+                                    Color(red: 0.4, green: 0.5, blue: 0.9),
+                                ],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .cornerRadius(12)
                 }
-                
+
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -824,12 +867,13 @@ struct FeedbackView: View {
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppStateManager
-    
+    @State private var showLogoutAlert = false
+
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 24) {
                     Text("設定")
@@ -837,74 +881,156 @@ struct SettingsView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .padding(.top, 20)
-                    
+
                     // プロフィールカード
                     VStack(spacing: 16) {
                         Circle()
                             .fill(Color.gray)
                             .frame(width: 80, height: 80)
                             .overlay(
-                                Text(appState.currentUser?.displayName?.prefix(1).uppercased() ?? "U")
-                                    .font(.title)
-                                    .foregroundColor(.white)
+                                Text(
+                                    appState.currentUser?.displayName?.prefix(1).uppercased() ?? "U"
+                                )
+                                .font(.title)
+                                .foregroundColor(.white)
                             )
-                        
+
                         Text(appState.currentUser?.displayName ?? "ユーザー")
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
                         
-                        if let email = appState.currentUser?.email {
-                            Text(email)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
-                        }
+                        // EmailはWeb版に合わせて非表示
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
                     .background(Color(red: 0.1, green: 0.1, blue: 0.1))
                     .cornerRadius(12)
                     
+                    // 現在のプラン
+                    VStack(spacing: 0) {
+                        SettingsRow(
+                            icon: "creditcard",
+                            title: "現在のプラン",
+                            hasChevron: false,
+                            rightContent: {
+                                Text("\(appState.userPlan) プラン")
+                                    .font(.body)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            }
+                        )
+                        
+                        // サブスクリプション管理ボタン (FREE以外の場合)
+                        if appState.userPlan != "FREE" {
+                            Divider().background(Color.white.opacity(0.1))
+                            HStack {
+                                Spacer()
+                                Button {
+                                    // 管理画面を開く
+                                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                } label: {
+                                    Text("サブスクリプションの管理・解約")
+                                        .font(.caption)
+                                        .foregroundColor(Color.gray)
+                                        .underline()
+                                }
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 20)
+                            }
+                        }
+                    }
+                    .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+                    .cornerRadius(12)
+
                     // 設定項目
                     VStack(spacing: 0) {
                         SettingsRow(icon: "person", title: "プロフィール設定（名前）", hasChevron: true)
                         Divider().background(Color.white.opacity(0.1))
-                        SettingsRow(icon: "gearshape", title: "アカウント設定（メール・パスワード）", hasChevron: true)
+                        SettingsRow(
+                            icon: "gearshape", title: "アカウント設定（メール・パスワード）", hasChevron: true)
                         Divider().background(Color.white.opacity(0.1))
                         SettingsRow(icon: "bag", title: "AIの設定（名前変更）", hasChevron: true)
                     }
                     .background(Color(red: 0.1, green: 0.1, blue: 0.1))
                     .cornerRadius(12)
-                    
+
                     // 連携設定
                     VStack(spacing: 0) {
-                        SettingsRow(icon: "link", title: "Slack連携（開発中）", hasChevron: false, rightContent: {
-                            Button("連携する") {
-                                // Slack連携
-                            }
-                            .font(.caption)
-                            .foregroundColor(Color(red: 0.5, green: 0.6, blue: 1.0))
-                        })
-                        Divider().background(Color.white.opacity(0.1))
-                        SettingsRow(icon: "message", title: "LINE連携", hasChevron: false, rightContent: {
-                            Text("連携済み")
+                        SettingsRow(
+                            icon: "link", title: "Slack連携（開発中）", hasChevron: false,
+                            rightContent: {
+                                Button("連携する") {
+                                    // Slack連携
+                                }
                                 .font(.caption)
                                 .foregroundColor(Color(red: 0.5, green: 0.6, blue: 1.0))
-                        })
+                            })
                         Divider().background(Color.white.opacity(0.1))
-                        SettingsRow(icon: "globe", title: "Google連携", hasChevron: false, rightContent: {
-                            Text("連携済み")
-                                .font(.caption)
-                                .foregroundColor(Color(red: 0.5, green: 0.6, blue: 1.0))
-                        })
+                        SettingsRow(
+                            icon: "message", title: "LINE連携", hasChevron: false,
+                            rightContent: {
+                                Text("連携済み")
+                                    .font(.caption)
+                                    .foregroundColor(Color(red: 0.5, green: 0.6, blue: 1.0))
+                            })
+                        Divider().background(Color.white.opacity(0.1))
+                        SettingsRow(
+                            icon: "globe", title: "Google連携", hasChevron: false,
+                            rightContent: {
+                                Text("連携済み")
+                                    .font(.caption)
+                                    .foregroundColor(Color(red: 0.5, green: 0.6, blue: 1.0))
+                            })
                     }
                     .background(Color(red: 0.1, green: 0.1, blue: 0.1))
                     .cornerRadius(12)
                     
+                    // 利用規約・プライバシーポリシー
+                    VStack(spacing: 0) {
+                        Link(destination: URL(string: "https://jibun-ai.com/terms")!) {
+                            HStack {
+                                Image(systemName: "doc.text")
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .frame(width: 30)
+                                Text("利用規約")
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                        }
+                        
+                        Divider().background(Color.white.opacity(0.1))
+                        
+                        Link(destination: URL(string: "https://jibun-ai.com/privacy")!) {
+                            HStack {
+                                Image(systemName: "hand.raised")
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .frame(width: 30)
+                                Text("プライバシーポリシー")
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                        }
+                    }
+                    .background(Color(red: 0.1, green: 0.1, blue: 0.1))
+                    .cornerRadius(12)
+
+                    // ログアウトボタン
                     // ログアウトボタン
                     Button {
-                        appState.isLoggedIn = false
-                        appState.currentUser = nil
+                        showLogoutAlert = true
                     } label: {
                         Text("ログアウト")
                             .font(.headline)
@@ -914,7 +1040,22 @@ struct SettingsView: View {
                             .background(Color.red.opacity(0.8))
                             .cornerRadius(12)
                     }
+                    .alert("ログアウト", isPresented: $showLogoutAlert) {
+                        Button("キャンセル", role: .cancel) { }
+                        Button("ログアウト", role: .destructive) {
+                            appState.signOut()
+                        }
+                    } message: {
+                        Text("ログアウトしてもよろしいですか？")
+                    }
                     .padding(.top, 16)
+                    
+                    // コピーライト
+                    Text("© 2025 じぶんAI")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.top, 8)
+                        .padding(.bottom, 32)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
@@ -928,21 +1069,24 @@ struct SettingsRow<Content: View>: View {
     let title: String
     let hasChevron: Bool
     let rightContent: (() -> Content)?
-    
-    init(icon: String, title: String, hasChevron: Bool, @ViewBuilder rightContent: @escaping () -> Content) {
+
+    init(
+        icon: String, title: String, hasChevron: Bool,
+        @ViewBuilder rightContent: @escaping () -> Content
+    ) {
         self.icon = icon
         self.title = title
         self.hasChevron = hasChevron
         self.rightContent = rightContent
     }
-    
+
     init(icon: String, title: String, hasChevron: Bool) where Content == EmptyView {
         self.icon = icon
         self.title = title
         self.hasChevron = hasChevron
         self.rightContent = nil
     }
-    
+
     var body: some View {
         Button {
             // アクション
@@ -952,17 +1096,17 @@ struct SettingsRow<Content: View>: View {
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.6))
                     .frame(width: 30)
-                
+
                 Text(title)
                     .font(.body)
                     .foregroundColor(.white)
-                
+
                 Spacer()
-                
+
                 if let rightContent = rightContent {
                     rightContent()
                 }
-                
+
                 if hasChevron {
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -973,34 +1117,4 @@ struct SettingsRow<Content: View>: View {
             .padding(.vertical, 16)
         }
     }
-}
-
-// MARK: - Chat ViewModel
-
-@MainActor
-class ChatViewModel: ObservableObject {
-    @Published var messages: [ChatMessage] = []
-    @Published var isLoading = false
-    
-    func sendMessage(_ text: String, userId: String) async {
-        isLoading = true
-        
-        // メッセージを追加
-        messages.append(ChatMessage(text: text, isUser: true))
-        
-        do {
-            let response = try await APIService.shared.ask(query: text, userId: userId)
-            messages.append(ChatMessage(text: response.answer, isUser: false))
-        } catch {
-            messages.append(ChatMessage(text: "エラーが発生しました: \(error.localizedDescription)", isUser: false))
-        }
-        
-        isLoading = false
-    }
-}
-
-struct ChatMessage: Identifiable {
-    let id = UUID()
-    let text: String
-    let isUser: Bool
 }

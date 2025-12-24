@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "F2KY6KTH3H.com.yasu.jibunAI-ios",
+        "paths": [
+          "/line-auth/*",
+          "/auth/*",
+          "/callback/*"
+        ]
+      }
+    ]
+  }
+}

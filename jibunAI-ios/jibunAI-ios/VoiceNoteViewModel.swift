@@ -72,8 +72,13 @@ class VoiceNoteViewModel: NSObject, ObservableObject, AVAudioRecorderDelegate {
         timer?.invalidate()
         timer = nil
         
-        // 即座にアップロード
-        uploadRecording(userId: userId)
+        // AudioSessionを非アクティブ化 (マイクをオフにする)
+        try? AVAudioSession.sharedInstance().setActive(false)
+        
+        // 即座にアップロード (少し待ってから実行)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.uploadRecording(userId: userId)
+        }
     }
     
     // 録音ファイルをアップロード
@@ -84,11 +89,9 @@ class VoiceNoteViewModel: NSObject, ObservableObject, AVAudioRecorderDelegate {
         
         Task {
             do {
-                let data = try Data(contentsOf: path)
-                
-                // API呼び出し
+                // ファイルURLを直接渡す (メモリ効率化)
                 let response = try await apiService.processVoice(
-                    audioData: data,
+                    fileURL: path,
                     fileName: "recording.m4a",
                     userId: userId,
                     tags: ["iOS", "VoiceMemo"]

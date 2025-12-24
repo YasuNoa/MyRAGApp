@@ -4,6 +4,7 @@ from typing import List, Optional
 import os
 import json
 import logging
+import traceback
 from datetime import datetime, timezone, timedelta
 from prisma import Prisma
 import google.generativeai as genai
@@ -50,86 +51,11 @@ def get_embedding(text: str) -> List[float]:
         logger.error(f"Error generating embedding: {e}")
         raise e
 
-async def get_or_create_subscription(user_id: str):
-    sub = await db.usersubscription.find_unique(where={'userId': user_id})
-    if not sub:
-        now = datetime.now(timezone.utc)
-        sub = await db.usersubscription.create(
-            data={
-                'userId': user_id,
-                'plan': "FREE",
-                'dailyChatCount': 0,
-                'lastChatResetAt': now,
-                'updatedAt': now
-            }
-        )
-    return sub
+# Logic moved to UserService
+from services.user_service import UserService
 
-async def check_and_increment_chat_limit(user_id: str, sub) -> None:
-    # sub is the prisma object
-    current_plan = sub.plan
-    daily_count = sub.dailyChatCount
-    last_reset = sub.lastChatResetAt
-    if not last_reset:
-         last_reset = datetime.now(timezone.utc)
-
-    LIMITS = {"FREE": 5, "STANDARD": 100, "PREMIUM": 200, "STANDARD_TRIAL": 100}
-    limit = LIMITS.get(current_plan, 10)
-    
-    now = datetime.now(timezone.utc)
-    should_reset = False
-    
-    # Timezone handling for JST reset
-    jst = timezone(timedelta(hours=9))
-    now_jst = now.astimezone(jst)
-    
-    if last_reset.tzinfo is None:
-        last_reset = last_reset.replace(tzinfo=timezone.utc)
-    last_reset_jst = last_reset.astimezone(jst)
-
-    logger.info(f"Checking limit for {user_id}: Plan={current_plan}, Count={daily_count}/{limit}")
-
-    if current_plan == "FREE":
-        if daily_count >= limit:
-            # Cooldown logic (1h)
-            last_msg = await db.message.find_first(
-                where={'userId': user_id, 'role': 'user'},
-                order={'createdAt': 'desc'}
-            )
-            if last_msg:
-                last_time = last_msg.createdAt
-                if last_time.tzinfo is None:
-                    last_time = last_time.replace(tzinfo=timezone.utc)
-                
-                if last_time < now - timedelta(hours=1):
-                    should_reset = True
-                else:
-                    wait_min = int(((last_time + timedelta(hours=1)) - now).total_seconds() / 60)
-                    raise HTTPException(status_code=403, detail=f"Free plan limit reached. Wait {wait_min} min.")
-            else:
-                 should_reset = True
-    else:
-        # Daily reset (JST)
-        if last_reset_jst.date() != now_jst.date():
-             should_reset = True
-             
-    if should_reset:
-        daily_count = 0
-        last_reset = now
-    
-    if daily_count >= limit and not should_reset:
-        raise HTTPException(status_code=403, detail=f"Chat limit reached for {current_plan} plan ({limit}/day).")
-        
-    # Increment
-    new_count = daily_count + 1
-    
-    await db.usersubscription.update(
-        where={'userId': user_id},
-        data={
-            'dailyChatCount': new_count,
-            'lastChatResetAt': last_reset 
-        }
-    )
+# Logic moved to UserService
+# check_and_increment_chat_limit is now in UserService
 
 # ... (search_documents_by_filename remains same) ...
 
@@ -158,24 +84,28 @@ async def ask(request: AskRequest):
     logger.info(f"Received ask request from {request.userId}")
     
     try:
-        # A. Fetch/Ensure User Subscription (Plan)
-        sub = await get_or_create_subscription(request.userId)
-        user_plan = sub.plan
-        logger.info(f"User {request.userId} is on plan: {user_plan}")
+        # 1. Resolve User ID (Handle Provider ID)
+        user_id = await UserService.resolve_user_id(request.userId)
+        logger.info(f"User Resolved: {request.userId} -> {user_id}")
+        
+        # 2. Check Limits & Get Plan
+        await UserService.check_and_increment_chat_limit(user_id)
+        current_plan = await UserService.get_user_plan(user_id)
+        logger.info(f"User {user_id} is on plan: {current_plan}")
 
         # 0. Thread/Message Management (Prisma)
         thread_id = request.threadId
         if not thread_id:
             title = request.query[:30] + "..." if len(request.query) > 30 else request.query
             thread = await db.thread.create(
-                data={'userId': request.userId, 'title': title}
+                data={'userId': user_id, 'title': title}
             )
             thread_id = thread.id
         else:
             thread = await db.thread.find_unique(where={'id': thread_id})
-            if not thread or thread.userId != request.userId:
+            if not thread or thread.userId != user_id:
                  thread = await db.thread.create(
-                    data={'userId': request.userId, 'title': request.query[:30]}
+                    data={'userId': user_id, 'title': request.query[:30]}
                 )
                  thread_id = thread.id
             else:
@@ -186,19 +116,19 @@ async def ask(request: AskRequest):
             data={
                 'content': request.query,
                 'role': 'user',
-                'userId': request.userId,
+                'userId': user_id,
                 'threadId': thread_id
             }
         )
 
-        # 1. Check Limits (Pass the fetched sub)
-        await check_and_increment_chat_limit(request.userId, sub)
+        # Limits checked above
+        # await check_and_increment_chat_limit(request.userId, sub)
         
         # 2. RAG Logic
         query_embedding = get_embedding(request.query)
         logger.info(f"Generated embedding for query: '{request.query}' (len: {len(query_embedding)})")
         
-        filter_dict = {"userId": request.userId}
+        filter_dict = {"userId": user_id}
         if request.tags:
              filter_dict["tags"] = {"$in": request.tags}
              
@@ -247,7 +177,7 @@ async def ask(request: AskRequest):
                     logger.info(f"  > Using raw text from metadata (len: {len(excerpt)})")
                     context_parts.append(f"Source: {meta.get('fileName')} (Excerpt)\n\n{excerpt}")
 
-        file_matches = await search_documents_by_filename(request.userId, request.query)
+        file_matches = await search_documents_by_filename(user_id, request.query)
         for doc in file_matches:
             if doc['id'] not in seen_ids:
                  context_parts.append(f"Source: {doc['title']} (Filename Match)\n\n{doc['content']}")
@@ -269,7 +199,7 @@ async def ask(request: AskRequest):
              web_result = "(Skipped Web Search)"
         else:
              # Use the authoritative user_plan from DB
-             web_result = search_service.search(request.query, user_plan)
+             web_result = search_service.search(request.query, current_plan)
 
         # Generate Answer
         model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=CHAT_SYSTEM_PROMPT)
@@ -294,7 +224,7 @@ async def ask(request: AskRequest):
             data={
                 'content': answer,
                 'role': 'assistant',
-                'userId': request.userId,
+                'userId': user_id,
                 'threadId': thread_id
             }
         )
@@ -307,4 +237,5 @@ async def ask(request: AskRequest):
 
     except Exception as e:
         logger.error(f"Ask Error: {e}")
+        logger.error(traceback.format_exc()) # Log full stack trace
         raise HTTPException(status_code=500, detail=str(e))

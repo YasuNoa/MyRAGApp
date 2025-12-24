@@ -22,19 +22,35 @@ struct AppRootView: View {
     @State private var showLogin: Bool = false
     
     var body: some View {
-        // ログイン済みならMainAppView、未ログインならLPまたはLoginViewを切り替え表示
-        if appState.isLoggedIn {
-            // ログイン済み: メイン機能画面へ
-            MainAppView()
-                .environmentObject(appState)
-        } else if showLogin {
-            // 「無料で始める」or「ログイン」ボタン押下後: LoginViewへ
-            LoginView(showLogin: $showLogin)
-                .environmentObject(appState)
-        } else {
-            // 初回起動時: LP（ランディングページ）表示
-            LandingPageView(showLogin: $showLogin)
-                .environmentObject(appState)
+        Group {
+            if appState.isLoading {
+                // 初期ロード画面
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                }
+            } else {
+                // ログイン済みならMainAppView、未ログインならLPまたはLoginViewを切り替え表示
+                if appState.isLoggedIn {
+                    // ログイン済み: メイン機能画面へ
+                    MainAppView()
+                        .environmentObject(appState)
+                } else if showLogin {
+                    // 「無料で始める」or「ログイン」ボタン押下後: LoginViewへ
+                    LoginView(showLogin: $showLogin)
+                        .environmentObject(appState)
+                } else {
+                    // 初回起動時: LP（ランディングページ）表示
+                    LandingPageView(showLogin: $showLogin)
+                        .environmentObject(appState)
+                }
+            }
+        }
+        .onAppear {
+            // アプリ起動時にセッションを復元
+            appState.restoreSession()
         }
     }
 }

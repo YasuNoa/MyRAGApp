@@ -17,83 +17,123 @@ export async function POST(req: NextRequest) {
         const name = decodedToken.name || "User";
         const picture = decodedToken.picture;
 
+        // Try to parse body for internalId (Optional)
+        // Valid for cases where client already knows its User ID (e.g. re-sync)
+        let internalId: string | undefined = undefined;
+        try {
+            const body = await req.json();
+            if (body && body.internalId) {
+                internalId = body.internalId;
+            }
+        } catch (e) {
+            // Body might be empty or not JSON, ignore
+        }
+
         if (!email) {
             return NextResponse.json({ error: "Email required for sync" }, { status: 400 });
         }
 
-        console.log(`[Auth Sync] Syncing user: ${email} (Firebase UID: ${uid})`);
+        console.log(`[Auth Sync] Syncing user: ${email} (Firebase UID: ${uid}). Internal ID provided: ${internalId}`);
 
-        // 1. Check if Account exists (Already linked)
-        const existingAccount = await prisma.account.findUnique({
-            where: {
-                provider_providerAccountId: {
-                    provider: "firebase",
-                    providerAccountId: uid
-                }
-            },
-            include: { user: true }
-        });
+        let user = null;
+        let status = "";
 
-        if (existingAccount) {
-            // Already linked, update User profile if needed
-            const user = await prisma.user.update({
-                where: { id: existingAccount.userId },
-                data: {
-                    name: name,
-                    image: picture,
-                    // email: email, // Don't update email blindly if it changes? For now, trust Firebase.
-                }
-            });
-            return NextResponse.json({ success: true, user, status: "linked" });
+        // 1. Check by Internal ID (Highest Priority)
+        // If the client claims to know their User ID (internalId), verify it exists.
+        if (internalId) {
+            user = await prisma.user.findUnique({ where: { id: internalId } });
+            if (user) {
+                console.log(`[Auth Sync] User found by Internal ID: ${user.id}`);
+                status = "found_by_internal_id";
+            }
         }
 
-        // 2. Check if User exists by Email (Legacy User or created via other provider)
-        const existingUserByEmail = await prisma.user.findUnique({ where: { email: email } });
-
-        if (existingUserByEmail) {
-            console.log(`[Auth Sync] Linking existing user ${existingUserByEmail.id} to new Firebase Account`);
-
-            // Link existing user to new Firebase Account
-            await prisma.account.create({
-                data: {
-                    userId: existingUserByEmail.id,
-                    provider: "firebase",
-                    providerAccountId: uid,
-                }
+        // 2. Check if Account exists (Already linked) - If not found by Internal ID
+        if (!user) {
+            const existingAccount = await prisma.account.findUnique({
+                where: {
+                    provider_providerAccountId: {
+                        provider: "firebase",
+                        providerAccountId: uid
+                    }
+                },
+                include: { user: true }
             });
 
-            // Update user profile
-            const user = await prisma.user.update({
-                where: { id: existingUserByEmail.id },
-                data: { name: name, image: picture }
-            });
-
-            return NextResponse.json({ success: true, user, status: "merged" });
+            if (existingAccount) {
+                user = existingAccount.user; // Get the User linked to this Account
+                console.log(`[Auth Sync] User found by Provider ID: ${user.id}`);
+                status = "linked";
+            }
         }
 
-        // 3. New User (Create User + Account)
-        console.log(`[Auth Sync] Creating new user for ${email}`);
+        // 3. Check if User exists by Email - If still not found
+        // Use this to link "Legacy Users" or users created via other providers (e.g. Line)
+        if (!user) {
+            const existingUserByEmail = await prisma.user.findUnique({ where: { email: email } });
+            if (existingUserByEmail) {
+                console.log(`[Auth Sync] Linking existing user ${existingUserByEmail.id} to new Firebase Account`);
+                user = existingUserByEmail;
+                status = "merged";
 
-        const newUser = await prisma.user.create({
-            data: {
-                name: name,
-                email: email,
-                image: picture,
-                accounts: {
-                    create: {
+                // Link Account
+                // Create a new Account record linking this Firebase UID to the existing User
+                await prisma.account.create({
+                    data: {
+                        userId: user.id,
                         provider: "firebase",
                         providerAccountId: uid,
                     }
-                },
-                subscription: {
-                    create: {
-                        plan: "FREE"
-                    }
-                }
+                });
             }
-        });
+        }
 
-        return NextResponse.json({ success: true, user: newUser, status: "created" });
+        // 4. Update Profile (if user found) or Create New User
+        if (user) {
+            // Update User Profile with latest info from Firebase
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    name: name,
+                    image: picture,
+                    // Note: We generally don't update email here to avoid security risks 
+                    // unless we are sure about email verification status.
+                },
+                include: { subscription: true }
+            });
+        } else {
+            // Create New User & Account
+            console.log(`[Auth Sync] Creating new user for ${email}`);
+            status = "created";
+
+            user = await prisma.user.create({
+                data: {
+                    name: name,
+                    email: email,
+                    image: picture,
+                    accounts: {
+                        create: {
+                            provider: "firebase",
+                            providerAccountId: uid,
+                        }
+                    },
+                    subscription: {
+                        create: {
+                            plan: "FREE" // Default plan
+                        }
+                    }
+                },
+                include: { subscription: true }
+            });
+        }
+
+        // Flatten plan into the user object for client convenience
+        const userWithPlan = {
+            ...user,
+            plan: user.subscription?.plan ?? "FREE"
+        };
+
+        return NextResponse.json({ success: true, user: userWithPlan, status });
 
     } catch (e: any) {
         console.error("Sync Error:", e);

@@ -20,13 +20,60 @@ struct ChatMessage: Identifiable, Equatable {
 @MainActor
 class ChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
+    @Published var categories: [String] = ["すべて"] // 初期値
     @Published var isLoading = false
     @Published var errorMessage: String?
     
     private let apiService = APIService.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    init() {
+        // AuthTokenの変更を監視して、有効になったらカテゴリを再読み込み
+        apiService.$authToken
+            .receive(on: RunLoop.main)
+            .sink { [weak self] token in
+                if token != nil {
+                    Task {
+                        await self?.loadCategories()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    // カテゴリ読み込み
+    func loadCategories() async {
+        // 念のためユーザー同期を実行（チャット開始前の安全性確保）
+        if let token = apiService.authToken {
+            do {
+                try await AuthService.shared.syncUserSession(token: token)
+                print("ChatViewModel: User synced successfully")
+            } catch {
+                print("ChatViewModel: User sync failed: \(error.localizedDescription)")
+            }
+        }
+        
+        // トークンが無い場合はスキップ (認証監視により後で呼ばれる)
+        guard let _ = apiService.authToken else {
+             print("ChatViewModel: Waiting for auth token to load categories...")
+             return
+        }
+
+        do {
+            let response = try await apiService.fetchCategories()
+            // "すべて"を先頭に、取得したタグを追加
+            let tags = response.tags
+            await MainActor.run {
+                self.categories = ["すべて"] + tags
+            }
+        } catch {
+            print("Failed to load categories: \(error.localizedDescription)")
+            // エラーでも初期値のまま続行
+        }
+    }
     
     // メッセージ送信
-    func sendMessage(_ text: String, userId: String) async {
+    func sendMessage(_ text: String, userId: String, tags: [String] = []) async {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
         let userMsg = ChatMessage(text: text, isUser: true, timestamp: Date())
@@ -41,8 +88,8 @@ class ChatViewModel: ObservableObject {
         messages.append(thinkingMsg)
         
         do {
-            // API呼び出し
-            let response = try await apiService.ask(query: text, userId: userId)
+            // API呼び出し (タグ付き)
+            let response = try await apiService.ask(query: text, userId: userId, tags: tags)
             
             // 成功したら「考え中」を削除して回答を追加
             messages.removeAll { $0.isThinking }

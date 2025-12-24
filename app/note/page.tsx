@@ -127,6 +127,9 @@ export default function NotePage() {
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
+            // Update ref immediately to prevent race condition in recognition.onend
+            isRecordingRef.current = false;
+            
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             if (recognitionRef.current) recognitionRef.current.stop();

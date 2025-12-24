@@ -9,7 +9,7 @@ steps:
   # --- 2. Build Backend Image ---
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
-    args: ['-c', 'docker pull asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest || true && docker build --cache-from asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest -t asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest ./backend']
+    args: ['-c', 'docker pull asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest || true && docker build --cache-from asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest -t asia-northeast1-docker.pkg.dev/myragapp-479606/myragapp-repo/myragapp-backend:latest -f backend/Dockerfile .']
     id: 'Build Backend'
     waitFor: ['Build Frontend'] # Wait for Frontend to finish
 

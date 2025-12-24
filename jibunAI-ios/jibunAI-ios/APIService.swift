@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Combine
 
 /// APIエラー
 enum APIError: LocalizedError {
@@ -42,7 +43,18 @@ class APIService: ObservableObject {
     // MARK: - Properties
     
     /// ベースURL
+    /// ベースURL (Python Backend - Features)
+    #if DEBUG
+    // 開発環境 (シミュレータ用: localhost)
+    static let baseURL = "http://localhost:8000"
+    // 認証用URL (Next.js Backend - Auth)
+    static let authBaseURL = "http://localhost:3000"
+    #else
+    // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
+    // 認証用URL (Next.js Backend - Auth) - TODO: Replace with actual Web Cloud Run URL
+    static let authBaseURL = "https://myragapp-web-placeholder.run.app"
+    #endif
     
     /// Firebase ID Token（認証用）
     @Published var authToken: String?
@@ -53,6 +65,16 @@ class APIService: ObservableObject {
     
     private init() {}
     
+    // MARK: - Session
+    
+    // 長時間のアップロード/処理に対応するためのカスタムセッション
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300 // 5分
+        config.timeoutIntervalForResource = 600 // 10分
+        return URLSession(configuration: config)
+    }()
+    
     // MARK: - Private Methods
     
     /// 共通のリクエスト実行メソッド
@@ -60,10 +82,14 @@ class APIService: ObservableObject {
         endpoint: String,
         method: String = "GET",
         body: Data? = nil,
-        requiresAuth: Bool = true
+        requiresAuth: Bool = true,
+        customBaseURL: String? = nil
     ) async throws -> T {
         
-        guard let url = URL(string: "\(Self.baseURL)\(endpoint)") else {
+        // Use customBaseURL if provided, otherwise default to Self.baseURL
+        let baseURLToUse = customBaseURL ?? Self.baseURL
+        
+        guard let url = URL(string: "\(baseURLToUse)\(endpoint)") else {
             throw APIError.invalidURL
         }
         
@@ -81,7 +107,7 @@ class APIService: ObservableObject {
         }
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
@@ -166,7 +192,7 @@ class APIService: ObservableObject {
         request.httpBody = body
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
@@ -198,6 +224,106 @@ class APIService: ObservableObject {
         }
     }
     
+    /// マルチパートフォームデータのアップロード (ファイルURLからストリーム)
+    private func uploadMultipartFile<T: Decodable>(
+        endpoint: String,
+        fileURL: URL,
+        fileName: String,
+        metadata: [String: Any],
+        requiresAuth: Bool = true
+    ) async throws -> T {
+        guard let url = URL(string: "\(Self.baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        if requiresAuth, let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        // 一時ファイルを作成してボディを書き込む
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDir.appendingPathComponent(UUID().uuidString)
+        
+        do {
+            let fileHandle = try FileHandle(forWritingTo: tempFileURL)
+            defer { try? fileHandle.close() }
+            
+            // 1. Metadata Part
+            if let metadataJSON = try? JSONSerialization.data(withJSONObject: metadata, options: []),
+               let metadataString = String(data: metadataJSON, encoding: .utf8) {
+                fileHandle.write("--\(boundary)\r\n".data(using: .utf8)!)
+                fileHandle.write("Content-Disposition: form-data; name=\"metadata\"\r\n\r\n".data(using: .utf8)!)
+                fileHandle.write(metadataString.data(using: .utf8)!)
+                fileHandle.write("\r\n".data(using: .utf8)!)
+            }
+            
+            // 2. File Header Part
+            fileHandle.write("--\(boundary)\r\n".data(using: .utf8)!)
+            fileHandle.write("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+            fileHandle.write("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            
+            // 3. File Content (Stream from original file)
+            // 大きなファイルをチャンクで読み込んで書き込む
+            let originalFileHandle = try FileHandle(forReadingFrom: fileURL)
+            defer { try? originalFileHandle.close() }
+            
+            let bufferSize = 1024 * 1024 // 1MB Buffer
+            while true {
+                 let data = originalFileHandle.readData(ofLength: bufferSize)
+                 if data.isEmpty { break }
+                 fileHandle.write(data)
+            }
+            
+            fileHandle.write("\r\n".data(using: .utf8)!)
+            fileHandle.write("--\(boundary)--\r\n".data(using: .utf8)!)
+            
+        } catch {
+            throw APIError.serverError("Failed to prepare upload body: \(error.localizedDescription)")
+        }
+        
+        // アップロード実行
+        do {
+            let (data, response) = try await session.upload(for: request, fromFile: tempFileURL)
+            
+            // クリーンアップ
+            try? FileManager.default.removeItem(at: tempFileURL)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
+            }
+            
+            switch httpResponse.statusCode {
+            case 200...299:
+                break
+            case 401:
+                throw APIError.unauthorized
+            default:
+                if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    throw APIError.serverError(errorResponse.detail)
+                } else {
+                    throw APIError.serverError("HTTPステータスコード: \(httpResponse.statusCode)")
+                }
+            }
+            
+            do {
+                return try JSONDecoder().decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError {
+            try? FileManager.default.removeItem(at: tempFileURL)
+            throw error
+        } catch {
+            try? FileManager.default.removeItem(at: tempFileURL)
+            throw APIError.networkError(error)
+        }
+    }
+    
     // MARK: - Public API Methods
     
     /// チャット (POST /ask)
@@ -207,13 +333,22 @@ class APIService: ObservableObject {
         return try await performRequest(endpoint: "/ask", method: "POST", body: body)
     }
     
-    /// 音声処理 (POST /voice/process)
+    /// 音声処理 (POST /voice/process) - Data版 (後方互換性)
     func processVoice(audioData: Data, fileName: String, userId: String, tags: [String] = []) async throws -> VoiceProcessResponse {
         let metadata: [String: Any] = [
             "userId": userId,
             "tags": tags
         ]
         return try await uploadMultipartData(endpoint: "/voice/process", fileData: audioData, fileName: fileName, metadata: metadata)
+    }
+    
+    /// 音声処理 (POST /voice/process) - FileURL版 (推奨: メモリ効率良)
+    func processVoice(fileURL: URL, fileName: String, userId: String, tags: [String] = []) async throws -> VoiceProcessResponse {
+        let metadata: [String: Any] = [
+            "userId": userId,
+            "tags": tags
+        ]
+        return try await uploadMultipartFile(endpoint: "/voice/process", fileURL: fileURL, fileName: fileName, metadata: metadata)
     }
     
     /// 音声保存 (POST /voice/save)
@@ -256,6 +391,12 @@ class APIService: ObservableObject {
         let request = UpdateTagsRequest(fileId: fileId, userId: userId, tags: tags)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/update-tags", method: "POST", body: body)
+    }
+    
+    /// カテゴリ取得 (GET /knowledge/categories)
+    func fetchCategories() async throws -> CategoryResponse {
+        // Categories endpoint is on Next.js Backend (authBaseURL)
+        return try await performRequest(endpoint: "/api/knowledge/categories", method: "GET", customBaseURL: Self.authBaseURL)
     }
     
     /// ヘルスチェック (GET /health)

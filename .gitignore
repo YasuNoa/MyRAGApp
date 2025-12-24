@@ -28,4 +28,6 @@ env_dump.txt
 build/
 DerivedData/
 *.userschemed/
-*.xcuserdata/
+*.xcuserdata/jibunAI-ios/jibunAI-ios/Info.plist
+
+Info.plist
