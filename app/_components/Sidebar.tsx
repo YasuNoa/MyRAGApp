@@ -22,7 +22,7 @@ export default function Sidebar() {
   const { refreshTrigger, triggerRefresh } = useKnowledge();
   const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
   const { clearChat } = useChat();
-  const { user, fetchWithAuth } = useAuth();
+  const { user, dbUser, fetchWithAuth } = useAuth();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const handleMobileClick = () => {
@@ -232,7 +232,7 @@ export default function Sidebar() {
             <ChatHistoryList />
         </div>
 
-        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} userId={user?.uid || ""} />
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} userId={dbUser?.id || ""} />
 
       </aside>
     </>

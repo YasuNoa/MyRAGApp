@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from db import db
 from prompts import AUDIO_CHUNK_PROMPT, SUMMARY_FROM_TEXT_PROMPT
 from services.rag_service import RagService
+from services.vector_service import VectorService
 
 # Setup Logger
 logger = logging.getLogger(__name__)
@@ -275,7 +276,7 @@ class VoiceService:
     @classmethod
     async def save_voice_memo(cls, user_id: str, transcript: str, summary: str, title: str, tags: list[str]) -> Dict[str, str]:
         """
-        Save voice memo to DB and Pinecone.
+        Save voice memo to DB and Supabase Vector.
         """
         try:
             # 1. Create Document in DB
@@ -301,8 +302,8 @@ class VoiceService:
             # 2. Generate Embedding
             vector = RagService.get_embedding(content)
             
-            # 3. Upsert to Pinecone
-            RagService.upsert_vectors([{
+            # 3. Upsert to Supabase
+            await VectorService.upsert_vectors([{
                 "id": doc.id,
                 "values": vector,
                 "metadata": {
@@ -310,7 +311,7 @@ class VoiceService:
                     "dbId": doc.id,
                     "source": "voice_memo",
                     "tags": tags,
-                    "fileType": "audio/mpeg", # Pinecone metadata can handle custom fields, so fileType is fine here, but maybe consistency with DB is nice? Let's keep fileType or use mimeType? Legacy used fileType often. Let's stick to fileType for valid Pinecone metadata, but DB MUST be mimeType.
+                    "type": "audio/mpeg", # map fileType logic to 'type' column
                     "title": doc.title,
                     "createdAt": doc.createdAt.isoformat()
                 }

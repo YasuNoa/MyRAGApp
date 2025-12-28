@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/src/lib/firebase";
 
@@ -9,6 +9,16 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Save referrerId from URL to SessionStorage
+  useEffect(() => {
+      const referrer = searchParams.get("referrer");
+      if (referrer) {
+          sessionStorage.setItem("pendingReferrerId", referrer);
+          console.log("Saved referrer:", referrer);
+      }
+  }, [searchParams]);
 
   // Handle Google Login
   const handleGoogleLogin = async () => {
@@ -21,7 +31,29 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // Sync with Backend
+      // 1. Check for Pending Referral
+      const pendingReferrerId = sessionStorage.getItem("pendingReferrerId");
+      if (pendingReferrerId) {
+          try {
+              // Call Referral Entry API
+              await fetch("/api/referral/entry", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                      referrerId: pendingReferrerId,
+                      userId: user.uid
+                  })
+              });
+              // Clear after use
+              sessionStorage.removeItem("pendingReferrerId");
+              console.log("Referral entry processed.");
+          } catch (refError) {
+              console.error("Failed to process referral:", refError);
+              // Continue login even if referral fails
+          }
+      }
+
+      // 2. Sync with Backend
       const idToken = await user.getIdToken();
       const res = await fetch("/api/auth/sync", {
           method: "POST",

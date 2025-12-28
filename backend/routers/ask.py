@@ -8,12 +8,12 @@ import traceback
 from datetime import datetime, timezone, timedelta
 from prisma import Prisma
 import google.generativeai as genai
-from pinecone import Pinecone
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from db import db
 from prompts import CHAT_SYSTEM_PROMPT
 from search_service import SearchService
+from services.vector_service import VectorService
 
 # Setup Logger
 logger = logging.getLogger(__name__)
@@ -21,12 +21,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize Clients
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX", "myragapp")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index = pc.Index(PINECONE_INDEX_NAME)
+genai.configure(api_key=GOOGLE_API_KEY)
 genai.configure(api_key=GOOGLE_API_KEY)
 search_service = SearchService()
 
@@ -132,16 +129,17 @@ async def ask(request: AskRequest):
         if request.tags:
              filter_dict["tags"] = {"$in": request.tags}
              
-        logger.info(f"Searching Pinecone index: {PINECONE_INDEX_NAME} with filter: {filter_dict}")
-        search_results = index.query(
-            vector=query_embedding,
+        logger.info(f"Searching Supabase Vector with filter: {filter_dict}")
+        
+        search_results = await VectorService.search_vectors(
+            query_embedding=query_embedding,
             top_k=20,
-            include_metadata=True,
             filter=filter_dict
         )
         
         matches_count = len(search_results['matches']) if search_results and 'matches' in search_results else 0
-        logger.info(f"Pinecone returned {matches_count} matches.")
+        matches_count = len(search_results['matches']) if search_results and 'matches' in search_results else 0
+        logger.info(f"Vector search returned {matches_count} matches.")
 
         context_parts = []
         seen_ids = set()

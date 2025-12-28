@@ -1,24 +1,24 @@
-# Requirements
+# 要件定義 (Requirements)
 
-## Core Concept
-A multi-modal AI assistant focused on Japanese users, capable of processing text, voice, and documents to provide intelligent responses and summaries.
+## コアコンセプト
+日本のユーザーにフォーカスしたマルチモーダルAIアシスタント。テキスト、音声、ドキュメントを処理し、インテリジェントな応答と要約を提供します。
 
-## User Requirements
-1.  **Context-Aware Chat**: Users want to chat with an AI that remembers previous conversations (Threads).
-2.  **Document Understanding (RAG)**: Users want to upload files (PDF, Word, PPT, Excel) and have the AI answer questions based on them.
-3.  **Voice Memos**: Users want to record or upload audio notes and get high-quality transcriptions and summaries.
-4.  **External Integrations**:
-    -   **Google Drive**: Direct import of files from cloud storage.
-    -   **LINE**: Interaction with the bot via LINE messaging app.
-5.  **Multilingual Support**: Primary focus on **Japanese** (JST timezone, Japanese prompts), but underlying models support multi-language.
+## ユーザー要件
+1.  **コンテキスト認識チャット**: 過去の会話 (スレッド) を記憶しているAIとチャットしたい。
+2.  **ドキュメント理解 (RAG)**: ファイル (PDF, Word, PPT, Excel) をアップロードし、それに基づいてAIに質問したい。
+3.  **音声メモ**: 音声を録音またはアップロードして、高品質な文字起こしと要約を取得したい。
+4.  **外部連携**:
+    -   **Google Drive**: クラウドストレージからファイルを直接インポート。
+    -   **LINE**: LINEメッセージングアプリ経由でボットと対話。
+5.  **多言語サポート**: **日本語** (JSTタイムゾーン、日本語プロンプト) に主眼を置くが、基盤モデルは多言語対応。
 
-## Technical Requirements
-1.  **Performance**: Fast response times for RAG searches (Pinecone).
-2.  **Accuracy**: High-quality embeddings and LLM responses (Gemini 2.0 Flash).
-3.  **Scalability**: Microservices architecture (Next.js + Python/FastAPI) deployable on Cloud Run.
-4.  **Security**: Secure authentication (NextAuth) and data protection.
+## 技術要件
+1.  **パフォーマンス**: RAG検索 (Pinecone) の高速な応答時間。
+2.  **精度**: 高品質なEmbeddingとLLMレスポンス (Gemini 2.0 Flash)。
+3.  **スケーラビリティ**: Cloud Runにデプロイ可能なマイクロサービスアーキテクチャ (Next.js + Python/FastAPI)。
+4.  **セキュリティ**: 安全な認証 (NextAuth) とデータ保護。
 
-## Business Requirements
-1.  **Monetization**: tiered subscription model (Free, Standard, Premium) managed via Stripe.
-2.  **Growth**: Referral system to incentivize user acquisition with trial extensions.
-3.  **Cross-Platform**: Web App (PWA) and LINE Bot interface.
+## ビジネス要件
+1.  **収益化**: Stripeで管理される階層型サブスクリプションモデル (Free, Standard, Premium)。
+2.  **成長**: トライアル延長でユーザー獲得を促進するリファラルシステム。
+3.  **クロスプラットフォーム**: Webアプリ (PWA) と LINEボットインターフェース。

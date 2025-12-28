@@ -1,45 +1,45 @@
-# Technical Specification
+# 技術仕様 (Technical Specification)
 
-## Tech Stack
+## 技術スタック
 
-### Frontend
--   **Framework**: Next.js 16 (App Router)
--   **Language**: TypeScript
--   **Styling**: Tailwind CSS
--   **Auth**: NextAuth.js v5 (Beta)
--   **Hosting**: likely Google Cloud Run (Dockerized)
+### フロントエンド
+-   **フレームワーク**: Next.js 16 (App Router)
+-   **言語**: TypeScript
+-   **スタイリング**: Tailwind CSS
+-   **認証**: NextAuth.js v5 (Beta)
+-   **ホスティング**: Google Cloud Run (Docker化)
 
-### Backend
--   **Framework**: FastAPI (Python)
--   **Runtime**: Python 3.10+
--   **Key Libraries**:
-    -   `google-generativeai`: Gemini API client
-    -   `pinecone-client`: Vector DB client
-    -   `prisma`: DB client (Python version)
-    -   `langchain`: Text splitting and orchestration
-    -   `ffmpeg`: Audio processing (installed in Docker/System)
+### バックエンド
+-   **フレームワーク**: FastAPI (Python)
+-   **ランタイム**: Python 3.10+
+-   **主要ライブラリ**:
+    -   `google-generativeai`: Gemini API クライアント
+    -   `pinecone-client`: ベクトルDB クライアント
+    -   `prisma`: DB クライアント (Python版)
+    -   `langchain`: テキスト分割とオーケストレーション
+    -   `ffmpeg`: 音声処理 (Docker/システムにインストール)
 
-### Database & Storage
--   **Primary DB**: PostgreSQL (User data, Chat history, Document metadata/content)
--   **Vector DB**: Pinecone (Embeddings)
--   **Object Storage**: Implicit (Local tmp or passed through to processing, but file content stored in Postgres `Document.content` for RAG).
+### データベース & ストレージ
+-   **プライマリDB**: PostgreSQL (ユーザーデータ, チャット履歴, ドキュメントメタデータ/コンテンツ)
+-   **ベクトルDB**: Pinecone (Embeddings)
+-   **オブジェクトストレージ**: 暗黙的 (ローカル一時保存または処理へのパススルー。ただしRAG用のファイルコンテンツはPostgresの `Document.content` に保存)。
 
-## AI Models
+## AIモデル
 -   **LLM**: Google Gemini 2.0 Flash (`gemini-2.0-flash`)
 -   **Embeddings**: Google Text Embedding 004 (`models/text-embedding-004`)
 
-## External Services
--   **Stripe**: Payments (Checkout, Webhooks)
--   **Google Cloud**: Deployed environment (inferred)
+## 外部サービス
+-   **Stripe**: 決済 (チェックアウト, Webhook)
+-   **Google Cloud**: デプロイ環境 (推定)
 -   **LINE Platform**: Messaging API
 
-## Development Environment
--   **Docker**: `docker-compose.yml` orchestrates Frontend, Backend, and Postgres (or connects to external DB).
--   **Prisma**: ORM for schema management.
+## 開発環境
+-   **Docker**: `docker-compose.yml` でフロントエンド、バックエンド、Postgres (または外部DB接続) をオーケストレーション。
+-   **Prisma**: スキーマ管理用ORM。
 
-## Limitations & Constraints
--   **Voice Processing**:
-    -   Free: 20 min cap.
-    -   Standard: 90 min cap.
-    -   Premium: 180 min cap.
--   **Chunking**: Text split into ~1500 chars with 150 overlap for connection to Vector DB.
+## 制限事項 & 制約
+-   **音声処理**:
+    -   Free: 上限 20分。
+    -   Standard: 上限 90分。
+    -   Premium: 上限 180分。
+-   **チャンク分割**: テキストは約1500文字で分割し、ベクトルDB接続用に150文字のオーバーラップを持たせる。

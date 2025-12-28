@@ -92,9 +92,12 @@ class AuthService: ObservableObject {
             // Firebase IDトークンを取得
             let firebaseToken = try await authResult.user.getIDToken()
 
+            // バックエンドと同期
+            let (dbUserId, _) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            
             // ユーザー情報を更新
             let appUser = AppStateManager.User(
-                id: authResult.user.uid,
+                id: dbUserId, // Use DB ID
                 displayName: authResult.user.displayName ?? user.profile?.name,
                 email: authResult.user.email ?? user.profile?.email,
                 photoURL: authResult.user.photoURL?.absoluteString
@@ -102,9 +105,6 @@ class AuthService: ObservableObject {
 
             updateCurrentUser(from: authResult.user)
             self.idToken = firebaseToken
-
-            // バックエンドと同期
-            try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
 
             return (appUser, firebaseToken)
 
@@ -143,8 +143,11 @@ class AuthService: ObservableObject {
             let authResult = try await Auth.auth().signIn(with: credential)
             let firebaseToken = try await authResult.user.getIDToken()
 
+            // バックエンドと同期
+            let (dbUserId, _) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            
             let appUser = AppStateManager.User(
-                id: authResult.user.uid,
+                id: dbUserId, // Use DB ID
                 displayName: authResult.user.displayName ?? appleIDCredential.fullName?.givenName,
                 email: authResult.user.email ?? appleIDCredential.email,
                 photoURL: authResult.user.photoURL?.absoluteString
@@ -152,9 +155,6 @@ class AuthService: ObservableObject {
 
             updateCurrentUser(from: authResult.user)
             self.idToken = firebaseToken
-
-            // バックエンドと同期
-            try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
 
             return (appUser, firebaseToken)
 
@@ -234,8 +234,11 @@ class AuthService: ObservableObject {
             let result = try await Auth.auth().signIn(with: authResult)
             let firebaseToken = try await result.user.getIDToken()
 
+            // バックエンドと同期
+            let (dbUserId, _) = try await syncUserWithBackend(userId: result.user.uid, token: firebaseToken)
+            
             let appUser = AppStateManager.User(
-                id: result.user.uid,
+                id: dbUserId, // Use DB ID
                 displayName: result.user.displayName,
                 email: result.user.email,
                 photoURL: result.user.photoURL?.absoluteString
@@ -243,9 +246,6 @@ class AuthService: ObservableObject {
 
             updateCurrentUser(from: result.user)
             self.idToken = firebaseToken
-
-            // バックエンドと同期
-            try await syncUserWithBackend(userId: result.user.uid, token: firebaseToken)
 
             return (appUser, firebaseToken)
 
@@ -296,8 +296,11 @@ class AuthService: ObservableObject {
             let authResult = try await Auth.auth().signIn(withCustomToken: customToken)
             let firebaseToken = try await authResult.user.getIDToken()
 
+            // バックエンドと同期
+            let (dbUserId, _) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            
             let appUser = AppStateManager.User(
-                id: authResult.user.uid,
+                id: dbUserId, // Use DB ID
                 displayName: authResult.user.displayName,
                 email: authResult.user.email,
                 photoURL: authResult.user.photoURL?.absoluteString
@@ -306,9 +309,6 @@ class AuthService: ObservableObject {
             updateCurrentUser(from: authResult.user)
             self.idToken = firebaseToken
             
-            // バックエンドと同期
-            try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
-
             return (appUser, firebaseToken)
 
         } catch {
@@ -330,7 +330,7 @@ class AuthService: ObservableObject {
     // MARK: - Session Management
     
     /// セッション復元時にバックエンドと同期するための公開メソッド
-    func syncUserSession(token: String) async throws -> String {
+    func syncUserSession(token: String) async throws -> (id: String, plan: String) {
         guard let userId = Auth.auth().currentUser?.uid else {
             throw AuthError.userNotFound
         }
@@ -343,7 +343,7 @@ class AuthService: ObservableObject {
         currentUser = firebaseUser
     }
 
-    private func syncUserWithBackend(userId: String, token: String) async throws -> String {
+    private func syncUserWithBackend(userId: String, token: String) async throws -> (id: String, plan: String) {
         // バックエンドの /api/auth/sync エンドポイントを叩く (Next.js)
         let url = URL(string: "\(APIService.authBaseURL)/api/auth/sync")!
         var request = URLRequest(url: url)
@@ -409,12 +409,13 @@ class AuthService: ObservableObject {
             UserDefaults.standard.set(internalUserId, forKey: "internalUserId")
             print("💾 Saved Internal User ID: \(internalUserId)")
             
-            return userPlan
+            return (internalUserId, userPlan)
             
         } catch {
             print("⚠️ Failed to parse sync response for Internal ID: \(error)")
             // パース失敗時でも同期自体は成功していれば続行。プランはデフォルトのFREEを返す
-            return "FREE"
+            // IDが取得できない場合は、暫定的にFirebase UIDを返すが、これは不完全な状態
+            return (userId, "FREE")
         }
     }
     

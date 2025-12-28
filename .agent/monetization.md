@@ -1,47 +1,47 @@
-# Monetization & Pricing
+# 収益化 & 価格設定 (Monetization & Pricing)
 
-## Plans
+## プラン (Plans)
 
 ### FREE (梅)
-- **Price**: 0 JPY
-- **Chat Limit**: 5 messages / day (with short-term cooldown logic).
-- **Voice Upload Limit**: 2 files / day.
-- **Voice Duration Limit**: 20 minutes per file (Truncated).
-- **Storage Limit**: 5 files (Knowledge).
+- **価格**: 0円
+- **チャット制限**: 5メッセージ / 日 (短期的なクールダウンロジックあり)。
+- **音声アップロード制限**: 2ファイル / 日。
+- **音声時間制限**: 1ファイルあたり20分 (超過分は切り捨て)。
+- **ストレージ制限**: 5ファイル (ナレッジ)。
 
 ### STANDARD (竹)
-- **Price**: 980 JPY / Month
-- **Chat Limit**: 100 messages / day.
-- **Voice Upload Limit**: Unlimited count.
-- **Voice Duration Limit**: 90 minutes per file.
-- **Monthly Voice Quota**: 1800 minutes (30 hours) / month.
-- **Storage Limit**: 200 files.
+- **価格**: 980円 / 月
+- **チャット制限**: 100メッセージ / 日。
+- **音声アップロード制限**: 無制限。
+- **音声時間制限**: 1ファイルあたり90分。
+- **月間音声処理枠**: 1800分 (30時間) / 月。
+- **ストレージ制限**: 200ファイル。
 
 ### PREMIUM (松)
-- **Price**: 1980 JPY / Month
-- **Chat Limit**: 200 messages / day.
-- **Voice Upload Limit**: Unlimited count.
-- **Voice Duration Limit**: 180 minutes per file (3 hours).
-- **Monthly Voice Quota**: 6000 minutes (100 hours) / month.
-- **Storage Limit**: 1000 files.
+- **価格**: 1980円 / 月
+- **チャット制限**: 200メッセージ / 日。
+- **音声アップロード制限**: 無制限。
+- **音声時間制限**: 1ファイルあたり180分 (3時間)。
+- **月間音声処理枠**: 6000分 (100時間) / 月。
+- **ストレージ制限**: 1000ファイル。
 
-## Add-ons (Tickets)
-- **Voice Ticket**: 300 JPY
-    - Grants **+90 minutes** of voice processing balance.
-    - One-time purchase.
+## アドオン (チケット)
+- **音声チケット**: 300円
+    - **+90分** の音声処理残高を追加。
+    - 都度購入 (One-time)。
 
-## Referral Program
-- **Mechanism**:
-    - User shares link.
-    - Referee signs up & uploads first voice memo.
-    - **Status**: Updated to "COMPLETED" upon referee's first voice upload.
-- **Campaign Mode (LAUNCH)**:
-    - **Referee Reward**: 30 Days of STANDARD Plan (Full).
-    - **Referrer Reward**:
-        - 1st Success: 30 Days of STANDARD Plan.
-        - 2nd+ Success: 7 Days of STANDARD TRIAL Plan.
+## リファラルプログラム (紹介制度)
+- **仕組み**:
+    - ユーザーがリンクを共有。
+    - 被紹介者がサインアップ & 初回音声メモをアップロード。
+    - **ステータス**: 被紹介者の初回アップロード時に「完了 (COMPLETED)」に更新。
+- **キャンペーンモード (ローンチ時)**:
+    - **被紹介者 (Referee) 特典**: STANDARDプラン 30日間 (フル機能)。
+    - **紹介者 (Referrer) 特典**:
+        - 初回成功: STANDARDプラン 30日間。
+        - 2回目以降: STANDARD TRIALプラン 7日間。
 
-## Payment Infrastructure
-- **Provider**: Stripe
-- **Modes**: Subscription (Recurring), Payment (One-time).
-- **Webhooks**: Handles subscription states, trial mapping, and ticket provisioning.
+## 決済インフラ
+- **プロバイダ**: Stripe
+- **モード**: サブスクリプション (継続課金),  ペイメント (都度課金)。
+- **Webhook**: サブスクリプション状態、トライアル適用、チケット付与を処理。

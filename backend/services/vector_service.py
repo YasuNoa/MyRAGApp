@@ -1,0 +1,179 @@
+import logging
+import json
+from typing import List, Optional, Dict, Any
+from db import db
+
+logger = logging.getLogger(__name__)
+
+class VectorService:
+    @staticmethod
+    async def upsert_vectors(vectors: List[Dict[str, Any]]):
+        """
+        Upsert vectors and metadata to Supabase (Postgres) via DocumentChunk table.
+        vectors: List of dicts with 'values' (embedding), 'metadata' (dict)
+        """
+        if not vectors:
+            return
+
+        try:
+            # Prisma does not support bulk insert for Unsupported types well, 
+            # so we iterate or construct a raw query. 
+            # For reliability with 'vector' type, we use execute_raw with parameterized queries.
+            
+            # Note: Batch inserting is more efficient.
+            # We construct a large VALUES ... string.
+            
+            values_list = []
+            params = []
+            
+            # $1, $2, etc. placeholders
+            # We need to manage parameter indices manually for bulk insert in raw query
+            
+            # Loop for individual inserts (Simpler implementation for now)
+            # Optimize to batch if performance is an issue.
+            
+            count = 0
+            for vec in vectors:
+                embedding = vec['values'] # List[float]
+                meta = vec['metadata']
+                
+                # Extract metadata fields
+                user_id = meta.get('userId')
+                file_id = meta.get('fileId')
+                file_name = meta.get('fileName')
+                text = meta.get('text', '')
+                chunk_index = meta.get('chunkIndex', 0)
+                tags = meta.get('tags', [])
+                doc_type = meta.get('type', 'transcript')
+                
+                # dbId in metadata -> documentId
+                document_id = meta.get('dbId') 
+                
+                # Format vector for Postgres pgvector: '[1,2,3]'
+                vector_str = f"[{','.join(map(str, embedding))}]"
+                
+                # Insert
+                query = """
+                    INSERT INTO "DocumentChunk" 
+                    ("id", "userId", "fileId", "fileName", "content", "chunkIndex", "tags", "type", "documentId", "embedding", "createdAt")
+                    VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9::vector, NOW())
+                """
+                
+                # tags (List[str]) -> Postgres Array
+                # Prisma execute_raw params handling: List[str] usually maps to ARRAY.
+                
+                await db.execute_raw(
+                    query,
+                    user_id,
+                    file_id,
+                    file_name,
+                    text,
+                    chunk_index,
+                    tags,
+                    doc_type,
+                    document_id,
+                    vector_str 
+                )
+                count += 1
+                
+            logger.info(f"Successfully inserted {count} chunks to Supabase Vector.")
+
+        except Exception as e:
+            logger.error(f"Error upserting vectors to Supabase: {e}")
+            raise e
+
+    @staticmethod
+    async def search_vectors(
+        query_embedding: List[float], 
+        top_k: int = 20, 
+        filter: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Search vectors in DocumentChunk using cosine distance.
+        Returns format similar to Pinecone for compatibility:
+        { 'matches': [ {'id': ..., 'score': ..., 'metadata': ...} ] }
+        """
+        try:
+            vector_str = f"[{','.join(map(str, query_embedding))}]"
+            
+            # Construct Filter Clause
+            # Pinecone filter example: {"userId": "...", "tags": {"$in": [...]}}
+            
+            where_clauses = []
+            params = [vector_str, top_k] # $1=vector, $2=limit
+            param_idx = 3
+            
+            if filter:
+                if 'userId' in filter:
+                    where_clauses.append(f'"userId" = ${param_idx}')
+                    params.append(filter['userId'])
+                    param_idx += 1
+                    
+                if 'tags' in filter:
+                    # Handle MongoDB-style "$in" if present
+                    tag_filter = filter['tags']
+                    if isinstance(tag_filter, dict) and '$in' in tag_filter:
+                        # Postgres: "tags" && ARRAY[...] (overlap)
+                        # or exact match? Pinecone $in means "if any of these tags are present in the document tags"?
+                        # Pinecone: "The tag field contains any of these values" -> one of logic?
+                        # Actually Pinecone 'tags': {'$in': ['a']} checks if the scalar field value is in the list.
+                        # But here 'tags' is an array column.
+                        # If query tags is ['a', 'b'], we usually want docs that have 'a' OR 'b'.
+                        # Postgres: "tags" && $3
+                        tags_list = tag_filter['$in']
+                        where_clauses.append(f'"tags" && ${param_idx}')
+                        params.append(tags_list)
+                        param_idx += 1
+                    elif isinstance(tag_filter, list):
+                        # Simple list usually implies exact match or containment? 
+                        # Let's assume overlap for array column.
+                        where_clauses.append(f'"tags" && ${param_idx}')
+                        params.append(tag_filter)
+                        param_idx += 1
+            
+            where_sql = ""
+            if where_clauses:
+                where_sql = "WHERE " + " AND ".join(where_clauses)
+            
+            # Query ordering by cosine distance (<=>)
+            # 1 - (embedding <=> query) is cosine similarity if normalized?
+            # pgvector <=> operator returns cosine distance (0..2). 
+            # Similarity = 1 - distance (approx).
+            
+            sql = f"""
+                SELECT 
+                    id, 
+                    "userId", "fileId", "fileName", "content", "chunkIndex", "tags", "type", "documentId",
+                    1 - (embedding <=> $1::vector) as score
+                FROM "DocumentChunk"
+                {where_sql}
+                ORDER BY embedding <=> $1::vector
+                LIMIT $2
+            """
+            
+            # Execute
+            rows = await db.query_raw(sql, *params)
+            
+            matches = []
+            for row in rows:
+                # Map back to Pinecone-ish format
+                matches.append({
+                    "id": row['id'],
+                    "score": float(row['score']),
+                    "metadata": {
+                        "userId": row['userId'],
+                        "fileId": row['fileId'],
+                        "fileName": row['fileName'],
+                        "text": row['content'],
+                        "chunkIndex": row['chunkIndex'],
+                        "tags": row['tags'],
+                        "type": row['type'],
+                        "dbId": row['documentId']
+                    }
+                })
+                
+            return {"matches": matches}
+
+        except Exception as e:
+            logger.error(f"Error searching vectors in Supabase: {e}")
+            raise e

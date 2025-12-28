@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import { PythonBackendService } from "@/src/services/python-backend";
+import { ReferralService } from "@/src/services/referral";
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -29,6 +30,13 @@ export async function POST(req: NextRequest) {
             userId: user.uid,
             fileId: fileId,
             tags: ["Voice Memo"]
+        });
+
+        // 2. Trigger Referral Completion (Async)
+        // If this user was invited, mark as completed and grant reward to referrer.
+        // We don't await this to avoid slowing down the response.
+        ReferralService.completeReferralIfPending(user.uid).catch(err => {
+            console.error("[Referral] Trigger failed:", err);
         });
 
         return NextResponse.json({ success: true, result: result });

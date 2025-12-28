@@ -18,7 +18,7 @@ struct MainAppView: View {
 
     // サイドバーで選択中のページを管理する
     @State private var selectedPage: Page = .chat
-    @State private var isSidebarCollapsed = false
+    @State private var isSidebarCollapsed = true
     
     // 課金画面の表示制御
     @State private var showPaywall = false

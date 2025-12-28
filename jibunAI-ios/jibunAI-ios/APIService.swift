@@ -53,7 +53,7 @@ class APIService: ObservableObject {
     // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
     // 認証用URL (Next.js Backend - Auth) - TODO: Replace with actual Web Cloud Run URL
-    static let authBaseURL = "https://myragapp-web-placeholder.run.app"
+    static let authBaseURL = "https://myragapp-frontend-968150096572.asia-northeast1.run.app"
     #endif
     
     /// Firebase ID Token（認証用）
@@ -399,8 +399,19 @@ class APIService: ObservableObject {
         return try await performRequest(endpoint: "/api/knowledge/categories", method: "GET", customBaseURL: Self.authBaseURL)
     }
     
-    /// ヘルスチェック (GET /health)
-    func healthCheck() async throws -> [String: String] {
-        return try await performRequest(endpoint: "/health", method: "GET", requiresAuth: false)
+    /// 招待特典の対象かどうかを確認 (POST /api/referral/check-eligibility)
+    func checkReferralEligibility(userId: String) async throws -> ReferralEligibilityResponse {
+        let request = ReferralEligibilityRequest(userId: userId)
+        let body = try JSONEncoder().encode(request)
+        // Next.js Backend (authBaseURL)
+        return try await performRequest(endpoint: "/api/referral/check-eligibility", method: "POST", body: body, customBaseURL: Self.authBaseURL)
+    }
+    
+    /// 招待リンク経由のエントリー (POST /api/referral/entry)
+    func registerReferral(referrerId: String, userId: String) async throws -> ReferralEntryResponse {
+        let request = ReferralEntryRequest(referrerId: referrerId, userId: userId)
+        let body = try JSONEncoder().encode(request)
+        // Next.js Backend (authBaseURL)
+        return try await performRequest(endpoint: "/api/referral/entry", method: "POST", body: body, customBaseURL: Self.authBaseURL)
     }
 }

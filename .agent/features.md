@@ -1,37 +1,37 @@
-# Features
+# Features (機能一覧)
 
-## AI & RAG
--   **Chat Interface**: Thread-based conversation with context retention.
--   **Document Ingestion**:
-    -   Supports PDF, DOCX, PPTX, XLSX, CSV.
-    -   Google Drive Picker integration.
-    -   OCR for image-heavy PDFs (via Gemini).
--   **Search**:
-    -   Semantic Search (Vector Embeddings).
-    -   Keyword/Filename Search (Postgres).
-    -   Web Search fallback (DuckDuckGo).
-    -   Tag-based filtering.
--   **Voice AI**:
-    -   Transcribes audio files (mp3, wav, m4a).
-    -   Generates concise summaries.
-    -   Speaker diarization (implied by Gemini capabilities, though code implementation depends on prompt).
+## AI & RAG (検索拡張生成)
+-   **チャットインターフェース**: コンテキスト(文脈)を保持したスレッド形式の会話。
+-   **ドキュメント取り込み**:
+    -   対応フォーマット: PDF, DOCX, PPTX, XLSX, CSV。
+    -   Google Drive Picker 連携。
+    -   画像主体 PDF の OCR 処理 (Gemini 使用)。
+-   **検索機能**:
+    -   セマンティック検索 (ベクトル埋め込みによる意味検索)。
+    -   キーワード/ファイル名検索 (Postgres)。
+    -   Web 検索フォールバック (DuckDuckGo)。
+    -   タグによるフィルタリング。
+-   **ボイス AI**:
+    -   音声ファイルの文字起こし (mp3, wav, m4a)。
+    -   簡潔な要約の生成。
+    -   話者分離 (Gemini の機能に依存)。
 
-## User System
--   **Authentication**:
-    -   Sign in with Google.
-    -   Sign in with LINE.
-    -   Guest/Trial Mode (limited usage without login).
--   **Dashboard**:
-    -   Usage statistics (Chat count, Voice minutes).
-    -   Plan management.
-    -   Knowledge base management (List, Delete, Update Tags).
+## User System (ユーザーシステム)
+-   **認証**:
+    -   Google でサインイン。
+    -   LINE でサインイン。
+    -   ゲスト/トライアルモード (ログインなしでの制限付き利用)。
+-   **ダッシュボード**:
+    -   利用統計 (チャット回数、音声処理分数)。
+    -   プラン管理。
+    -   ナレッジベース管理 (一覧表示、削除、タグ更新)。
 
-## Monetization
--   **Subscription Plans**: Free, Standard, Premium.
--   **Ticket System**: Pay-as-you-go top-ups for voice processing time.
--   **Referral Program**: Invite friends to get free Standard plan access.
--   **Coupons**: Stripe promotion code support.
+## Monetization (収益化)
+-   **サブスクリプションプラン**: Free (無料), Standard (標準), Premium (プレミアム)。
+-   **チケットシステム**: 音声処理時間を追加購入できる都度課金 (Pay-as-you-go)。
+-   **リファラルプログラム**: 友人を招待して Standard プランの無料期間を獲得。
+-   **クーポン**: Stripe プロモーションコード対応。
 
-## Platform
--   **PWA**: Installable as a home screen app.
--   **LINE Bot**: Chat capability directly from LINE (utilizing the same RAG backend).
+## Platform (プラットフォーム)
+-   **PWA (Progressive Web App)**: ホーム画面にアプリとしてインストール可能。
+-   **LINE Bot**: LINE から直接チャット機能を利用可能 (同じ RAG バックエンドを利用)。

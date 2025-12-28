@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Speech
 
 // MARK: - Page Enum
 
@@ -468,86 +469,171 @@ struct TagInputView: View {
 struct NoteView: View {
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var viewModel = VoiceNoteViewModel()
+    
+    // アラート用
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
 
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                // ヘッダー
-                Text("授業ノート (Voice Memo)")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.top, 20)
+            VStack(spacing: 0) {
+                // Header
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text")
+                        .font(.title2)
+                        .foregroundColor(Color(red: 0.3, green: 0.5, blue: 1.0)) // Blue like Web
+                    Text("授業ノート (Voice Memo)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(red: 0.3, green: 0.5, blue: 1.0))
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                
+                if let error = viewModel.errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.circle")
+                        Text(error)
+                            .font(.caption)
+                    }
+                    .foregroundColor(.red)
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
 
                 if viewModel.isProcessing {
-                    // 処理中
+                    // Processing State
                     Spacer()
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         ProgressView()
-                            .scaleEffect(2.0)
-                            .tint(.white)
-                        Text("音声を解析中...")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Text("要約を作成しています")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    Spacer()
-                } else if !viewModel.transcript.isEmpty {
-                    // 結果表示
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            // 要約カード
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("要約")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                Text(viewModel.summary)
-                                    .foregroundColor(.white.opacity(0.9))
-                            }
-                            .padding()
-                            .background(Color(red: 0.15, green: 0.15, blue: 0.2))
-                            .cornerRadius(12)
-
-                            // 全文カード
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("文字起こし")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                Text(viewModel.transcript)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                            .padding()
-                            .background(Color(red: 0.1, green: 0.1, blue: 0.1))
-                            .cornerRadius(12)
-
-                            Button("新しい録音を作成") {
-                                viewModel.transcript = ""
-                                viewModel.summary = ""
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .foregroundColor(.white)
-                            .background(Color.blue)
-                            .cornerRadius(12)
+                            .scaleEffect(1.5)
+                            .tint(Color(red: 0.3, green: 0.5, blue: 1.0))
+                        
+                        VStack(spacing: 8) {
+                            Text("AI解析中...")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text("音声データを文字起こし・要約しています")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
                         }
-                        .padding()
                     }
-                } else {
-                    // 待機/録音中画面
                     Spacer()
-
-                    VStack(spacing: 30) {
-                        // 時間表示
-                        Text(formatTime(viewModel.recordingTime))
-                            .font(.system(size: 64, weight: .light, design: .monospaced))
-                            .foregroundColor(viewModel.isRecording ? .red : .white)
-
-                        // 録音ボタン
+                    
+                } else if !viewModel.summary.isEmpty {
+                     // Result Preview State
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // Summary Card
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Circle().fill(Color(red: 0.3, green: 0.5, blue: 1.0)).frame(width: 8, height: 8)
+                                    Text("AI SUMMARY")
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(Color(red: 0.3, green: 0.5, blue: 1.0))
+                                }
+                                Text(viewModel.summary)
+                                    .font(.body)
+                                    .foregroundColor(.white)
+                                    .lineSpacing(4)
+                            }
+                            .padding(24)
+                            .background(Color(red: 0.3, green: 0.5, blue: 1.0).opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(red: 0.3, green: 0.5, blue: 1.0).opacity(0.2), lineWidth: 1)
+                            )
+                            .cornerRadius(12)
+                            
+                            // Transcript Card (Optional or collapsible)
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("TRANSCRIPT")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white.opacity(0.5))
+                                
+                                Text(viewModel.transcript)
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background(Color.black.opacity(0.3))
+                                    .cornerRadius(8)
+                            }
+                            
+                            // Tags Input
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "tag")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.6))
+                                    Text("TAGS")
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                                TagInputView(tags: $viewModel.tags)
+                            }
+                            .padding(24)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                            
+                            // Actions
+                            HStack(spacing: 16) {
+                                Button {
+                                    // Cancel
+                                    alertMessage = "本当に削除しますか？"
+                                    showingAlert = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "xmark")
+                                        Text("取り消し")
+                                    }
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.white.opacity(0.1))
+                                    .cornerRadius(12)
+                                }
+                                
+                                Button {
+                                    Task {
+                                        let success = await viewModel.saveVoice(userId: appState.currentUser?.id ?? "")
+                                        if success {
+                                            // 成功時のフィードバック (必要ならToastなど)
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "checkmark")
+                                        Text("インポート (保存)")
+                                    }
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(red: 0.15, green: 0.4, blue: 0.9)) // Blue-600
+                                    .cornerRadius(12)
+                                }
+                            }
+                        }
+                        .padding(24)
+                    }
+                    
+                } else {
+                    // Recording / Idle State
+                    VStack(spacing: 24) {
+                        Spacer()
+                        
+                        // Button
                         Button {
                             if viewModel.isRecording {
                                 viewModel.stopRecording(userId: appState.currentUser?.id ?? "")
@@ -559,46 +645,85 @@ struct NoteView: View {
                                 Circle()
                                     .fill(
                                         viewModel.isRecording
-                                            ? AnyShapeStyle(Color.red.opacity(0.2))
-                                            : AnyShapeStyle(
-                                                LinearGradient(
-                                                    colors: [
-                                                        Color(red: 0.3, green: 0.4, blue: 0.9),
-                                                        Color(red: 0.5, green: 0.6, blue: 1.0),
-                                                    ],
-                                                    startPoint: .top,
-                                                    endPoint: .bottom
-                                                ))
+                                            ? Color(red: 0.86, green: 0.15, blue: 0.15) // Red-600
+                                            : Color(red: 0.15, green: 0.4, blue: 0.9)   // Blue-600
                                     )
-                                    .frame(width: 120, height: 120)
-                                    .scaleEffect(viewModel.isRecording ? 1.1 : 1.0)
-                                    .animation(
-                                        viewModel.isRecording
-                                            ? Animation.easeInOut(duration: 1).repeatForever(
-                                                autoreverses: true) : .default,
-                                        value: viewModel.isRecording)
-
-                                Image(systemName: viewModel.isRecording ? "stop.fill" : "mic.fill")
-                                    .font(.system(size: 48))
-                                    .foregroundColor(viewModel.isRecording ? .red : .white)
+                                    .frame(width: 128, height: 128)
+                                    .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                                
+                                VStack(spacing: 8) {
+                                    Image(systemName: viewModel.isRecording ? "square.fill" : "mic.fill")
+                                        .font(.system(size: 40))
+                                    
+                                    Text(viewModel.isRecording ? "STOP" : "START")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .tracking(1.0) // letter-spacing
+                                }
+                                .foregroundColor(.white)
                             }
                         }
-
-                        Text(viewModel.isRecording ? "録音中... (タップして停止・解析)" : "タップして録音開始")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.8))
-
-                        if let error = viewModel.errorMessage {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding()
+                        .disabled(viewModel.isProcessing)
+                        
+                        // Time Display (only when recording)
+                        if viewModel.isRecording {
+                            Text(formatTime(viewModel.recordingTime))
+                                .font(.system(size: 48, weight: .light, design: .monospaced))
+                                .foregroundColor(.white)
+                        } else {
+                            Text("授業や会議を録音・文字起こし")
+                                .font(.body)
+                                .foregroundColor(.white.opacity(0.6))
                         }
+                        
+                        Spacer()
+                        
+                        // Real-time Transcript Area
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("REAL-TIME TRANSCRIPT")
+                                .font(.system(size: 12, weight: .bold))
+                                .tracking(1.0)
+                                .foregroundColor(.white.opacity(0.5))
+                            
+                            ScrollViewReader { proxy in
+                                ScrollView {
+                                    Text(viewModel.transcript.isEmpty ? (viewModel.isRecording ? "聞き取っています..." : "録音を開始するとここに文字が表示されます") : viewModel.transcript)
+                                        .font(.system(size: 14, design: .monospaced))
+                                        .foregroundColor(viewModel.transcript.isEmpty ? .gray : .white)
+                                        .lineSpacing(6)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .id("transcriptEnd")
+                                }
+                                .frame(height: 150)
+                                .onChange(of: viewModel.transcript) { _ in
+                                    withAnimation {
+                                        proxy.scrollTo("transcriptEnd", anchor: .bottom)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(24)
+                        .background(Color.black)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
                     }
-
-                    Spacer()
                 }
             }
+        }
+        .alert("確認", isPresented: $showingAlert) {
+            Button("削除する", role: .destructive) {
+                viewModel.reset()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text(alertMessage)
+        }
+        .onAppear {
+            askSpeechPermission()
         }
     }
 
@@ -606,6 +731,13 @@ struct NoteView: View {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    // 音声認識の許可を求める
+    private func askSpeechPermission() {
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            // Main thread handling if needed
+        }
     }
 }
 

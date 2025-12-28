@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
 
                 // --- Status Mapping Logic ---
                 if (sub.status === "trialing" && plan === "STANDARD") {
-                    console.log(`Subscription ${sub.id} is in TRIAL mode. Mapping to STANDARD_TRIAL.`);
-                    finalPlan = "STANDARD_TRIAL" as Plan;
+                    console.log(`Subscription ${sub.id} is in TRIAL mode. Mapping to STANDARD.`);
+                    finalPlan = "STANDARD" as Plan;
                 }
 
                 await prisma.userSubscription.upsert({
@@ -186,8 +186,8 @@ export async function POST(req: NextRequest) {
 
                 // --- Status Mapping Logic for Updates ---
                 if (sub.status === "trialing" && newPlan === "STANDARD") {
-                    // Default: Map to Trial
-                    let mappedPlan = "STANDARD_TRIAL";
+                    // Default: Map to Trial -> STANDARD
+                    let mappedPlan = "STANDARD";
 
                     // PROTECTION: If user is ALREADY STANDARD (Paid), do NOT downgrade to Trial.
                     // This happens when we extend their period via API (Referral Reward).
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
                         console.log(`User ${dbSub.userId} is already STANDARD. Maintaining STANDARD plan despite 'trialing' status (Reward Extension).`);
                         mappedPlan = "STANDARD";
                     } else {
-                        console.log(`Subscription ${sub.id} updated is trialing. Setting local plan to STANDARD_TRIAL.`);
+                        console.log(`Subscription ${sub.id} updated is trialing. Setting local plan to STANDARD.`);
                     }
 
                     newPlan = mappedPlan as any;

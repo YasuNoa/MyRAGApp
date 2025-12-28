@@ -5,7 +5,6 @@ asyncpg
 prisma
 google-generativeai
 pypdf
-pinecone==5.0.1
 tenacity
 langchain-community
 langchain-core

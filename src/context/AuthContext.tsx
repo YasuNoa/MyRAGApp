@@ -6,6 +6,7 @@ import { auth } from "@/src/lib/firebase";
 
 interface AuthContextType {
     user: User | null;
+    dbUser: any | null; // Database User Object
     loading: boolean;
     token: string | null;
     googleAccessToken: string | null;
@@ -15,6 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
+    dbUser: null,
     loading: true,
     token: null,
     googleAccessToken: null,
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [dbUser, setDbUser] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState<string | null>(null);
     const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
@@ -34,8 +37,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const t = await currentUser.getIdToken();
                 setToken(t);
                 setUser(currentUser);
+                
+                // Fetch DB User
+                try {
+                    const res = await fetch("/api/auth/me", {
+                        headers: { "Authorization": `Bearer ${t}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setDbUser(data.user);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch DB user:", e);
+                }
             } else {
                 setUser(null);
+                setDbUser(null);
                 setToken(null);
                 setGoogleAccessToken(null);
             }
@@ -64,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, token, googleAccessToken, setGoogleAccessToken, fetchWithAuth }}>
+        <AuthContext.Provider value={{ user, dbUser, loading, token, googleAccessToken, setGoogleAccessToken, fetchWithAuth }}>
             {children}
         </AuthContext.Provider>
     );

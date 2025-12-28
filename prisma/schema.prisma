@@ -67,6 +67,7 @@ model Document {
   createdAt  DateTime @default(now())      // 登録日時 (システムへのアップロード日)
   
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade) // ユーザーが削除されたらドキュメントも削除
+  chunks     DocumentChunk[] // Vector chunks for this document
 }
 
 // チャットのメッセージ履歴を管理するテーブル
@@ -146,7 +147,7 @@ model Feedback {
 enum Plan {
   FREE        // フリープラン: 無料、制限きつめ
   STANDARD    // スタンダードプラン: 月額課金、制限緩和
-  STANDARD_TRIAL // スタンダードお試し: 友達紹介などで付与される期間限定の有料級プラン
+  // STANDARD_TRIAL // スタンダードお試し: 友達紹介などで付与される期間限定の有料級プラン
   PREMIUM     // プレミアムプラン: 最上位、大量に使う人向け
 }
 
@@ -225,3 +226,30 @@ model Referral {
   @@unique([refereeId]) // 一人のユーザーが「招待される」のは1回限り (重複特典防止)
   @@index([referrerId]) // 紹介者のIDで検索しやすくする (紹介実績のカウント用)
 }
+
+model DocumentChunk {
+  id         String   @id @default(cuid())
+  
+  content    String   // Chunk text content
+  chunkIndex Int      // Order index within the file
+  
+  // Metadata matching Pinecone usage
+  userId     String
+  fileId     String?  // ID from Voice/File metadata (optional)
+  fileName   String?
+  tags       String[] @default([])
+  type       String   // "transcript" or "summary"
+  
+  // Relation to Document (Postgres)
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Vector data (Gemini uses 768 dimensions)
+  embedding  Unsupported("vector(768)")
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([documentId])
+}
+

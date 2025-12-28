@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import { AlertTriangle, Home, RefreshCw, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
 
 export default function Error({
   error,
@@ -11,10 +14,25 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
   }, [error]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Clear any session storage if needed
+      sessionStorage.clear(); 
+      router.push("/");
+    } catch (e) {
+      console.error("Logout failed:", e);
+      // Force redirect anyway
+      window.location.href = "/";
+    }
+  };
 
   return (
     <div style={{
@@ -90,6 +108,23 @@ export default function Error({
           >
             <RefreshCw size={18} />
             再試行
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="neo-button"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              backgroundColor: "#fee2e2", // Light red for danger action
+              border: "1px solid #fca5a5",
+              color: "#ef4444" 
+            }}
+          >
+            <LogOut size={18} />
+            ログアウト
           </button>
 
           <Link href="/" style={{ textDecoration: "none" }}>

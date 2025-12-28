@@ -9,7 +9,6 @@ import uuid
 import subprocess # For running ffmpeg
 from typing import List, Optional, Tuple
 from pypdf import PdfReader
-from pinecone import Pinecone
 import google.generativeai as genai
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -35,6 +34,7 @@ from prompts import (
     INTENT_CLASSIFICATION_PROMPT
 )
 from search_service import SearchService
+from services.vector_service import VectorService
 
 # Initialize Search Service
 search_service = SearchService()
@@ -61,10 +61,9 @@ logger = logging.getLogger(__name__)
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX", "myragapp")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/myragapp") 
 
-if not PINECONE_API_KEY or not GOOGLE_API_KEY:
+if not GOOGLE_API_KEY:
     logger.warning("API Keys not found in environment variables")
 
 def get_audio_duration(file_path: str) -> float:
@@ -85,10 +84,8 @@ def get_audio_duration(file_path: str) -> float:
 
 
 # --- クライアント初期化 (Initialize Clients) ---
-# Pinecone (ベクトルDB) と Gemini (AIモデル) のクライアントを初期化します。
+# Pinecone と Gemini (AIモデル) のクライアントを初期化します。
 # これらはアプリケーション全体で再利用されるため、グローバルスコープで定義します。
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index = pc.Index(PINECONE_INDEX_NAME)
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Cross-Encoder (再ランク付け用モデル) の初期化
@@ -352,10 +349,10 @@ async def process_voice_memo(
     metadata: str = Form(...),
     save: bool = Form(True)
 ):
-    # 音声メモを処理します。Geminiを使って文字起こしと要約を行い、PineconeとDBに保存します。
+    # 音声メモを処理します。Geminiを使って文字起こしと要約を行い、Supabase Vector (Postgres) とDBに保存します。
     # 1. 音声をGeminiにアップロード
     # 2. 文字起こしと要約を生成
-    # 3. テキストをチャンク分割してベクトル化 (Pineconeへ保存)
+    # 3. テキストをチャンク分割してベクトル化 (Supabaseへ保存)
     # 4. 全文と要約をDBへ保存
 
     try:
@@ -644,11 +641,7 @@ async def process_voice_memo(
 
         # バッチ更新 (Upsert)
         if save and vectors:
-            # Pineconeの制限 (通常1リクエストあたり100-1000ベクトル) を考慮
-            batch_size = 100
-            for i in range(0, len(vectors), batch_size):
-                batch = vectors[i:i+batch_size]
-                index.upsert(vectors=batch)
+            await VectorService.upsert_vectors(vectors)
 
         # DBへの保存 (dbIdが提供されている場合)
         # フロントエンド側でDocumentレコードを作成し、そのID (dbId) を渡してくる想定です。
@@ -739,11 +732,11 @@ async def process_and_save_content(
         })
         
         if len(vectors) >= 100:
-            index.upsert(vectors=vectors) 
+            await VectorService.upsert_vectors(vectors)
             vectors = []
 
     if vectors:
-        index.upsert(vectors=vectors) 
+        await VectorService.upsert_vectors(vectors)
 
     # 全文コンテンツをDBに保存
     if db_id:

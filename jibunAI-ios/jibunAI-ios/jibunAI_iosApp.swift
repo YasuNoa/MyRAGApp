@@ -28,18 +28,20 @@ struct jibunAI_iosApp: App {
         print("✅ Firebase configured")
         
         // RevenueCat初期化
-        // Info.plist から API Key を読み込む
-        if let revenueCatAPIKey = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String,
-           !revenueCatAPIKey.isEmpty,
-           revenueCatAPIKey != "YOUR_REVENUECAT_API_KEY" {
-            Purchases.logLevel = .debug
-            Purchases.configure(withAPIKey: revenueCatAPIKey)
-            print("✅ RevenueCat configured with Key from Info.plist")
-        } else {
-            print("⚠️ RevenueCat API Key NOT FOUND or is Placeholder in Info.plist")
-            print("   Please update 'RevenueCatAPIKey' in Info.plist")
-            // 開発用フォールバック（必要ならここに直書きキーを入れることも可）
-        }
+        #if DEBUG
+        // 開発環境 (Test Key)
+        let revenueCatAPIKey = "test_qdNjRyszbNUViaJgRoYXvDwnpAo"
+        print("🔧 Running in DEBUG mode with Test Key")
+        #else
+        // 本番環境 (Prod Key) - Info.plistから読み込むか、ここで指定
+        // Info.plistの値がProd用になっているのでそれを使う、または安全のため直接指定も可
+        let revenueCatAPIKey = "sk_gMlJifwmHuPPcvweJXyXxqPJWdhjm" 
+        print("🚀 Running in RELEASE mode with Prod Key")
+        #endif
+        
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: revenueCatAPIKey)
+        print("✅ RevenueCat configured")
         
         // LINE SDK初期化
         LineAuthManager.shared.setup(channelID: "2008568178")
@@ -67,6 +69,34 @@ struct jibunAI_iosApp: App {
                 .environmentObject(appState) // appStateを環境オブジェクトとして渡すことで全体で利用可能にする
                 .onOpenURL { url in
                     print("📱 Received URL: \(url)")
+                    
+                    // ユニバーサルリンク処理: /invite/[referrerId]
+                    if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+                       let pathComponents = Optional(components.path.split(separator: "/").map(String.init)),
+                       pathComponents.count >= 2,
+                       pathComponents[0] == "invite" {
+                        
+                        let referrerId = pathComponents[1]
+                        print("🎉 Invited by: \(referrerId)")
+                        
+                        // バックエンドに通知
+                        Task {
+                            // ログイン済みなら即通知
+                            if let userId = appState.currentUser?.id {
+                                do {
+                                    try await APIService.shared.registerReferral(referrerId: referrerId, userId: userId)
+                                    print("✅ Referral registered successfully")
+                                } catch {
+                                    print("⚠️ Failed to register referral: \(error)")
+                                }
+                            } else {
+                                // 未ログイン時は保存しておき、ログイン後に処理
+                                UserDefaults.standard.set(referrerId, forKey: "pendingReferrerId")
+                                print("💾 Pending referrer saved: \(referrerId)")
+                            }
+                        }
+                    }
+
                     // LINE SDK (URL Scheme)
                     if LoginManager.shared.application(.shared, open: url) {
                         return
@@ -121,9 +151,20 @@ final class AppStateManager: ObservableObject {
                         // 同期専用の処理を呼び出します（AuthService側で実装が必要ですが、現行のLoginViewのロジックを参考にします）
                         // 一旦、ログだけ出しておき、AuthServiceにpublicなsyncメソッドを追加する方針とします
                         do {
-                            let plan = try await AuthService.shared.syncUserSession(token: token)
+                            let (dbUserId, plan) = try await AuthService.shared.syncUserSession(token: token)
                             DispatchQueue.main.async {
                                 self.userPlan = plan
+                                
+                                // Internal ID (DB ID) でユーザー情報を更新
+                                if let current = self.currentUser {
+                                    self.currentUser = User(
+                                        id: dbUserId,
+                                        displayName: current.displayName,
+                                        email: current.email,
+                                        photoURL: current.photoURL
+                                    )
+                                    print("✅ Updated currentUser with DB ID: \(dbUserId)")
+                                }
                             }
                         } catch {
                             print("⚠️ Failed to restore session sync: \(error)")
@@ -198,6 +239,9 @@ final class AppStateManager: ObservableObject {
         if customerInfo.entitlements["premium"]?.isActive == true {
             print("💎 User has PLATINUM/PREMIUM entitlement!")
             newPlan = "PREMIUM"
+        } else if customerInfo.entitlements["standard"]?.isActive == true {
+             print("🔷 User has STANDARD entitlement!")
+             newPlan = "STANDARD"
         } else {
             print("⚪️ User is on FREE plan")
             newPlan = "FREE"
