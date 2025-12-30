@@ -86,7 +86,7 @@ export default function Sidebar() {
     { href: "/knowledge", label: "知識登録", icon: <PlusCircle size={20} /> },
     { href: "/note", label: "授業ノート", icon: <FileText size={20} /> },
     { href: "/knowledge/list", label: "学習済みデータ", icon: <Database size={20} /> },
-    { href: "#invite", label: "友達招待", icon: <Gift size={20} color="#fbbf24" /> },
+    // { href: "#invite", label: "友達招待", icon: <Gift size={20} color="#fbbf24" /> },
     { href: "/usage", label: "使い方", icon: <HelpCircle size={20} /> },
     { href: "/feedback", label: "お問い合わせ", icon: <MessageSquarePlus size={20} /> },
     { href: "/pricing", label: "アップグレード", icon: <Sparkles size={20} color="#fbbf24" /> },

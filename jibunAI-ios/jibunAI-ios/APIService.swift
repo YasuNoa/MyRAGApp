@@ -45,10 +45,13 @@ class APIService: ObservableObject {
     /// ベースURL
     /// ベースURL (Python Backend - Features)
     #if DEBUG
-    // 開発環境 (シミュレータ用: localhost)
-    static let baseURL = "http://localhost:8000"
-    // 認証用URL (Next.js Backend - Auth)
-    static let authBaseURL = "http://localhost:3000"
+    // 開発環境 (シミュレータ用: localhost) - コメントアウト中 (実機テストのため)
+    // static let baseURL = "http://localhost:8000"
+    // static let authBaseURL = "http://localhost:3000"
+    
+    // 実機テスト用 (Local IP: 192.168.11.21)
+    static let baseURL = "http://192.168.11.21:8000"
+    static let authBaseURL = "http://192.168.11.21:3000"
     #else
     // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"

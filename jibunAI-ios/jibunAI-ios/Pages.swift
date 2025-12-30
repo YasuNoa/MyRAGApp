@@ -1046,10 +1046,18 @@ struct SettingsView: View {
                             title: "現在のプラン",
                             hasChevron: false,
                             rightContent: {
-                                Text("\(appState.userPlan) プラン")
-                                    .font(.body)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("\(appState.userPlan) プラン")
+                                        .font(.body)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                    
+                                    if let date = appState.expirationDate {
+                                        Text("有効期限: \(date.formatted(date: .numeric, time: .omitted))")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
                             }
                         )
                         

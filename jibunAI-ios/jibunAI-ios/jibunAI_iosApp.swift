@@ -13,6 +13,7 @@ import RevenueCat
 import LineSDK
 import GoogleSignIn
 import RevenueCat
+import StoreKit
 
 @main
 struct jibunAI_iosApp: App {
@@ -30,13 +31,16 @@ struct jibunAI_iosApp: App {
         // RevenueCat初期化
         #if DEBUG
         // 開発環境 (Test Key)
-        let revenueCatAPIKey = "test_qdNjRyszbNUViaJgRoYXvDwnpAo"
-        print("🔧 Running in DEBUG mode with Test Key")
+        let revenueCatAPIKey = "appl_kzidfVNDgEaDpKUiLeOeBzWsqeN"
+        print("🔧 Running in DEBUG mode with Dev Key")
         #else
-        // 本番環境 (Prod Key) - Info.plistから読み込むか、ここで指定
-        // Info.plistの値がProd用になっているのでそれを使う、または安全のため直接指定も可
-        let revenueCatAPIKey = "sk_gMlJifwmHuPPcvweJXyXxqPJWdhjm" 
-        print("🚀 Running in RELEASE mode with Prod Key")
+        // 本番環境 (Prod Key) - Info.plistから読み込む
+        let revenueCatAPIKey = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String ?? ""
+        if revenueCatAPIKey.isEmpty {
+            print("⚠️ RevenueCatAPIKey not found in Info.plist")
+        } else {
+            print("🚀 Running in RELEASE mode with Prod Key from Info.plist")
+        }
         #endif
         
         Purchases.logLevel = .debug
@@ -59,6 +63,24 @@ struct jibunAI_iosApp: App {
             print("✅ Firebase Client ID: \(clientID)")
         } else {
             print("❌ Firebase Client ID NOT FOUND")
+        }
+        
+        // 【デバッグ】StoreKit直接確認
+        Task {
+            print("🛒 DEBUG: Starting StoreKit product fetch check...")
+            do {
+                // StoreKit 2 API
+                let products = try await Product.products(for: ["com.jibunai.standard.monthly", "com.jibunai.premium.monthly", "com.jibunai.standard.yearly", "com.jibunai.premium.yearly"])
+                print("🛒 DEBUG: StoreKit found \(products.count) products")
+                for p in products {
+                     print("   - FOUND: \(p.id): \(p.displayName) \(p.displayPrice)")
+                }
+                if products.isEmpty {
+                    print("🛒 DEBUG: ⚠️ StoreKit returned 0 products. Check Scheme > StoreKit Configuration.")
+                }
+            } catch {
+                print("🛒 DEBUG: ❌ Failed to fetch products from StoreKit: \(error)")
+            }
         }
     }
     
@@ -230,34 +252,49 @@ final class AppStateManager: ObservableObject {
         }
     }
     
+    @Published var expirationDate: Date? = nil // 有効期限
+
     /// CustomerInfoからプラン情報を更新
     func updateUserPlan(with customerInfo: CustomerInfo) {
         // "premium" という識別子のエンタイトルメントを確認
         // RevenueCatのダッシュボードで設定したEntitlement IDに合わせてください
         
         let newPlan: String
-        if customerInfo.entitlements["premium"]?.isActive == true {
+        var newExpirationDate: Date? = nil
+        
+        if let entitlement = customerInfo.entitlements["premium"], entitlement.isActive {
             print("💎 User has PLATINUM/PREMIUM entitlement!")
             newPlan = "PREMIUM"
-        } else if customerInfo.entitlements["standard"]?.isActive == true {
+            newExpirationDate = entitlement.expirationDate
+        } else if let entitlement = customerInfo.entitlements["standard"], entitlement.isActive {
              print("🔷 User has STANDARD entitlement!")
              newPlan = "STANDARD"
+             newExpirationDate = entitlement.expirationDate
         } else {
             print("⚪️ User is on FREE plan")
             newPlan = "FREE"
+            newExpirationDate = nil
         }
         
         // UI更新
         DispatchQueue.main.async {
             self.userPlan = newPlan
+            self.expirationDate = newExpirationDate
         }
         
         // バックエンド同期 (プラン変更時)
         Task {
             do {
                 try await AuthService.shared.syncUserPlan(plan: newPlan)
+                
+                // プラン更新後に最新のユーザー情報を再取得する (クレジットや制限の更新のため)
+                print("🔄 Refreshing user profile from backend...")
+                if let token = AuthService.shared.idToken {
+                    let _ = try await AuthService.shared.syncUserSession(token: token)
+                    print("✅ User profile refreshed after plan update")
+                }
             } catch {
-                print("⚠️ Failed to sync plan: \(error)")
+                print("⚠️ Failed to sync plan or refresh profile: \(error)")
             }
         }
     }

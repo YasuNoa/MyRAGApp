@@ -57,12 +57,25 @@ async def process_voice(
         if not user_id:
              raise HTTPException(status_code=400, detail="userId is required")
              
+        # Determine File Extension & MIME Type
+        file_ext = os.path.splitext(file.filename)[1]
+        mime_type = file.content_type or "audio/mpeg"
+
+        if not file_ext:
+            if mime_type == "audio/x-m4a" or mime_type == "audio/mp4":
+                file_ext = ".m4a"
+            elif mime_type == "audio/x-caf":
+                file_ext = ".caf"
+            elif mime_type == "audio/wav" or mime_type == "audio/x-wav":
+                file_ext = ".wav"
+            else:
+                 file_ext = ".mp3" # Fallback
+
         # Save Temp File (Input for Service)
-        temp_filename = f"/tmp/{uuid.uuid4()}_{file.filename}"
+        # Use UUID + inferred extension
+        temp_filename = f"/tmp/{uuid.uuid4()}{file_ext}"
         with open(temp_filename, "wb") as f:
             shutil.copyfileobj(file.file, f)
-            
-        mime_type = file.content_type or "audio/mpeg"
 
         try:
             # Call Service

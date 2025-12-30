@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF36C6AD2F03D5A000AA39A3 /* jibunAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BF36C6AC2F03D5A000AA39A3 /* jibunAI.storekit */; };
+		BF36C6AF2F03D90B00AA39A3 /* StoreKitTestCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = BF36C6AE2F03D90B00AA39A3 /* StoreKitTestCertificate.cer */; };
 		BFC280A52EF5B56200152E1C /* ReceiptParser in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A42EF5B56200152E1C /* ReceiptParser */; };
 		BFC280A72EF5B56200152E1C /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A62EF5B56200152E1C /* RevenueCat */; };
 		BFC280A92EF5B56200152E1C /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = BFC280A82EF5B56200152E1C /* RevenueCatUI */; };
@@ -41,6 +43,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BF36C6AC2F03D5A000AA39A3 /* jibunAI.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = jibunAI.storekit; sourceTree = "<group>"; };
+		BF36C6AE2F03D90B00AA39A3 /* StoreKitTestCertificate.cer */ = {isa = PBXFileReference; lastKnownFileType = file; name = StoreKitTestCertificate.cer; path = ../../StoreKitTestCertificate.cer; sourceTree = "<group>"; };
 		BF77382F2EF5389100806F3B /* jibunAI-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "jibunAI-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFC280AA2EF5B66700152E1C /* LineAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineAuthManager.swift; sourceTree = "<group>"; };
 		BFC280B22EF6680600152E1C /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -92,6 +96,8 @@
 		BF7738262EF5389100806F3B = {
 			isa = PBXGroup;
 			children = (
+				BF36C6AC2F03D5A000AA39A3 /* jibunAI.storekit */,
+				BF36C6AE2F03D90B00AA39A3 /* StoreKitTestCertificate.cer */,
 				BFC281792EFAFDB300152E1C /* jibunAI-ios */,
 				BF7738302EF5389100806F3B /* Products */,
 				BFC280AA2EF5B66700152E1C /* LineAuthManager.swift */,
@@ -223,6 +229,8 @@
 				BFC281882EFAFDB300152E1C /* Assets.xcassets in Resources */,
 				BFC281892EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md in Resources */,
 				BFC2818A2EFAFDB300152E1C /* GoogleService-Info.plist in Resources */,
+				BF36C6AF2F03D90B00AA39A3 /* StoreKitTestCertificate.cer in Resources */,
+				BF36C6AD2F03D5A000AA39A3 /* jibunAI.storekit in Resources */,
 				BFC2818C2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md in Resources */,
 				BFC2818D2EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md in Resources */,
 				BFC2818E2EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md in Resources */,
@@ -391,6 +399,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "音声を録音するために使用します。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "音声を入力して文字起こしを行うために使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -425,6 +435,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "音声を録音するために使用します。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "音声を入力して文字起こしを行うために使用します。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

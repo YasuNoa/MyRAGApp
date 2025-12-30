@@ -46,7 +46,7 @@ class ChatViewModel: ObservableObject {
         // 念のためユーザー同期を実行（チャット開始前の安全性確保）
         if let token = apiService.authToken {
             do {
-                try await AuthService.shared.syncUserSession(token: token)
+                _ = try await AuthService.shared.syncUserSession(token: token)
                 print("ChatViewModel: User synced successfully")
             } catch {
                 print("ChatViewModel: User sync failed: \(error.localizedDescription)")

@@ -107,13 +107,13 @@ class VoiceService:
         if last_voice_reset.replace(tzinfo=timezone.utc).astimezone(jst).month != now_jst.month:
             should_reset_monthly = True
 
-        # 1. FREE Plan Logic: Max 5 times / day
+        # 1. FREE Plan Logic: Max 1 time / day
         if current_plan == "FREE":
             if should_reset_daily:
                 daily_count = 0
             
-            if daily_count >= 5:
-                 raise HTTPException(status_code=403, detail="Free plan daily voice limit reached (5 files/day).")
+            if daily_count >= 1:
+                 raise HTTPException(status_code=403, detail="Free plan daily voice limit reached (1 file/day).")
             
             # Increment Count
             new_count = daily_count + 1
@@ -127,8 +127,8 @@ class VoiceService:
 
         # 2. Standard/Premium Logic: Time Limit
         else:
-            LIMITS = {"STANDARD": 1800, "PREMIUM": 6000, "STANDARD_TRIAL": 1800} # Minutes
-            monthly_limit = LIMITS.get(current_plan, 1800)
+            LIMITS = {"STANDARD": 900, "PREMIUM": 5400, "STANDARD_TRIAL": 900} # Minutes
+            monthly_limit = LIMITS.get(current_plan, 900)
             
             if should_reset_monthly:
                 monthly_minutes = 0

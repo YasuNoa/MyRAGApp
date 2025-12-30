@@ -163,7 +163,7 @@ export default function ProfileMenu({ user, providers = [], subscription }: { us
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Settings size={20} color="var(--primary-color)" />
-              <span>アカウント設定（メール・パスワード）</span>
+              <span>アカウント設定（メール・パスワード）(開発中)</span>
             </div>
             {isAccountOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </button>
