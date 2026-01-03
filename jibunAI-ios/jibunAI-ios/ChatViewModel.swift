@@ -23,6 +23,8 @@ class ChatViewModel: ObservableObject {
     @Published var categories: [String] = ["すべて"] // 初期値
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var showPaywall = false // Paywall表示フラグ
+    @Published var showLimitAlert = false // 制限到達時のアラート用フラグ
     
     private let apiService = APIService.shared
     private var cancellables = Set<AnyCancellable>()
@@ -100,7 +102,15 @@ class ChatViewModel: ObservableObject {
         } catch {
             // エラー時
             messages.removeAll { $0.isThinking }
-            errorMessage = error.localizedDescription
+            
+            // 403 Forbidden (制限到達) の場合
+            if let apiError = error as? APIError, case .forbidden(let detail) = apiError {
+                 print("Chat Limit Reached: \(detail)")
+                 // showPaywall = true // Directly showing paywall is aggressive
+                 showLimitAlert = true // Show Alert first
+            } else {
+                 errorMessage = error.localizedDescription
+            }
             
             let errorMsg = ChatMessage(text: "エラーが発生しました: \(error.localizedDescription)", isUser: false, timestamp: Date())
             messages.append(errorMsg)

@@ -177,3 +177,31 @@ class VectorService:
         except Exception as e:
             logger.error(f"Error searching vectors in Supabase: {e}")
             raise e
+    @staticmethod
+    async def delete_vectors(file_id: str, user_id: str):
+        """
+        Delete vectors/chunks associated with a fileId.
+        """
+        try:
+            query = 'DELETE FROM "DocumentChunk" WHERE "fileId" = $1 AND "userId" = $2'
+            count = await db.execute_raw(query, file_id, user_id)
+            logger.info(f"Deleted {count} chunks for file {file_id}")
+            return count
+        except Exception as e:
+            logger.error(f"Error deleting vectors from Supabase: {e}")
+            raise e
+
+    @staticmethod
+    async def update_tags(file_id: str, user_id: str, tags: List[str]):
+        """
+        Update tags for all chunks associated with a fileId.
+        """
+        try:
+            # tags list -> Postgres Array
+            query = 'UPDATE "DocumentChunk" SET "tags" = $1 WHERE "fileId" = $2 AND "userId" = $3'
+            count = await db.execute_raw(query, tags, file_id, user_id)
+            logger.info(f"Updated tags for {count} chunks for file {file_id}")
+            return count
+        except Exception as e:
+            logger.error(f"Error updating tags in Supabase: {e}")
+            raise e

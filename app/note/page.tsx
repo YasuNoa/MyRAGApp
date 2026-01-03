@@ -11,7 +11,7 @@ import { useAuth } from "@/src/context/AuthContext";
 
 export default function NotePage() {
     const router = useRouter();
-    const { fetchWithAuth } = useAuth();
+    const { fetchWithAuth, user, dbUser } = useAuth();
     const [isRecording, setIsRecording] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     
@@ -97,6 +97,14 @@ export default function NotePage() {
     const startTimeRef = useRef<number>(0);
 
     const startRecording = async () => {
+        // Pre-check Limit
+        if (dbUser?.plan === "FREE" && (dbUser?.usage?.dailyVoiceCount || 0) >= 1) {
+            if (confirm("Freeプランの1日の音声利用上限（1回）に達しました。\n無制限のPremiumプランにアップグレードしますか？")) {
+                router.push("/plan");
+            }
+            return;
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream; // Store stream

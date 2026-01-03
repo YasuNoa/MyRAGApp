@@ -166,32 +166,34 @@ struct SidebarView: View {
                     }
                     .padding(.bottom, 12)
 
-                    // アップグレードボタン
-                    Button {
-                        // RevenueCat Paywallを表示
-                        showPaywall = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "crown.fill")
-                                .foregroundColor(.yellow)
-                            Text("プレミアムにアップグレード")
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                            Spacer()
-                        }
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.3, green: 0.1, blue: 0.5),
-                                    Color(red: 0.5, green: 0.2, blue: 0.8)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                    // アップグレードボタン (Freeプランのみ)
+                    if appState.userPlan == "FREE" {
+                        Button {
+                            // RevenueCat Paywallを表示
+                            showPaywall = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                Text("プレミアムにアップグレード")
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.3, green: 0.1, blue: 0.5),
+                                        Color(red: 0.5, green: 0.2, blue: 0.8)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .cornerRadius(12)
-                        .padding(.horizontal, 16)
+                            .cornerRadius(12)
+                            .padding(.horizontal, 16)
+                        }
                     }
                 }
             }

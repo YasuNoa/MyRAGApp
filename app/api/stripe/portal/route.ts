@@ -3,12 +3,12 @@ import { verifyAuth } from "@/src/lib/auth-check";
 import { prisma } from "@/src/lib/prisma";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-    // apiVersion: "2024-11-20.acacia", // Use default
-});
+import { getStripe } from "@/src/lib/stripe";
+
 
 export async function POST(req: NextRequest) {
     try {
+        const stripe = getStripe();
         const authResult = await verifyAuth(req);
         if (!authResult || !authResult.uid) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -9,7 +9,6 @@ import SwiftUI
 import Combine
 import FirebaseCore
 import FirebaseAuth
-import RevenueCat
 import LineSDK
 import GoogleSignIn
 import RevenueCat
@@ -173,7 +172,8 @@ final class AppStateManager: ObservableObject {
                         // 同期専用の処理を呼び出します（AuthService側で実装が必要ですが、現行のLoginViewのロジックを参考にします）
                         // 一旦、ログだけ出しておき、AuthServiceにpublicなsyncメソッドを追加する方針とします
                         do {
-                            let (dbUserId, plan) = try await AuthService.shared.syncUserSession(token: token)
+                            // usageも戻り値として受け取るようにAuthServiceを修正予定
+                            let (dbUserId, plan, usage) = try await AuthService.shared.syncUserSession(token: token)
                             DispatchQueue.main.async {
                                 self.userPlan = plan
                                 
@@ -183,9 +183,10 @@ final class AppStateManager: ObservableObject {
                                         id: dbUserId,
                                         displayName: current.displayName,
                                         email: current.email,
-                                        photoURL: current.photoURL
+                                        photoURL: current.photoURL,
+                                        usage: usage
                                     )
-                                    print("✅ Updated currentUser with DB ID: \(dbUserId)")
+                                    print("✅ Updated currentUser with DB ID: \(dbUserId), Usage: \(String(describing: usage))")
                                 }
                             }
                         } catch {
@@ -198,7 +199,7 @@ final class AppStateManager: ObservableObject {
             }
             
             // 課金状態の確認開始
-            self.setupRevenueCatListener()
+            self.checkSubscriptionStatus()
         } else {
             print("⚪️ No active session found")
             self.isLoggedIn = false
@@ -228,7 +229,7 @@ final class AppStateManager: ObservableObject {
         self.userPlan = "FREE" // 一旦リセット
         
         // 課金状態の監視開始
-        self.setupRevenueCatListener()
+        self.checkSubscriptionStatus()
         print("✅ User logged in and RevenueCat listener started")
     }
     
@@ -238,13 +239,21 @@ final class AppStateManager: ObservableObject {
         var displayName: String?
         var email: String?
         var photoURL: String?
+        var usage: Usage?
+    }
+    
+    /// 利用状況
+    struct Usage: Codable {
+        let dailyVoiceCount: Int
+        let monthlyVoiceMinutes: Int
+        let purchasedVoiceBalance: Int
     }
     
     // MARK: - RevenueCat Integration
     
-    /// RevenueCatの状態監視を開始
-    private func setupRevenueCatListener() {
-        print("👀 Setting up RevenueCat listener...")
+    /// RevenueCatの状態を確認 (外部から呼び出し可能)
+    func checkSubscriptionStatus() {
+        print("👀 Checking subscription status...")
         Purchases.shared.getCustomerInfo { (customerInfo, error) in
             if let info = customerInfo {
                 self.updateUserPlan(with: info)
@@ -256,22 +265,28 @@ final class AppStateManager: ObservableObject {
 
     /// CustomerInfoからプラン情報を更新
     func updateUserPlan(with customerInfo: CustomerInfo) {
+        // [DEBUG] 全Entitlementsの出力
+        print("👀 Checking Entitlements: \(customerInfo.entitlements.all.keys)")
+        for (key, entitlement) in customerInfo.entitlements.all {
+            print("   - \(key): isActive=\(entitlement.isActive), willRenew=\(entitlement.willRenew)")
+        }
+
         // "premium" という識別子のエンタイトルメントを確認
         // RevenueCatのダッシュボードで設定したEntitlement IDに合わせてください
         
         let newPlan: String
         var newExpirationDate: Date? = nil
         
-        if let entitlement = customerInfo.entitlements["premium"], entitlement.isActive {
-            print("💎 User has PLATINUM/PREMIUM entitlement!")
+        if let entitlement = customerInfo.entitlements["jibunAI-premium"], entitlement.isActive {
+            print("💎 User has PLATINUM/PREMIUM entitlement! (jibunAI-premium)")
             newPlan = "PREMIUM"
             newExpirationDate = entitlement.expirationDate
-        } else if let entitlement = customerInfo.entitlements["standard"], entitlement.isActive {
-             print("🔷 User has STANDARD entitlement!")
+        } else if let entitlement = customerInfo.entitlements["jibunAI-standard"], entitlement.isActive {
+             print("🔷 User has STANDARD entitlement! (jibunAI-standard)")
              newPlan = "STANDARD"
              newExpirationDate = entitlement.expirationDate
         } else {
-            print("⚪️ User is on FREE plan")
+            print("⚪️ User is on FREE plan (No active entitlement found for 'jibunAI-premium' or 'jibunAI-standard')")
             newPlan = "FREE"
             newExpirationDate = nil
         }

@@ -29,6 +29,8 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
     // 状態
     @Published var isProcessing = false
     @Published var errorMessage: String?
+    @Published var showLimitAlert = false
+    @Published var limitAlertMessage: String? // アラート用メッセージ
     
     // MARK: - Private Properties
     
@@ -75,7 +77,7 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
         
         // 録音ファイルの保存準備
         let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileName = "recording_\(Date().timeIntervalSince1970).m4a"
+        let fileName = "recording_\(Date().timeIntervalSince1970).caf" // .m4a -> .caf (Linear PCM)
         audioFileURL = docDir.appendingPathComponent(fileName)
         
         let inputNode = audioEngine.inputNode
@@ -183,7 +185,7 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
             // アップロード＆処理
              let response = try await apiService.processVoice(
                 fileURL: fileURL,
-                fileName: "voice_memo.m4a", // サーバー側で拡張子を見て処理する場合に合わせて固定名または拡張子などを調整
+                fileName: "voice_memo.caf", // .m4a -> .caf (Backend supports .caf)
                 userId: userId,
                 tags: self.tags
             )
@@ -192,7 +194,15 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
             self.summary = response.summary
             
         } catch {
-            errorMessage = "解析に失敗しました: \(error.localizedDescription)"
+             // 403 Forbidden (制限到達) の場合
+             if let apiError = error as? APIError, case .forbidden(let detail) = apiError {
+                  print("Voice Limit Reached: \(detail)")
+                  // 月間制限か判定 (今回は細かく分けずともAPIからのdetailを使うか、固定文言でも良いが、月間制限のコンテキストなので月間とする)
+                  limitAlertMessage = "Freeプランの月間音声処理上限（5時間）に達しました。\n無制限プランにアップグレードしてください。"
+                  showLimitAlert = true
+             } else {
+                  errorMessage = "解析に失敗しました: \(error.localizedDescription)"
+             }
         }
         
         isProcessing = false

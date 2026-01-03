@@ -8,6 +8,7 @@
 
 import Foundation
 import Combine
+import UniformTypeIdentifiers
 
 /// APIエラー
 enum APIError: LocalizedError {
@@ -17,6 +18,7 @@ enum APIError: LocalizedError {
     case serverError(String)
     case networkError(Error)
     case unauthorized
+    case forbidden(String)
     
     var errorDescription: String? {
         switch self {
@@ -32,6 +34,8 @@ enum APIError: LocalizedError {
             return "ネットワークエラー: \(error.localizedDescription)"
         case .unauthorized:
             return "認証に失敗しました"
+        case .forbidden(let message):
+            return "アクセス制限: \(message)"
         }
     }
 }
@@ -43,19 +47,14 @@ class APIService: ObservableObject {
     // MARK: - Properties
     
     /// ベースURL
-    /// ベースURL (Python Backend - Features)
     #if DEBUG
-    // 開発環境 (シミュレータ用: localhost) - コメントアウト中 (実機テストのため)
-    // static let baseURL = "http://localhost:8000"
-    // static let authBaseURL = "http://localhost:3000"
-    
-    // 実機テスト用 (Local IP: 192.168.11.21)
+    // 開発環境 (MacのIPアドレス)
     static let baseURL = "http://192.168.11.21:8000"
     static let authBaseURL = "http://192.168.11.21:3000"
     #else
     // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
-    // 認証用URL (Next.js Backend - Auth) - TODO: Replace with actual Web Cloud Run URL
+    // 認証用URL (Next.js Backend - Auth)
     static let authBaseURL = "https://myragapp-frontend-968150096572.asia-northeast1.run.app"
     #endif
     
@@ -88,8 +87,6 @@ class APIService: ObservableObject {
         requiresAuth: Bool = true,
         customBaseURL: String? = nil
     ) async throws -> T {
-        
-        // Use customBaseURL if provided, otherwise default to Self.baseURL
         let baseURLToUse = customBaseURL ?? Self.baseURL
         
         guard let url = URL(string: "\(baseURLToUse)\(endpoint)") else {
@@ -115,7 +112,6 @@ class APIService: ObservableObject {
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
             }
-            
             // ステータスコードチェック
             switch httpResponse.statusCode {
             case 200...299:
@@ -123,6 +119,13 @@ class APIService: ObservableObject {
                 break
             case 401:
                 throw APIError.unauthorized
+            case 403:
+                // Limit Reached / Forbidden
+                if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    throw APIError.forbidden(errorResponse.detail)
+                } else {
+                    throw APIError.forbidden("アクセスが拒否されました")
+                }
             case 400...599:
                 // エラーレスポンスをパース
                 if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
@@ -227,17 +230,38 @@ class APIService: ObservableObject {
         }
     }
     
+    
+    // MARK: - Upload Progress Delegate
+    private class UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
+        var progressHandler: ((Double) -> Void)?
+        
+        init(progressHandler: ((Double) -> Void)?) {
+            self.progressHandler = progressHandler
+        }
+        
+        func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+             let progress = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+             DispatchQueue.main.async {
+                 self.progressHandler?(progress)
+             }
+        }
+    }
+
     /// マルチパートフォームデータのアップロード (ファイルURLからストリーム)
     private func uploadMultipartFile<T: Decodable>(
         endpoint: String,
         fileURL: URL,
         fileName: String,
         metadata: [String: Any],
-        requiresAuth: Bool = true
+        requiresAuth: Bool = true,
+        progressHandler: ((Double) -> Void)? = nil
     ) async throws -> T {
         guard let url = URL(string: "\(Self.baseURL)\(endpoint)") else {
             throw APIError.invalidURL
         }
+        
+        print("➡️ [Upload] Starting upload to: \(url.absoluteString)")
+        print("➡️ [Upload] File: \(fileURL.lastPathComponent), Name: \(fileName)")
         
         let boundary = UUID().uuidString
         var request = URLRequest(url: url)
@@ -251,6 +275,9 @@ class APIService: ObservableObject {
         // 一時ファイルを作成してボディを書き込む
         let tempDir = FileManager.default.temporaryDirectory
         let tempFileURL = tempDir.appendingPathComponent(UUID().uuidString)
+        
+        // ファイルを空で作成
+        FileManager.default.createFile(atPath: tempFileURL.path, contents: nil, attributes: nil)
         
         do {
             let fileHandle = try FileHandle(forWritingTo: tempFileURL)
@@ -271,7 +298,6 @@ class APIService: ObservableObject {
             fileHandle.write("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
             
             // 3. File Content (Stream from original file)
-            // 大きなファイルをチャンクで読み込んで書き込む
             let originalFileHandle = try FileHandle(forReadingFrom: fileURL)
             defer { try? originalFileHandle.close() }
             
@@ -286,29 +312,41 @@ class APIService: ObservableObject {
             fileHandle.write("--\(boundary)--\r\n".data(using: .utf8)!)
             
         } catch {
+            print("❌ [Upload] Failed to prepare body: \(error)")
             throw APIError.serverError("Failed to prepare upload body: \(error.localizedDescription)")
         }
         
-        // アップロード実行
+        // アップロード実行 (Delegateを使って進捗を取得)
         do {
-            let (data, response) = try await session.upload(for: request, fromFile: tempFileURL)
+            // プログレス監視用のセッションを作成
+            let delegate = UploadProgressDelegate(progressHandler: progressHandler)
+            let progressSession = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+            
+            let (data, response) = try await progressSession.upload(for: request, fromFile: tempFileURL)
+            progressSession.finishTasksAndInvalidate() // セッションの解放
             
             // クリーンアップ
             try? FileManager.default.removeItem(at: tempFileURL)
             
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ [Upload] Invalid response type")
                 throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
             }
+            
+            print("⬅️ [Upload] Response Status: \(httpResponse.statusCode)")
             
             switch httpResponse.statusCode {
             case 200...299:
                 break
             case 401:
+                print("❌ [Upload] Unauthorized")
                 throw APIError.unauthorized
             default:
                 if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                    print("❌ [Upload] Server Error: \(errorResponse.detail)")
                     throw APIError.serverError(errorResponse.detail)
                 } else {
+                    print("❌ [Upload] Server Error Code: \(httpResponse.statusCode)")
                     throw APIError.serverError("HTTPステータスコード: \(httpResponse.statusCode)")
                 }
             }
@@ -316,13 +354,16 @@ class APIService: ObservableObject {
             do {
                 return try JSONDecoder().decode(T.self, from: data)
             } catch {
+                print("❌ [Upload] Decoding Error: \(error)")
                 throw APIError.decodingError(error)
             }
         } catch let error as APIError {
             try? FileManager.default.removeItem(at: tempFileURL)
+            print("❌ [Upload] APIError: \(error)")
             throw error
         } catch {
             try? FileManager.default.removeItem(at: tempFileURL)
+            print("❌ [Upload] Network/Other Error: \(error)")
             throw APIError.networkError(error)
         }
     }
@@ -355,7 +396,7 @@ class APIService: ObservableObject {
     }
     
     /// 音声保存 (POST /voice/save)
-    func saveVoice(userId: String, transcript: String, summary: String, title: String, tags: [String] = []) async throws -> SuccessResponse {
+    func saveVoice(userId: String, transcript: String, summary: String, title: String, tags: [String] = []) async throws -> VoiceSaveResponse {
         let request = SaveVoiceRequest(userId: userId, transcript: transcript, summary: summary, title: title, tags: tags)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/voice/save", method: "POST", body: body)
@@ -380,6 +421,29 @@ class APIService: ObservableObject {
         let request = TextImportRequest(text: text, userId: userId, source: source, dbId: dbId, tags: tags, summary: summary)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/import-text", method: "POST", body: body)
+    }
+    
+    /// ファイルインポート (POST /import-file) - PDF, 画像, 音声, Officeなど
+    func importFile(
+        fileURL: URL,
+        userId: String,
+        userPlan: String = "FREE",
+        tags: [String] = [],
+        progressHandler: ((Double) -> Void)? = nil
+    ) async throws -> SuccessResponse {
+        let metadata: [String: Any] = [
+            "userId": userId,
+            "userPlan": userPlan,
+            "tags": tags,
+            "mimeType": fileURL.mimeType()
+        ]
+        return try await uploadMultipartFile(
+            endpoint: "/import-file",
+            fileURL: fileURL,
+            fileName: fileURL.lastPathComponent,
+            metadata: metadata,
+            progressHandler: progressHandler
+        )
     }
     
     /// ファイル削除 (POST /delete-file)
@@ -416,5 +480,40 @@ class APIService: ObservableObject {
         let body = try JSONEncoder().encode(request)
         // Next.js Backend (authBaseURL)
         return try await performRequest(endpoint: "/api/referral/entry", method: "POST", body: body, customBaseURL: Self.authBaseURL)
+    }
+    
+    // MARK: - Knowledge Base API (Web)
+    
+    /// ナレッジ一覧取得 (GET /api/knowledge/list)
+    func fetchKnowledgeList() async throws -> KnowledgeListResponse {
+        return try await performRequest(endpoint: "/api/knowledge/list", method: "GET", customBaseURL: Self.authBaseURL)
+    }
+    
+    /// ナレッジ削除 (DELETE /api/knowledge/delete)
+    func deleteKnowledge(id: String) async throws -> WebSuccessResponse {
+        let request = DeleteKnowledgeRequest(id: id)
+        let body = try JSONEncoder().encode(request)
+        return try await performRequest(endpoint: "/api/knowledge/delete", method: "DELETE", body: body, customBaseURL: Self.authBaseURL)
+    }
+    
+    /// ナレッジ更新 (POST /api/knowledge/update)
+    func updateKnowledge(id: String, tags: [String], title: String?) async throws -> WebSuccessResponse {
+        let request = UpdateKnowledgeRequest(id: id, tags: tags, title: title)
+        let body = try JSONEncoder().encode(request)
+        return try await performRequest(endpoint: "/api/knowledge/update", method: "POST", body: body, customBaseURL: Self.authBaseURL)
+    }
+}
+
+// MARK: - Extensions
+
+extension URL {
+    func mimeType() -> String {
+        let pathExtension = self.pathExtension
+        if let type = UTType(filenameExtension: pathExtension) {
+            if let mimetype = type.preferredMIMEType {
+                return mimetype
+            }
+        }
+        return "application/octet-stream"
     }
 }

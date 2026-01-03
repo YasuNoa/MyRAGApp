@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
 
         const userWithPlan = {
             ...user,
-            plan: user.subscription?.plan ?? "FREE"
+            plan: user.subscription?.plan ?? "FREE",
+            usage: {
+                dailyVoiceCount: user.subscription?.dailyVoiceCount ?? 0,
+                monthlyVoiceMinutes: user.subscription?.monthlyVoiceMinutes ?? 0,
+                purchasedVoiceBalance: user.subscription?.purchasedVoiceBalance ?? 0
+            }
         };
 
         return NextResponse.json({ user: userWithPlan });

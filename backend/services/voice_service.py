@@ -107,25 +107,39 @@ class VoiceService:
         if last_voice_reset.replace(tzinfo=timezone.utc).astimezone(jst).month != now_jst.month:
             should_reset_monthly = True
 
-        # 1. FREE Plan Logic: Max 1 time / day
+        # 1. FREE Plan Logic: Max 1 file/day AND Max 5 hours/month
         if current_plan == "FREE":
+            # Daily Limit Check
             if should_reset_daily:
                 daily_count = 0
             
             if daily_count >= 1:
                  raise HTTPException(status_code=403, detail="Free plan daily voice limit reached (1 file/day).")
             
-            # Increment Count
-            new_count = daily_count + 1
+            # Monthly Limit Check (New: 5h = 300m)
+            if should_reset_monthly:
+                monthly_minutes = 0
+                last_voice_reset = now
+
+            duration_min = int(duration_sec / 60) + 1 # Round up
+            if monthly_minutes + duration_min > 300:
+                 raise HTTPException(
+                     status_code=403, 
+                     detail=f"Free plan monthly audio limit exceeded. {monthly_minutes}m used + {duration_min}m required > 300m available."
+                )
+
+            # Update Usage (Daily + Monthly)
             await db.usersubscription.update(
                 where={'userId': user_id},
                 data={
-                    'dailyVoiceCount': new_count,
-                    'lastVoiceDate': now
+                    'dailyVoiceCount': daily_count + 1,
+                    'lastVoiceDate': now,
+                    'monthlyVoiceMinutes': monthly_minutes + duration_min,
+                    'lastVoiceResetDate': last_voice_reset
                 }
             )
 
-        # 2. Standard/Premium Logic: Time Limit
+        # 2. Standard/Premium Logic: Time Limit Only
         else:
             LIMITS = {"STANDARD": 900, "PREMIUM": 5400, "STANDARD_TRIAL": 900} # Minutes
             monthly_limit = LIMITS.get(current_plan, 900)
@@ -176,10 +190,10 @@ class VoiceService:
                 
                 # 3. Plan Logic
                 if user_plan == "FREE":
-                    # Check Duration Limit (20 mins = 1200s)
-                    if duration_sec > 1200:
-                        logger.info("Free plan: Trimming >20m audio")
-                        trimmed = cls.trim_audio(file_path, 1200)
+                    # Check Duration Limit (15 mins = 900s)
+                    if duration_sec > 900:
+                        logger.info("Free plan: Trimming >15m audio")
+                        trimmed = cls.trim_audio(file_path, 900)
                         if trimmed != file_path:
                             final_filename = trimmed
                             temp_files_to_cleanup.append(trimmed)

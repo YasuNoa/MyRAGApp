@@ -276,7 +276,18 @@ async def _process_pdf_with_gemini(content: bytes) -> str:
         model = genai.GenerativeModel('gemini-2.0-flash')
         prompt = PDF_TRANSCRIPTION_PROMPT
         response = model.generate_content([prompt, uploaded_file])
-        return response.text
+        
+        # Check if we have a valid response
+        if not response.candidates:
+            logger.warning(f"Gemini PDF processing returned no candidates. Prompt feedback: {response.prompt_feedback}")
+            return ""
+            
+        try:
+            return response.text
+        except ValueError:
+            # response.text raises ValueError if the response was blocked
+            logger.warning(f"Gemini PDF processing blocked. Prompt feedback: {response.prompt_feedback}")
+            return ""
     except Exception as e:
         logger.error(f"Error processing PDF with Gemini: {e}")
         return ""
@@ -686,6 +697,36 @@ import stripe
 # Setup Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+async def create_document_record(
+    doc_id: str,
+    user_id: str,
+    title: str,
+    source: str = "import",
+    mime_type: Optional[str] = None,
+    tags: List[str] = []
+):
+    if not db_pool:
+        return
+    
+    try:
+        async with db_pool.acquire() as conn:
+            # Check if exists (idempotency)
+            row = await conn.fetchrow('SELECT id FROM "Document" WHERE id = $1', doc_id)
+            if row:
+                return
+
+            query = """
+                INSERT INTO "Document" 
+                ("id", "userId", "title", "source", "mimeType", "tags", "createdAt")
+                VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            """
+            await conn.execute(query, doc_id, user_id, title, source, mime_type, tags)
+            logger.info(f"Created Document record: {doc_id}")
+    except Exception as e:
+        logger.error(f"Error creating Document record: {e}")
+        # Don't raise here, allow flow to continue? No, if this fails, chunks will fail.
+        raise e
+
 # --- 共通処理用ヘルパー関数 (Helper Function for Common Processing) ---
 async def process_and_save_content(
     text: str, 
@@ -693,37 +734,52 @@ async def process_and_save_content(
     summary: Optional[str] = None
 ):
 
-    if not text.strip():
+    if not text.strip() and not summary:
         raise HTTPException(status_code=400, detail="Extracted text is empty")
 
     user_id = metadata.get("userId")
-    file_id = metadata.get("fileId")
+    # file_id is legacy, we use dbId for Document ID
+    file_id = metadata.get("fileId") 
     tags = metadata.get("tags", [])
     file_name = metadata.get("fileName", "Unknown")
     db_id = metadata.get("dbId")
     mime_type = metadata.get("mimeType") # Get mimeType
 
+    # Ensure we have a db_id (Document ID) and the Document record exists
+    if not db_id:
+        db_id = str(uuid.uuid4())
+        metadata["dbId"] = db_id
+    
+    # Create Document Row if needed
+    if user_id: # Only if we have a user to attach to
+        await create_document_record(
+            doc_id=db_id,
+            user_id=user_id,
+            title=file_name,
+            source=metadata.get("source", "import"),
+            mime_type=mime_type,
+            tags=tags
+        )
+
     # テキストのチャンク分割
     chunks = chunk_text(text)
     logger.info(f"Generated {len(chunks)} chunks for file {file_name}")
 
-    # ベクトル化とPineconeへの保存
+    # ベクトル化とPgvectorへの保存
     vectors = []
     for i, chunk in enumerate(chunks):
-        vector_id = f"{user_id}#{file_id}#{i}"
+        vector_id = f"{user_id}#{db_id}#{i}"
         embedding = get_embedding(chunk)
         
         metadata_payload = {
             "userId": user_id,
-            "fileId": file_id,
+            "fileId": db_id, # Use dbId as fileId for consistency
+            "dbId": db_id,   # Explicit documentId
             "fileName": file_name,
             "text": chunk,
             "chunkIndex": i,
             "tags": tags
         }
-        
-        if db_id:
-            metadata_payload["dbId"] = db_id
         
         vectors.append({
             "id": vector_id,
@@ -738,10 +794,9 @@ async def process_and_save_content(
     if vectors:
         await VectorService.upsert_vectors(vectors)
 
-    # 全文コンテンツをDBに保存
+    # 全文コンテンツをDBに保存 (UPDATE)
+    # create_document_recordで作成済みなので、ここではcontent, summaryを更新
     if db_id:
-         # mimeTypeがあれば渡します
-         
          # PostgreSQLはNULLバイトを許容しないため、サニタイズします
          clean_text = text.replace("\x00", "")
          clean_summary = summary.replace("\x00", "") if summary else None
@@ -1188,6 +1243,9 @@ async def import_file(
     
     try:
         meta_dict = json.loads(metadata)
+        # Inject fileName from UploadFile
+        meta_dict["fileName"] = file.filename
+        
         mime_type = meta_dict.get("mimeType")
         user_plan = meta_dict.get("userPlan", "FREE") # Default to FREE if not specified
         user_id = meta_dict.get("userId", "")
@@ -1305,8 +1363,8 @@ async def delete_file(request: DeleteRequest):
     try:
         print(f"Received delete request for file: {request.fileId} user: {request.userId}")
         
-        # Delete by metadata filter
-        index.delete(filter={"fileId": request.fileId, "userId": request.userId})
+        # Use Supabase Vector Service
+        await VectorService.delete_vectors(file_id=request.fileId, user_id=request.userId)
         
         return {"status": "success", "message": f"Deleted vectors for file {request.fileId}"}
 
@@ -1326,44 +1384,10 @@ async def update_tags(request: UpdateTagsRequest):
     try:
         print(f"Received update tags request for file: {request.fileId} user: {request.userId} tags: {request.tags}")
         
-        # Pineconeは「フィルタによる更新」をサポートしていません。ベクトルIDを指定する必要があります。
-        # ベクトルIDは "{userId}#{fileId}#{chunkIndex}" という形式で生成しています。
-        # チャンク数が不明なため、0から順にIDを生成して存在確認を行います。
-        # (通常は1000チャンク未満と想定)
+        # Use Supabase Vector Service
+        count = await VectorService.update_tags(file_id=request.fileId, user_id=request.userId, tags=request.tags)
         
-        # 存在確認を行うIDリストの生成 (バッチ処理で414エラーを回避)
-        existing_ids = []
-        batch_size = 100
-        
-        # 最大1000チャンク + 要約ベクトルまでチェック
-        all_potential_ids = [f"{request.userId}#{request.fileId}#{i}" for i in range(1000)]
-        all_potential_ids.append(f"{request.userId}#{request.fileId}#summary")
-
-        for i in range(0, len(all_potential_ids), batch_size):
-            batch_ids = all_potential_ids[i:i+batch_size]
-            try:
-                fetch_response = index.fetch(ids=batch_ids)
-                if fetch_response and 'vectors' in fetch_response:
-                    existing_ids.extend(list(fetch_response['vectors'].keys()))
-            except Exception as e:
-                print(f"Error fetching batch {i}: {e}")
-                # 一部のバッチが失敗しても処理を継続
-                continue
-        
-        if not existing_ids:
-            return {"status": "warning", "message": "No vectors found to update"}
-
-        print(f"Found {len(existing_ids)} vectors to update.")
-        
-        # 各ベクトルのメタデータを更新
-        # Pineconeのupdateはベクトルごとに行う必要があります
-        for vector_id in existing_ids:
-            index.update(
-                id=vector_id,
-                set_metadata={"tags": request.tags}
-            )
-            
-        return {"status": "success", "message": f"Updated tags for {len(existing_ids)} vectors"}
+        return {"status": "success", "message": f"Updated tags for {count} vectors"}
 
     except Exception as e:
         print(f"Error updating tags: {e}")
@@ -1374,7 +1398,7 @@ async def update_tags(request: UpdateTagsRequest):
 @app.post("/import-text")
 async def import_text(request: TextImportRequest):
     # テキストデータを直接インポートします (ファイルアップロードではない場合)。
-    # テキストをチャンク分割し、ベクトル化してPineconeに保存します。
+    # テキストをチャンク分割し、ベクトル化してSupabase Vectorに保存します。
     try:
         print(f"Received text import request from user: {request.userId}")
         
@@ -1389,7 +1413,16 @@ async def import_text(request: TextImportRequest):
         else:
             file_id = str(uuid.uuid4()) # Should not happen with new frontend logic
 
-        # ベクトル化とPineconeへの保存
+        # 親Documentレコードを作成 (FK制約回避)
+        await create_document_record(
+            doc_id=file_id,
+            user_id=request.userId,
+            title="Note", 
+            source=request.source or "manual",
+            tags=request.tags
+        )
+
+        # ベクトル化とSupabase Vector(pgvector)への保存
         vectors = []
         for i, chunk in enumerate(chunks):
             vector_id = f"{request.userId}#{file_id}#{i}"
@@ -1428,12 +1461,9 @@ async def import_text(request: TextImportRequest):
                 }
             })
 
-        # バッチ更新 (Upsert)
+        # Upsert to Supabase
         if vectors:
-            batch_size = 100
-            for i in range(0, len(vectors), batch_size):
-                batch = vectors[i:i+batch_size]
-                index.upsert(vectors=batch)
+            await VectorService.upsert_vectors(vectors)
 
         # dbIdが提供されている場合、全文をDBに保存
         if request.dbId:
@@ -1510,19 +1540,14 @@ async def query_knowledge(request: QueryRequest):
         # 1. Generate Embedding for Query
         query_embedding = get_embedding(request.query)
         
-        # 2. Pinecone検索
-        index = pc.Index(PINECONE_INDEX_NAME)
-        
-        # タグが指定されている場合、フィルタを作成
+        # 2. Vector Search (Supabase)
         filter_dict = {"userId": request.userId}
         if request.tags:
-            # Pineconeの "$in" 演算子を使用して、指定されたタグのいずれかを持つドキュメントを検索します。
-            # 例: tags=["Math", "Science"] の場合、"Math" または "Science" タグを持つドキュメントがヒットします。
             filter_dict["tags"] = {"$in": request.tags}
             print(f"Applying tag filter: {filter_dict}")
             
-        search_results = index.query(
-            vector=query_embedding,
+        search_results = await VectorService.search_vectors(
+            query_embedding=query_embedding,
             top_k=20,
             include_metadata=True,
             filter=filter_dict
@@ -1565,7 +1590,7 @@ async def query_knowledge(request: QueryRequest):
                      seen_doc_ids.add(doc['id'])
 
         if not context_parts:
-            print("No matches found in Pinecone OR Filename search. Proceeding with empty context fallback.")
+            print("No matches found in Vector Store OR Filename search. Proceeding with empty context fallback.")
             context = "関連する学習データは見つかりませんでした。"
         else:
             context = "\n\n---\n\n".join(context_parts)
@@ -1581,7 +1606,7 @@ async def query_knowledge(request: QueryRequest):
         
         web_search_result = ""
         
-        # Pineconeヒットなし かつ 内部データについての質問なら、Web検索をスキップ
+        # Vector Storeヒットなし かつ 内部データについての質問なら、Web検索をスキップ
         # Update: We now check if valid context was found (from either Vector or Filename search)
         context_not_found_msg = "関連する学習データは見つかりませんでした。"
         has_context = context != context_not_found_msg

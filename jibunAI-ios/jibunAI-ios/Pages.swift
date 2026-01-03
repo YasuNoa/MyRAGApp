@@ -4,9 +4,12 @@
 //
 //  各ページの定義とビュー
 //
-
+import Foundation
+import Combine
 import SwiftUI
 import Speech
+import UniformTypeIdentifiers
+import PDFKit
 
 // MARK: - Page Enum
 
@@ -200,6 +203,18 @@ struct ChatView: View {
             // カテゴリ（タグ）を最新化
             await viewModel.loadCategories()
         }
+        .sheet(isPresented: $viewModel.showPaywall) {
+             PaywallView(onPurchaseCompleted: {
+                 viewModel.showPaywall = false
+             })
+        }
+        .alert("利用上限に達しました", isPresented: $viewModel.showLimitAlert) {
+            Button("プランを確認", role: .cancel) {
+                viewModel.showPaywall = true
+            }
+        } message: {
+            Text("Freeプランの1日のチャット利用上限（10回）に達しました。\n無制限プランにアップグレードしてください。")
+        }
     }
 
     private func sendMessage() {
@@ -295,6 +310,7 @@ struct KnowledgeView: View {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
 
+            VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // タイトル
@@ -333,47 +349,51 @@ struct KnowledgeView: View {
                                 .background(Color(red: 0.15, green: 0.15, blue: 0.15))
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
+                                .toolbar {
+                                    ToolbarItemGroup(placement: .keyboard) {
+                                        Spacer()
+                                        Button("キーボードを閉じる") {
+                                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                        }
+                                        Button {
+                                            print("🟣 [UI] Toolbar Save button tapped")
+                                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                            Task { await saveText() }
+                                        } label: {
+                                             Text("保存")
+                                                 .bold()
+                                                 .foregroundColor(.white)
+                                                 .padding(.horizontal, 20)
+                                                 .padding(.vertical, 8)
+                                                 .background(
+                                                     (isSaving || inputText.isEmpty) ? Color.gray : Color(red: 0.4, green: 0.5, blue: 0.9)
+                                                 )
+                                                 .cornerRadius(20)
+                                        }
+                                        .disabled(isSaving || inputText.isEmpty)
+                                    }
+                                }
 
-                            Button {
-                                // 保存処理
-                            } label: {
-                                Text("保存する")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 0.5, green: 0.6, blue: 1.0),
-                                                Color(red: 0.4, green: 0.5, blue: 0.9),
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .cornerRadius(12)
-                            }
                         }
                     } else {
-                        // ファイルアップロードエリア
+                        // ファイルアップロードエリア (統合)
                         VStack(spacing: 16) {
-                            Text("Google Drive からインポート")
+                            Text("ファイルからインポート")
                                 .font(.headline)
                                 .foregroundColor(.white)
 
                             Text(
-                                "下のボタンを押すとGoogle Driveのファイル選択画面が開きます。\nインポートしたいファイル（PDF, Googleドキュメント等）を選択してください。"
+                                "iCloud Drive, Google Drive, Dropboxなどの\nクラウドストレージや、ローカルファイルを選択できます。"
                             )
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.6))
                             .multilineTextAlignment(.center)
 
                             Button {
-                                // Google Drive連携
+                                isImporting = true
                             } label: {
                                 HStack {
-                                    Image(systemName: "icloud.and.arrow.down")
+                                    Image(systemName: "folder.badge.plus")
                                     Text("ファイルを選択")
                                 }
                                 .font(.headline)
@@ -383,13 +403,293 @@ struct KnowledgeView: View {
                                 .background(Color.white.opacity(0.1))
                                 .cornerRadius(12)
                             }
+                            
+                            Text("対応: PDF, 画像, Office, テキストなど")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
                         }
+                        .padding(.horizontal)
+                        
+                        Spacer()
                     }
                 }
                 .padding(.horizontal, 20)
             }
+            
+            if selectedTab == .text {
+                VStack {
+                    Button {
+                        print("🟣 [UI] Save button tapped. isSaving: \(isSaving), textCount: \(inputText.count)")
+                        
+                        if isSaving { return }
+                        if inputText.isEmpty { return }
+
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                        generator.impactOccurred()
+                        
+                        Task {
+                            print("🟣 [UI] Starting saveText task")
+                            await saveText()
+                        }
+                    } label: {
+                        if isSaving {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("保存する")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .contentShape(Rectangle())
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.5, green: 0.6, blue: 1.0),
+                                Color(red: 0.4, green: 0.5, blue: 0.9),
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(12)
+                    .opacity((isSaving || inputText.isEmpty) ? 0.6 : 1.0)
+                    .scaleEffect(isSaving ? 0.98 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: isSaving)
+                    .buttonStyle(PressableButtonStyle())
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            } // End VStack wrapper
+            
+            // Loading Overlay
+            if isSaving {
+                ZStack {
+                    Color.black.opacity(0.8)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        ProgressView(value: uploadProgress, total: 1.0)
+                            .progressViewStyle(LinearProgressViewStyle(tint: .white))
+                            .frame(width: 200)
+                            .scaleEffect(1.2)
+                        
+                        Text("\(Int(uploadProgress * 100))%")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Text("保存中...")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .transition(.opacity)
+                .zIndex(100) // Ensure it's on top
+            }
+        }
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.data, .content], 
+            allowsMultipleSelection: false
+        ) { result in
+            handleFileImport(result: result)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(onPurchaseCompleted: {
+                showPaywall = false
+            })
+        }
+        .alert("利用上限に達しました", isPresented: $showLimitAlert) {
+            Button("プランを確認", role: .cancel) {
+                showPaywall = true
+            }
+        } message: {
+            Text("Freeプランのナレッジ保存上限（5件）に達しました。\n無制限プランにアップグレードしてください。")
+        }
+        .alert("エラー", isPresented: Binding<Bool>(
+            get: { errorMessage != nil },
+            set: { _ in errorMessage = nil }
+        )) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
+    
+    // MARK: - Local State & Actions
+    
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var showPaywall = false
+    @State private var showLimitAlert = false
+    @State private var isImporting = false // ファイルインポート用
+    @State private var uploadProgress: Double = 0.0 // アップロード進捗 (0.0 - 1.0)
+    
+    private let apiService = APIService.shared
+    @EnvironmentObject var appState: AppStateManager
+
+    private func handleFileImport(result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            guard let user = appState.currentUser else { return }
+            
+            // Googleドキュメントなどのショートカットファイルをチェック
+            let invalidExtensions = ["gdoc", "gsheet", "gslides"]
+            if invalidExtensions.contains(url.pathExtension.lowercased()) {
+                errorMessage = "Googleドキュメントなどのショートカットファイルは直接アップロードできません。\nGoogleアプリやPCから「PDF」などに書き出してから選択してください。"
+                return
+            }
+            
+            guard url.startAccessingSecurityScopedResource() else {
+                errorMessage = "ファイルへのアクセス権限がありません"
+                return
+            }
+            
+            // To be safe with async, we should copy the file to a temp location we own.
+            let tempDir = FileManager.default.temporaryDirectory
+            let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
+            do {
+                if FileManager.default.fileExists(atPath: tempURL.path) {
+                    try FileManager.default.removeItem(at: tempURL)
+                }
+                try FileManager.default.copyItem(at: url, to: tempURL)
+            } catch {
+                errorMessage = "ファイルの準備に失敗しました: \(error.localizedDescription)"
+                url.stopAccessingSecurityScopedResource()
+                return
+            }
+            url.stopAccessingSecurityScopedResource() // Check original access finished
+            
+            // Upload Task
+            isSaving = true
+            uploadProgress = 0.0
+            errorMessage = nil
+            
+            Task {
+                do {
+                    let _ = try await apiService.importFile(
+                        fileURL: tempURL,
+                        userId: user.id,
+                        userPlan: appState.userPlan,
+                        tags: selectedTags,
+                        progressHandler: { progress in
+                            // UI更新（メインスレッド）
+                            Task { @MainActor in
+                                self.uploadProgress = progress
+                            }
+                        }
+                    )
+                    
+                    // Cleanup temp
+                    try? FileManager.default.removeItem(at: tempURL)
+                    
+                    await MainActor.run {
+                        isSaving = false
+                        uploadProgress = 0.0
+                        selectedTags = [] // Reset tags
+                        // Maybe show success toast?
+                        // For now just clear error
+                    }
+                } catch {
+                     // Check forbidden (Limit)
+                     await MainActor.run {
+                         isSaving = false
+                         try? FileManager.default.removeItem(at: tempURL)
+                         
+                         if let apiError = error as? APIError, case .forbidden(let detail) = apiError {
+                              print("Knowledge Limit Reached: \(detail)")
+                              showLimitAlert = true
+                         } else {
+                              errorMessage = "インポートに失敗しました: \(error.localizedDescription)"
+                         }
+                     }
+                }
+            }
+            
+        case .failure(let error):
+            errorMessage = "ファイル選択エラー: \(error.localizedDescription)"
+        }
+    }
+
+    private func saveText() async {
+        print("🟣 [Logic] saveText called. Input len: \(inputText.count)")
+        guard !inputText.isEmpty else { 
+            print("🟣 [Logic] Aborted: Empty text")
+            return 
+        }
+        guard let user = appState.currentUser else { 
+            print("🟣 [Logic] Aborted: No user")
+            return 
+        }
+        
+        await MainActor.run {
+             print("🟣 [UI] Setting isSaving = true")
+             isSaving = true
+             uploadProgress = 0.0
+             errorMessage = nil
+        }
+        
+        // Progress Simulation Task (Fake Progress)
+        let progressTask = Task {
+            var progress = 0.0
+            while progress < 0.9 {
+                if Task.isCancelled { return }
+                // 3秒くらいかけて90%まで進む
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                progress += 0.1
+                let current = progress
+                await MainActor.run {
+                    // isSavingがtrueの間だけ更新
+                    if self.isSaving {
+                        self.uploadProgress = min(current, 0.9)
+                    }
+                }
+            }
+        }
+        
+        do {
+            let response = try await apiService.importText(
+                text: inputText,
+                userId: user.id,
+                source: "manual",
+                tags: selectedTags,
+                summary: nil
+            )
+            
+            print("🟣 [Logic] Save Success! Server Response: \(response)")
+            
+            progressTask.cancel()
+            
+            await MainActor.run {
+                uploadProgress = 1.0
+                // 少しだけ100%を表示してから閉じる
+            }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            
+            await MainActor.run {
+                inputText = ""
+                selectedTags = []
+            }
+        } catch {
+             progressTask.cancel()
+             if let apiError = error as? APIError, case .forbidden(let detail) = apiError {
+                  print("Knowledge Limit Reached: \(detail)")
+                  showLimitAlert = true
+             } else {
+                  errorMessage = "保存に失敗しました: \(error.localizedDescription)"
+             }
+        }
+        
+        isSaving = false
+        uploadProgress = 0.0
+    }
+
 }
 
 struct TabButton: View {
@@ -473,6 +773,9 @@ struct NoteView: View {
     // アラート用
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    
+    // Paywall用
+    @State private var showPaywall = false
 
     var body: some View {
         ZStack {
@@ -638,6 +941,17 @@ struct NoteView: View {
                             if viewModel.isRecording {
                                 viewModel.stopRecording(userId: appState.currentUser?.id ?? "")
                             } else {
+                                // Pre-check limit
+                                // FREE plan limit: 1 voice note per day
+                                if appState.userPlan == "FREE",
+                                   let usage = appState.currentUser?.usage,
+                                   usage.dailyVoiceCount >= 1 {
+                                    print("🚫 Free plan limit reached (Pre-check)")
+                                    viewModel.limitAlertMessage = "Freeプランの1日の音声利用上限（1回）に達しました。\n無制限プランにアップグレードしてください。"
+                                    viewModel.showLimitAlert = true // まずアラートを表示
+                                    return
+                                }
+                                
                                 viewModel.startRecording()
                             }
                         } label: {
@@ -663,6 +977,18 @@ struct NoteView: View {
                             }
                         }
                         .disabled(viewModel.isProcessing)
+                        .alert("利用上限に達しました", isPresented: $viewModel.showLimitAlert) {
+                            Button("プランを確認", role: .cancel) {
+                                showPaywall = true
+                            }
+                        } message: {
+                            Text(viewModel.limitAlertMessage ?? "")
+                        }
+                        .sheet(isPresented: $showPaywall) {
+                            PaywallView(onPurchaseCompleted: {
+                                showPaywall = false
+                            })
+                        }
                         
                         // Time Display (only when recording)
                         if viewModel.isRecording {
@@ -722,6 +1048,14 @@ struct NoteView: View {
         } message: {
             Text(alertMessage)
         }
+        .alert("エラー", isPresented: Binding<Bool>(
+            get: { viewModel.errorMessage != nil },
+            set: { _ in viewModel.errorMessage = nil }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
         .onAppear {
             askSpeechPermission()
         }
@@ -743,130 +1077,352 @@ struct NoteView: View {
 
 // MARK: - Data View
 
+// MARK: - Data View Model
+
+@MainActor
+class DataViewModel: ObservableObject {
+    @Published var documents: [KnowledgeDocument] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var selectedTag: String? = nil
+    @Published var sortOption: SortOption = .dateDesc
+    
+    enum SortOption {
+        case dateDesc
+        case dateAsc
+        case tag
+    }
+    
+    private let apiService = APIService.shared
+    
+    // 全てのユニークなタグを取得
+    var availableTags: [String] {
+        let allTags = documents.flatMap { $0.tags }
+        return Array(Set(allTags)).sorted()
+    }
+    
+    var filteredDocuments: [KnowledgeDocument] {
+        // 1. Filter
+        let filtered: [KnowledgeDocument]
+        if let tag = selectedTag {
+            filtered = documents.filter { $0.tags.contains(tag) }
+        } else {
+            filtered = documents
+        }
+        
+        // 2. Sort
+        switch sortOption {
+        case .dateDesc:
+            return filtered.sorted { $0.createdAt > $1.createdAt }
+        case .dateAsc:
+            return filtered.sorted { $0.createdAt < $1.createdAt }
+        case .tag:
+            return filtered.sorted {
+                let tag1 = $0.tags.first ?? ""
+                let tag2 = $1.tags.first ?? ""
+                if tag1 == tag2 {
+                    return $0.createdAt > $1.createdAt // Sub-sort by date
+                }
+                return tag1 < tag2
+            }
+        }
+    }
+    
+    func fetchDocuments() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            // 認証確認
+            if apiService.authToken == nil {
+                // トークンが無い場合は待機せずとも空で返すか、再試行ロジックなど
+                 print("DataViewModel: No auth token")
+            }
+            
+            let response = try await apiService.fetchKnowledgeList()
+            self.documents = response.documents
+        } catch {
+            errorMessage = "データの取得に失敗しました: \(error.localizedDescription)"
+        }
+        isLoading = false
+    }
+    
+    func deleteDocument(id: String) async {
+        do {
+            let response = try await apiService.deleteKnowledge(id: id)
+            if response.success {
+                // UIから削除
+                self.documents.removeAll { $0.id == id }
+            } else {
+                errorMessage = response.error ?? "削除に失敗しました"
+            }
+        } catch {
+            errorMessage = "削除エラー: \(error.localizedDescription)"
+        }
+    }
+    
+    func updateDocument(id: String, title: String, tags: [String]) async {
+         do {
+             let response = try await apiService.updateKnowledge(id: id, tags: tags, title: title)
+             if response.success {
+                 // ローカル更新 (再取得)
+                 await fetchDocuments()
+             } else {
+                 errorMessage = response.error ?? "更新に失敗しました"
+             }
+         } catch {
+             errorMessage = "更新エラー: \(error.localizedDescription)"
+         }
+    }
+}
+
 struct DataView: View {
+    @StateObject private var viewModel = DataViewModel()
+    @EnvironmentObject var appState: AppStateManager
+    @State private var editingDocument: KnowledgeDocument?
+    
     var body: some View {
         ZStack {
             Color(red: 0.05, green: 0.05, blue: 0.05)
                 .ignoresSafeArea()
-
-            ScrollView {
+            
+            VStack(alignment: .leading, spacing: 0) {
+                // Header & Title
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("学習済みデータ一覧")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.top, 20)
-
-                    // フィルタ
                     HStack {
-                        FilterButton(title: "すべてのソース")
-                        FilterButton(title: "すべてのタグ")
+                        Text("学習済みデータ一覧")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        Menu {
+                            Picker("並び替え", selection: $viewModel.sortOption) {
+                                Label("新しい順", systemImage: "calendar.badge.plus").tag(DataViewModel.SortOption.dateDesc)
+                                Label("古い順", systemImage: "calendar").tag(DataViewModel.SortOption.dateAsc)
+                                Label("タグ順", systemImage: "tag").tag(DataViewModel.SortOption.tag)
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down.circle")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44) // Tap area
+                        }
                     }
-
-                    // データリスト（ダミー）
-                    VStack(spacing: 12) {
-                        DataItemCard(
-                            title: "明日やること、ディップの課題？成績証...", source: "手動アップロード", date: "2025/12/11",
-                            tags: ["Todo", "Work", "University"])
-                        DataItemCard(
-                            title: "New Recording 618.m4a", source: "手動アップロード", date: "2025/12/3",
-                            tags: ["な"])
-                        DataItemCard(
-                            title: "Receipt-2397-7768-3033.pdf", source: "Voice Memo",
-                            date: "2025/12/3", tags: ["あ"])
+                    .padding(.top, 20)
+                    
+                    // フィルタ
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            FilterChip(title: "すべて", isSelected: viewModel.selectedTag == nil) {
+                                viewModel.selectedTag = nil
+                            }
+                            
+                            ForEach(viewModel.availableTags, id: \.self) { tag in
+                                FilterChip(title: tag, isSelected: viewModel.selectedTag == tag) {
+                                    if viewModel.selectedTag == tag {
+                                        viewModel.selectedTag = nil
+                                    } else {
+                                        viewModel.selectedTag = tag
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+                
+                // Content
+                if viewModel.isLoading {
+                    Spacer()
+                    ProgressView().tint(.white)
+                    Spacer()
+                } else if viewModel.filteredDocuments.isEmpty {
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("データがありません")
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    Spacer()
+                } else {
+                    List {
+                        ForEach(viewModel.filteredDocuments) { doc in
+                            DataDocumentRow(document: doc, onEdit: {
+                                editingDocument = doc
+                            }, onDelete: {
+                                Task {
+                                    await viewModel.deleteDocument(id: doc.id)
+                                }
+                            })
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task {
+                                        await viewModel.deleteDocument(id: doc.id)
+                                    }
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
+                                
+                                Button {
+                                    editingDocument = doc
+                                } label: {
+                                    Label("編集", systemImage: "pencil")
+                                }
+                                .tint(.blue)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .refreshable {
+                        await viewModel.fetchDocuments()
+                    }
+                }
             }
+        }
+        .task {
+            // 初回読み込み
+            if viewModel.documents.isEmpty {
+                await viewModel.fetchDocuments()
+            }
+        }
+        .sheet(item: $editingDocument) { doc in
+            EditKnowledgeView(document: doc) { newTitle, newTags in
+                Task {
+                    await viewModel.updateDocument(id: doc.id, title: newTitle, tags: newTags)
+                }
+            }
+        }
+        .alert("エラー", isPresented: Binding<Bool>(
+            get: { viewModel.errorMessage != nil },
+            set: { _ in viewModel.errorMessage = nil }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
         }
     }
 }
 
-struct FilterButton: View {
+struct FilterChip: View {
     let title: String
-
+    let isSelected: Bool
+    let action: () -> Void
+    
     var body: some View {
-        Button {
-            // フィルタ処理
-        } label: {
-            HStack {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-                Image(systemName: "chevron.down")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.white.opacity(0.1))
-            .cornerRadius(8)
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(isSelected ? .bold : .regular)
+                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color(red: 0.3, green: 0.4, blue: 0.9) : Color.white.opacity(0.1))
+                .cornerRadius(20) // Chip style
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
         }
     }
 }
 
-struct DataItemCard: View {
-    let title: String
-    let source: String
-    let date: String
-    let tags: [String]
+struct DataDocumentRow: View {
+    let document: KnowledgeDocument
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    var formattedDate: String {
+        let iso = document.createdAt
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: iso) {
+            return date.formatted(date: .numeric, time: .omitted)
+        }
+        return iso.prefix(10).description
+    }
+    
+    var iconName: String {
+        if document.mimeType?.contains("audio") == true { return "waveform" }
+        if document.mimeType?.contains("pdf") == true { return "doc.text.fill" }
+        if document.type == "note" { return "note.text" }
+        return "doc.text"
+    }
 
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: "doc.text")
-                .font(.title2)
-                .foregroundColor(.white.opacity(0.6))
-                .frame(width: 40)
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 48, height: 48)
+                Image(systemName: iconName)
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.8))
+            }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(title)
+                Text(document.title)
                     .font(.body)
+                    .fontWeight(.medium)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
                 HStack(spacing: 8) {
-                    Text(source)
-                        .font(.caption)
+                    Text(formattedDate)
+                        .font(.caption2)
                         .foregroundColor(.white.opacity(0.5))
-                    Text(date)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-
-                    ForEach(tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color(red: 0.3, green: 0.4, blue: 0.8))
-                            .cornerRadius(4)
+                    
+                    if !document.tags.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(document.tags, id: \.self) { tag in
+                                    Text(tag)
+                                        .font(.caption2)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(red: 0.3, green: 0.4, blue: 0.8).opacity(0.5))
+                                        .cornerRadius(4)
+                                }
+                            }
+                        }
                     }
                 }
             }
-
+            
             Spacer()
-
-            HStack(spacing: 16) {
-                Button {
-                    // 編集
-                } label: {
-                    Image(systemName: "pencil")
-                        .foregroundColor(.white.opacity(0.5))
+            
+            // Menu Button
+            Menu {
+                Button(action: onEdit) {
+                    Label("編集", systemImage: "pencil")
                 }
-
-                Button {
-                    // 削除
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundColor(.white.opacity(0.5))
+                
+                Button(role: .destructive, action: onDelete) {
+                    Label("削除", systemImage: "trash")
                 }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.6))
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
             }
+            .highPriorityGesture(TapGesture()) // Listのタップと競合しないように
         }
-        .padding()
+        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
         .background(Color(red: 0.1, green: 0.1, blue: 0.1))
         .cornerRadius(12)
     }
 }
+
 
 // MARK: - Guide View
 
@@ -951,7 +1507,7 @@ struct FeedbackView: View {
                     .foregroundColor(.white)
                     .padding(.top, 20)
 
-                Text("アプリに関するご意見・ご要望、バグ報告などをお聞かせください。\n頂いた内容は今後の開発の参考にさせていただきます。")
+                Text("一人で開発してるので、変なバグあったりするかもしれないです汗。すいません！！\nもしあったらすぐ修正するので、遠慮なくフィードバック送って欲しいです！！")
                     .font(.body)
                     .foregroundColor(.white.opacity(0.7))
                     .lineSpacing(4)
@@ -1000,6 +1556,7 @@ struct FeedbackView: View {
 struct SettingsView: View {
     @EnvironmentObject var appState: AppStateManager
     @State private var showLogoutAlert = false
+    @State private var showPaywall = false
 
     var body: some View {
         ZStack {
@@ -1061,6 +1618,19 @@ struct SettingsView: View {
                             }
                         )
                         
+                        // アップグレードボタン (Freeプランのみ)
+                        if appState.userPlan == "FREE" {
+                            Divider().background(Color.white.opacity(0.1))
+                            SettingsRow(
+                                icon: "arrow.up.circle.fill",
+                                title: "プランをアップグレード",
+                                hasChevron: true,
+                                action: {
+                                    showPaywall = true
+                                }
+                            )
+                        }
+                        
                         // サブスクリプション管理ボタン (FREE以外の場合)
                         if appState.userPlan != "FREE" {
                             Divider().background(Color.white.opacity(0.1))
@@ -1087,12 +1657,12 @@ struct SettingsView: View {
 
                     // 設定項目
                     VStack(spacing: 0) {
-                        SettingsRow(icon: "person", title: "プロフィール設定（名前）", hasChevron: true)
+                        SettingsRow(icon: "person", title: "プロフィール設定（名前変更）*開発中", hasChevron: true)
                         Divider().background(Color.white.opacity(0.1))
                         SettingsRow(
-                            icon: "gearshape", title: "アカウント設定（メール・パスワード）", hasChevron: true)
+                            icon: "gearshape", title: "アカウント設定（メール・パスワード変更）*開発中", hasChevron: true)
                         Divider().background(Color.white.opacity(0.1))
-                        SettingsRow(icon: "bag", title: "AIの設定（名前変更）", hasChevron: true)
+                        SettingsRow(icon: "bag", title: "AIの設定（名前変更）*開発中", hasChevron: true)
                     }
                     .background(Color(red: 0.1, green: 0.1, blue: 0.1))
                     .cornerRadius(12)
@@ -1201,6 +1771,11 @@ struct SettingsView: View {
                 .padding(.bottom, 32)
             }
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(onPurchaseCompleted: {
+                showPaywall = false
+            })
+        }
     }
 }
 
@@ -1209,44 +1784,48 @@ struct SettingsRow<Content: View>: View {
     let title: String
     let hasChevron: Bool
     let rightContent: (() -> Content)?
+    let action: (() -> Void)? // タップ時のアクション
 
     init(
         icon: String, title: String, hasChevron: Bool,
+        action: (() -> Void)? = nil,
         @ViewBuilder rightContent: @escaping () -> Content
     ) {
         self.icon = icon
         self.title = title
         self.hasChevron = hasChevron
+        self.action = action
         self.rightContent = rightContent
     }
 
-    init(icon: String, title: String, hasChevron: Bool) where Content == EmptyView {
+    init(icon: String, title: String, hasChevron: Bool, action: (() -> Void)? = nil) where Content == EmptyView {
         self.icon = icon
         self.title = title
         self.hasChevron = hasChevron
+        self.action = action
         self.rightContent = nil
     }
 
     var body: some View {
         Button {
-            // アクション
+            action?() // アクション実行
         } label: {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.6))
                     .frame(width: 30)
-
+                
                 Text(title)
                     .font(.body)
                     .foregroundColor(.white)
-
+                
                 Spacer()
-
+                
                 if let rightContent = rightContent {
                     rightContent()
                 }
-
+                
                 if hasChevron {
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -1256,5 +1835,66 @@ struct SettingsRow<Content: View>: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .disabled(action == nil) // アクションがない場合はボタン無効化（見た目はそのまま）
+    }
+}
+
+// MARK: - Edit Knowledge View
+
+struct EditKnowledgeView: View {
+    @Environment(\.dismiss) var dismiss
+    let document: KnowledgeDocument
+    let onSave: (String, [String]) -> Void
+    
+    @State private var title: String
+    @State private var selectedTags: [String]
+    
+    init(document: KnowledgeDocument, onSave: @escaping (String, [String]) -> Void) {
+        self.document = document
+        self.onSave = onSave
+        _title = State(initialValue: document.title)
+        _selectedTags = State(initialValue: document.tags)
+    }
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                Color(red: 0.05, green: 0.05, blue: 0.05).ignoresSafeArea()
+                
+                Form {
+                    Section(header: Text("基本情報")) {
+                        TextField("タイトル", text: $title)
+                    }
+                    
+                    Section(header: Text("タグ")) {
+                        TagInputView(tags: $selectedTags)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        onSave(title, selectedTags)
+                        dismiss()
+                    }
+                    .disabled(title.isEmpty)
+                }
+            }
+        }
+    }
+}
+
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }

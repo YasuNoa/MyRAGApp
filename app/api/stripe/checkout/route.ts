@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth } from "@/src/lib/auth-check";
 import { cookies } from "next/headers"; // Import cookies
 import { prisma } from "@/src/lib/prisma";
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-    // apiVersion: "2024-11-20.acacia", // Use default installed version
-});
+import { getStripe } from "@/src/lib/stripe";
 
 // Price IDs from Environment Variables
 const PRICE_IDS = {
@@ -19,6 +15,7 @@ const PRICE_IDS = {
 
 export async function POST(req: NextRequest) {
     try {
+        const stripe = getStripe();
         const user = await verifyAuth(req);
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -10,8 +10,16 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+// Initialize Firebase only if the API key is available
+// This prevents build errors when environment variables are missing (e.g. during Docker build)
+let app: any;
+let auth: any;
+
+if (firebaseConfig.apiKey) {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+} else {
+    console.warn("Firebase not initialized: Missing API Key (This is expected during build)");
+}
 
 export { app, auth };

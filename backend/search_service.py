@@ -21,10 +21,14 @@ class SearchService:
             return "Error: TAVILY_API_KEY is missing. Please set it in .env."
 
         try:
+            # Determine search depth based on plan
+            # FREE: basic (1 credit), OTHERS: advanced (2 credits)
+            search_depth = "basic" if plan == "FREE" else "advanced"
+            print(f"[SearchService] Using search_depth='{search_depth}' for plan '{plan}'")
+
             # Tavily Search
-            # search_depth="advanced" gives better results (crawling)
             # max_results=5 default
-            response = self.tavily.search(query=query, search_depth="advanced", max_results=5)
+            response = self.tavily.search(query=query, search_depth=search_depth, max_results=5)
             
             # Format results for RAG
             # Response is a dict with "results": [{"title":..., "content":..., "url":...}]

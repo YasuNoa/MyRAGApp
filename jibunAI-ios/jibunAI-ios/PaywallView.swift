@@ -15,8 +15,8 @@ import Combine
 struct SubscriptionView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = SubscriptionViewModel()
+    @EnvironmentObject var appState: AppStateManager
     
-    var body: some View {
     var body: some View {
         ZStack {
             // 基本はPaywallViewを表示（ロード待ちしない）
@@ -60,7 +60,13 @@ struct SubscriptionView: View {
             } else {
                 // 通常のPaywall
                 // Spotify風のカスタムUIを表示（裏でチェック中もこれが表示される）
+                // Usually PaywallView
+                // Spotify-style custom UI displaying (also displayed while checking in background)
                 PaywallView {
+                    // Purchase Completed Callback
+                    Task { @MainActor in
+                        appState.checkSubscriptionStatus()
+                    }
                     dismiss()
                 }
             }
@@ -69,171 +75,197 @@ struct SubscriptionView: View {
             viewModel.checkEligibility()
         }
     }
-        .onAppear {
-            viewModel.checkEligibility()
-        }
     }
-}
+
 
 // MARK: - Spotify Style Paywall UI
 
+// MARK: - Premium Paywall UI
+
 struct PaywallView: View {
     @State private var currentOffering: Offering?
-    @State private var isYearly: Bool = false // 月額/年額の切り替え
+    @State private var isYearly: Bool = false // Default to Monthly
     @State private var isLoading: Bool = true
-    @State private var isPurchasing: Bool = false // 購入処理中のブロッキング用
+    @State private var isPurchasing: Bool = false
     
-    // エラーハンドリング
+    // Error Handling
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
-    @State private var showSuccess: Bool = false // 成功時のメッセージ用(Restoreなど)
+    @State private var showSuccess: Bool = false
     @State private var successMessage: String = ""
     
     var onPurchaseCompleted: () -> Void
 
+    // Colors
+    let midnightBlue = Color(red: 0.05, green: 0.07, blue: 0.12) // Dark Navy
+    let cyanGradient = LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 0.8), Color(red: 0.0, green: 0.4, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    
     var body: some View {
         ZStack {
-            // 背景色（少し暗めにして高級感を出すなどお好みで）
-            Color(UIColor.systemBackground).ignoresSafeArea()
+            // 1. Premium Background
+            LinearGradient(
+                colors: [Color(red: 0.08, green: 0.1, blue: 0.2), Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            // Decorative background elements
+            GeometryReader { geo in
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 300, height: 300)
+                    .blur(radius: 60)
+                    .offset(x: -100, y: -100)
+                
+                Circle()
+                    .fill(Color.cyan.opacity(0.1))
+                    .frame(width: 250, height: 250)
+                    .blur(radius: 50)
+                    .offset(x: geo.size.width - 150, y: geo.size.height / 2)
+            }
+            .ignoresSafeArea()
             
             if isLoading {
                 ProgressView()
+                    .tint(.white)
+                    .scaleEffect(1.5)
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
                         
-                        // ヘッダー部分
+                        // Header
                         VStack(spacing: 8) {
-                            Text("Premiumプランを選択")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                            Text("プレミアムプラン")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.8)], startPoint: .top, endPoint: .bottom))
                             
-                            Text("あなたのニーズに合わせた最適なプランを")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                            Text("ワンコインでもっと楽しよう")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
                         }
-                        .padding(.top, 20)
+                        .padding(.top, 40)
                         
-                        // 月額/年額 切り替えスイッチ
-                        Picker("Plan Duration", selection: $isYearly) {
-                            Text("月払い").tag(false)
-                            Text("年払い (お得)").tag(true)
+                        // Switcher
+                        HStack(spacing: 0) {
+                            PlanSwitchButton(title: "月払い", isSelected: !isYearly) { isYearly = false }
+                            PlanSwitchButton(title: "年払い", isSelected: isYearly, badge: "20%お得") { isYearly = true }
                         }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .disabled(isPurchasing) // 購入中は操作不可
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(30)
+                        .padding(.horizontal, 40)
                         
-                        // 縦並びのカードエリア
-                        VStack(spacing: 16) {
+                        // Cards Stack
+                        VStack(spacing: 20) {
                             if let offering = currentOffering {
                                 
-                                // --- 梅 (Free) ---
-                                PlanCard(
+                                // --- STANDARD ---
+                                if let standardPkg = getPackage(for: "standard", isYearly: isYearly, offering: offering) {
+                                    PremiumPlanCard(
+                                        title: "Standard",
+                                        price: standardPkg.storeProduct.localizedPriceString,
+                                        period: isYearly ? "/ 年" : "/ 月",
+                                        description: "一番人気のプラン",
+                                        features: [
+                                            "チャット: 100回 / 日",
+                                            "検索精度: 標準",
+                                            "音声アップロード: 無制限",
+                                            "音声時間: 90分 / ファイル",
+                                            "月間処理: 15時間まで",
+                                            "保存容量: 200件",
+                                            "広告なし"
+                                        ],
+                                        isPremium: true,
+                                        recommended: true,
+                                        buttonText: "Standardにする",
+                                        action: { purchase(package: standardPkg) }
+                                    )
+                                }
+                                
+                                // --- PREMIUM ---
+                                if let premiumPkg = getPackage(for: "premium", isYearly: isYearly, offering: offering) {
+                                    PremiumPlanCard(
+                                        title: "Premium",
+                                        price: premiumPkg.storeProduct.localizedPriceString,
+                                        period: isYearly ? "/ 年" : "/ 月",
+                                        description: "ヘビーユーザー向け",
+                                        features: [
+                                            "チャット: 200回 / 日",
+                                            "検索精度: 高",
+                                            "音声アップロード: 無制限",
+                                            "音声時間: 3時間 / ファイル",
+                                            "月間処理: 90時間まで",
+                                            "保存容量: 1000件",
+                                            "優先サポート",
+                                            "全機能アンロック"
+                                        ],
+                                        isPremium: true,
+                                        recommended: false,
+                                        buttonText: "Premiumにする",
+                                        action: { purchase(package: premiumPkg) }
+                                    )
+                                }
+                                
+                                // --- FREE ---
+                                PremiumPlanCard(
                                     title: "Free",
-                                    price: "無料",
-                                    subPrice: "ずっと0円",
+                                    price: "¥0",
+                                    period: "ずっと",
+                                    description: "基本機能のお試し",
                                     features: [
-                                        "チャット: 5通/日",
-                                        "音声処理: 20分/ファイル",
-                                        "月間上限: 120分",
-                                        "広告あり"
+                                        "チャット: 10回 / 日",
+                                        "検索精度: 低",
+                                        "音声アップロード: 1日1回",
+                                        "音声時間: 15分 / ファイル",
+                                        "月間処理: 5時間まで",
+                                        "保存容量: 5件",
+                                        "広告表示あり"
                                     ],
-                                    color: .gray,
-                                    isHighLighted: false,
+                                    isPremium: false,
                                     buttonText: "現在のプラン",
                                     action: nil
                                 )
-                                
-                                // --- 竹 (Standard) ---
-                                if let standardPkg = getPackage(for: "standard", isYearly: isYearly, offering: offering) {
-                                    PlanCard(
-                                        title: "Standard",
-                                        price: standardPkg.storeProduct.localizedPriceString,
-                                        subPrice: isYearly ? "12ヶ月分一括払い" : "毎月更新",
-                                        features: [
-                                            "チャット: 100通/日",
-                                            "音声処理: 無制限",
-                                            "90分/ファイル",
-                                            "月間上限: 900分",
-                                            "広告なし"
-                                        ],
-                                        color: .blue,
-                                        isHighLighted: false,
-                                        buttonText: "選択する",
-                                        action: {
-                                            purchase(package: standardPkg)
-                                        }
-                                    )
-                                    .disabled(isPurchasing)
-                                }
-                                
-                                // --- 松 (Premium) ---
-                                if let premiumPkg = getPackage(for: "premium", isYearly: isYearly, offering: offering) {
-                                    PlanCard(
-                                        title: "Premium",
-                                        price: premiumPkg.storeProduct.localizedPriceString,
-                                        subPrice: isYearly ? "12ヶ月分一括払い" : "毎月更新",
-                                        features: [
-                                            "チャット: 200通/日",
-                                            "音声処理: 無制限",
-                                            "180分/ファイル",
-                                            "月間上限: 5400分",
-                                            "全ての機能を開放"
-                                        ],
-                                        color: .green,
-                                        isHighLighted: true,
-                                        buttonText: "Premiumにする",
-                                        action: {
-                                            purchase(package: premiumPkg)
-                                        }
-                                    )
-                                    .disabled(isPurchasing)
-                                }
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
                         
-                        // フッター（復元やポリシー）
+                        // Footer
                         VStack(spacing: 16) {
-                            Button("購入を復元する") {
+                            Button {
                                 restorePurchases()
+                            } label: {
+                                Text("購入を復元する")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .underline()
                             }
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                            .disabled(isPurchasing)
                             
                             HStack(spacing: 20) {
                                 Link("利用規約", destination: URL(string: "https://jibun-ai.com/terms")!)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                
-                                Link("プライバシーポリシー", destination: URL(string: "https://jibun-ai.com/privacy")!)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                Link("プライバシー", destination: URL(string: "https://jibun-ai.com/privacy")!)
                             }
-                            .padding(.top, 4)
-                            
-                            Text("期間終了の24時間前までに解約しない限り、自動的に更新されます。")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.3))
                         }
                         .padding(.bottom, 40)
                     }
                 }
             }
             
-            // ブロッキングローディング
+            // Loading Overlay
             if isPurchasing {
                 ZStack {
-                    Color.black.opacity(0.4).ignoresSafeArea()
-                    ProgressView()
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .shadow(radius: 10)
+                    Color.black.opacity(0.6).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView().tint(.white)
+                        Text("処理中...")
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
+                    .padding(30)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(16)
                 }
             }
         }
@@ -246,28 +278,18 @@ struct PaywallView: View {
             Text(errorMessage)
         }
         .alert("完了", isPresented: $showSuccess) {
-            Button("OK") {
-                 // リストア完了後に画面を閉じる等したければここで行う
-                 // onPurchaseCompleted() // 必要に応じて
-            }
+            Button("OK") { onPurchaseCompleted() }
         } message: {
             Text(successMessage)
         }
     }
     
-    // RevenueCatからPackageを取得するヘルパー
+    // RevenueCat Helpers (No changes to logic)
     func getPackage(for baseId: String, isYearly: Bool, offering: Offering) -> Package? {
         let items = offering.availablePackages
-        // IDの命名規則は 'standard_monthly', 'standard_yearly', 'premium_monthly', 'premium_yearly' を想定
         let suffix = isYearly ? "_yearly" : "_monthly"
         let targetId = baseId + suffix
-        
-        // 完全一致で検索
-        if let exactMatch = items.first(where: { $0.identifier == targetId }) {
-            return exactMatch
-        }
-        
-        // 見つからない場合のフォールバック（部分一致検索）
+        if let exactMatch = items.first(where: { $0.identifier == targetId }) { return exactMatch }
         return items.first(where: { $0.identifier.contains(baseId) && $0.identifier.contains(isYearly ? "yearly" : "monthly") })
     }
     
@@ -276,9 +298,6 @@ struct PaywallView: View {
             DispatchQueue.main.async {
                 if let offerings = offerings, let current = offerings.current {
                     self.currentOffering = current
-                } else if let error = error {
-                    // 取得失敗
-                    print("Offerings fetch failed: \(error)")
                 }
                 self.isLoading = false
             }
@@ -286,21 +305,16 @@ struct PaywallView: View {
     }
     
     func purchase(package: Package) {
-        self.isPurchasing = true // ブロック開始
-        
+        self.isPurchasing = true
         Purchases.shared.purchase(package: package) { (transaction, info, error, userCancelled) in
             DispatchQueue.main.async {
-                self.isPurchasing = false // ブロック解除
-                
+                self.isPurchasing = false
                 if let error = error {
-                    // キャンセル以外はエラー表示
                     if !userCancelled {
-                        self.errorMessage = "購入処理中にエラーが発生しました。\n\(error.localizedDescription)"
+                        self.errorMessage = error.localizedDescription
                         self.showError = true
                     }
                 } else if !userCancelled {
-                    // 成功
-                    print("Purchase success!")
                     onPurchaseCompleted()
                 }
             }
@@ -309,16 +323,13 @@ struct PaywallView: View {
     
     func restorePurchases() {
         self.isPurchasing = true
-        
         Purchases.shared.restorePurchases { (info, error) in
             DispatchQueue.main.async {
                 self.isPurchasing = false
-                
                 if let error = error {
-                    self.errorMessage = "復元に失敗しました。\n\(error.localizedDescription)"
+                    self.errorMessage = error.localizedDescription
                     self.showError = true
                 } else if let info = info {
-                    // アクティブなエンタイトルメントがあるかチェック
                     if info.entitlements.active.isEmpty {
                         self.errorMessage = "復元可能な購入が見つかりませんでした。"
                         self.showError = true
@@ -333,96 +344,157 @@ struct PaywallView: View {
     }
 }
 
-// カードコンポーネント
-struct PlanCard: View {
+// MARK: - Components
+
+struct PlanSwitchButton: View {
+    let title: String
+    let isSelected: Bool
+    var badge: String? = nil
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .fontWeight(.bold)
+                if let badge = badge {
+                    Text(badge)
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(isSelected ? Color.white.opacity(0.15) : Color.clear)
+            .foregroundColor(isSelected ? .white : .gray)
+            .cornerRadius(30)
+        }
+    }
+}
+
+struct PremiumPlanCard: View {
     let title: String
     let price: String
-    let subPrice: String
+    let period: String
+    let description: String
     let features: [String]
-    let color: Color
-    let isHighLighted: Bool
+    let isPremium: Bool
+    var recommended: Bool = false
     let buttonText: String
     let action: (() -> Void)?
     
     var body: some View {
-        VStack(spacing: 12) {
-            // タイトル帯
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .background(color)
-            
-            // 価格エリア
-            VStack(spacing: 2) {
-                Text(price)
-                    .font(.title2)
-                    .fontWeight(.heavy)
-                    .foregroundColor(.primary)
-                
-                Text(subPrice)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 2)
-            
-            Divider()
-                .padding(.horizontal)
-            
-            // 特徴リスト
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(features, id: \.self) { feature in
-                    HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(color)
-                            .font(.system(size: 12))
-                        Text(feature)
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 16) {
+                // Title & Price
+                HStack(alignment: .top) { // Align top to handle height diff
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Text(description)
                             .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer()
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(price)
+                            .font(.system(size: 36, weight: .heavy, design: .rounded)) // More emphasis
+                            .foregroundColor(.white)
+                            .shadow(color: isPremium ? .cyan.opacity(0.5) : .clear, radius: 10) // Glow for premium text
+                        Text(period)
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    .padding(.top, recommended ? 8 : 0) // Shift price down if recommended
+                }
+                
+                Divider().background(Color.white.opacity(0.1))
+                
+                // Features
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(features, id: \.self) { feature in
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(isPremium ? Color.cyan : Color.gray)
+                                .font(.system(size: 14))
+                            Text(feature)
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.9))
+                        }
                     }
                 }
-            }
-            .padding(.horizontal)
-            
-            Spacer(minLength: 8)
-            
-            // アクションボタン
-            if let action = action {
-                Button(action: action) {
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Spacer(minLength: 8)
+                
+                // Action Button
+                if let action = action {
+                    Button(action: action) {
+                        Text(buttonText)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                isPremium
+                                ? AnyView(LinearGradient(colors: [Color.cyan, Color.blue], startPoint: .leading, endPoint: .trailing))
+                                : AnyView(Color.white.opacity(0.1))
+                            )
+                            .cornerRadius(12)
+                            .shadow(color: isPremium ? Color.cyan.opacity(0.3) : .clear, radius: 10, x: 0, y: 5)
+                    }
+                } else {
                     Text(buttonText)
-                        .font(.subheadline)
+                        .font(.headline)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.vertical, 10)
+                        .foregroundColor(.white.opacity(0.5))
+                        .padding(.vertical, 14)
                         .frame(maxWidth: .infinity)
-                        .background(color)
-                        .cornerRadius(8)
-                        .shadow(radius: 1)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(12)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 12)
-            } else {
-                // Freeプランなどの場合
-                Text(buttonText)
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundColor(color)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 12)
+            }
+            .padding(24)
+            .background(.ultraThinMaterial)
+            .cornerRadius(24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        LinearGradient(
+                            colors: recommended ? [.cyan.opacity(0.5), .blue.opacity(0.5)] : [.white.opacity(0.1), .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+            
+            // Badge
+            if recommended {
+                Text("おすすめ")
+                    .font(.system(size: 11, weight: .bold)) // Slightly larger text
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        LinearGradient(colors: [.cyan, .blue], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .cornerRadius(10) // More rounded
+                    .padding([.top, .trailing], 12) // Moved closer to edge
             }
         }
-        .frame(maxWidth: .infinity)
-        .background(Color(UIColor.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isHighLighted ? color : Color.clear, lineWidth: 2)
-        )
     }
 }
 

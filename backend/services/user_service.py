@@ -130,26 +130,13 @@ class UserService:
         logger.info(f"Checking chat limit for {user_id}: Plan={current_plan}, Count={daily_count}/{limit}")
 
         if current_plan == "FREE":
-            if daily_count >= limit:
-                # Cooldown Logic (1h from last user message)
-                last_msg = await db.message.find_first(
-                    where={'userId': user_id, 'role': 'user'},
-                    order={'createdAt': 'desc'}
-                )
-                if last_msg:
-                    last_time = last_msg.createdAt
-                    if last_time.tzinfo is None:
-                        last_time = last_time.replace(tzinfo=timezone.utc)
-                    
-                    if last_time < now - timedelta(hours=1):
-                        should_reset = True
-                    else:
-                        wait_min = int(((last_time + timedelta(hours=1)) - now).total_seconds() / 60)
-                        raise HTTPException(status_code=403, detail=f"Free plan limit reached. Wait {wait_min} min.")
-                else:
-                    should_reset = True
+            limit = 10 # Explicitly set limit for Free plan in code to match new requirement
+
+            # Daily Reset Logic (Same as other plans)
+            if last_reset.astimezone(jst).date() != now.astimezone(jst).date():
+                should_reset = True
         else:
-            # Daily Reset (JST)
+            # Daily Reset (JST) for other plans
             if last_reset.astimezone(jst).date() != now.astimezone(jst).date():
                 should_reset = True
                 
