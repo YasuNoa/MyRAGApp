@@ -228,6 +228,40 @@ resource "google_cloud_run_service" "frontend" {
             name = "STRIPE_WEBHOOK_SECRET"
             value = var.stripe_webhook_secret
         }
+
+        # Firebase
+        env {
+          name = "FIREBASE_SERVICE_ACCOUNT_KEY"
+          value = var.firebase_service_account_key
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_API_KEY"
+          value = var.firebase_api_key
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"
+          value = var.firebase_auth_domain
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+          value = var.firebase_project_id
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"
+          value = var.firebase_storage_bucket
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"
+          value = var.firebase_messaging_sender_id
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_APP_ID"
+          value = var.firebase_app_id
+        }
+        env {
+          name = "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID"
+          value = var.firebase_measurement_id
+        }
       }
     }
   }
@@ -276,3 +310,114 @@ resource "google_project_iam_member" "cloudbuild_secrets" {
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
+
+# Grant Compute Engine default service account access to Artifact Registry (required for manual builds via gcloud)
+resource "google_project_iam_member" "compute_artifact_registry" {
+  project = data.google_project.project.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+resource "google_project_iam_member" "compute_logging" {
+  project = data.google_project.project.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Grant Cloud Run Admin and Service Account User to Compute Engine default SA (required for deploying Cloud Run)
+resource "google_project_iam_member" "compute_run_admin" {
+  project = data.google_project.project.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+resource "google_project_iam_member" "compute_sa_user" {
+  project = data.google_project.project.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# --- Secret Manager for Build-Time Variables ---
+
+# 1. API Key
+resource "google_secret_manager_secret" "firebase_api_key" {
+  secret_id = "next_public_firebase_api_key"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_api_key_version" {
+  secret = google_secret_manager_secret.firebase_api_key.id
+  secret_data = var.firebase_api_key
+}
+
+# 2. Auth Domain
+resource "google_secret_manager_secret" "firebase_auth_domain" {
+  secret_id = "next_public_firebase_auth_domain"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_auth_domain_version" {
+  secret = google_secret_manager_secret.firebase_auth_domain.id
+  secret_data = var.firebase_auth_domain
+}
+
+# 3. Project ID
+resource "google_secret_manager_secret" "firebase_project_id" {
+  secret_id = "next_public_firebase_project_id"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_project_id_version" {
+  secret = google_secret_manager_secret.firebase_project_id.id
+  secret_data = var.firebase_project_id
+}
+
+# 4. Storage Bucket
+resource "google_secret_manager_secret" "firebase_storage_bucket" {
+  secret_id = "next_public_firebase_storage_bucket"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_storage_bucket_version" {
+  secret = google_secret_manager_secret.firebase_storage_bucket.id
+  secret_data = var.firebase_storage_bucket
+}
+
+# 5. Messaging Sender ID
+resource "google_secret_manager_secret" "firebase_messaging_sender_id" {
+  secret_id = "next_public_firebase_messaging_sender_id"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_messaging_sender_id_version" {
+  secret = google_secret_manager_secret.firebase_messaging_sender_id.id
+  secret_data = var.firebase_messaging_sender_id
+}
+
+# 6. App ID
+resource "google_secret_manager_secret" "firebase_app_id" {
+  secret_id = "next_public_firebase_app_id"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_app_id_version" {
+  secret = google_secret_manager_secret.firebase_app_id.id
+  secret_data = var.firebase_app_id
+}
+
+# 7. Measurement ID
+resource "google_secret_manager_secret" "firebase_measurement_id" {
+  secret_id = "next_public_firebase_measurement_id"
+  replication {
+    auto {}
+  }
+}
+resource "google_secret_manager_secret_version" "firebase_measurement_id_version" {
+  secret = google_secret_manager_secret.firebase_measurement_id.id
+  secret_data = var.firebase_measurement_id
+}
+
