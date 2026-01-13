@@ -30,10 +30,14 @@
 		<string>lineauth2</string>
 	</array>
 	<key>RevenueCatAPIKey</key>
-	<string>sk_gMlJifwmHuPPcvweJXyXxqPJWdhjm</string>
+	<string>appl_kzidfVNDgEaDpKUiLeOeBzWsqeN</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>好みに合わせた広告を表示するために使用されます。</string>
 </dict>
 </plist>

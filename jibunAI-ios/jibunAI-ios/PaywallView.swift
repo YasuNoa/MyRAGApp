@@ -6,6 +6,7 @@
 //  - 標準のPaywallViewを使用して、設定されたOfferingを表示
 //  - 課金成功時、リストア時のハンドリング、フッターの表示
 //
+//
 
 import SwiftUI
 import RevenueCat
@@ -75,7 +76,7 @@ struct SubscriptionView: View {
             viewModel.checkEligibility()
         }
     }
-    }
+}
 
 
 // MARK: - Spotify Style Paywall UI
@@ -100,6 +101,11 @@ struct PaywallView: View {
     let midnightBlue = Color(red: 0.05, green: 0.07, blue: 0.12) // Dark Navy
     let cyanGradient = LinearGradient(colors: [Color(red: 0.0, green: 0.8, blue: 0.8), Color(red: 0.0, green: 0.4, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing)
     
+    // iPad Check
+    var isIpad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+    
     var body: some View {
         ZStack {
             // 1. Premium Background
@@ -114,14 +120,14 @@ struct PaywallView: View {
             GeometryReader { geo in
                 Circle()
                     .fill(Color.blue.opacity(0.1))
-                    .frame(width: 300, height: 300)
-                    .blur(radius: 60)
+                    .frame(width: isIpad ? 500 : 300, height: isIpad ? 500 : 300) // Larger for iPad
+                    .blur(radius: isIpad ? 100 : 60)
                     .offset(x: -100, y: -100)
                 
                 Circle()
                     .fill(Color.cyan.opacity(0.1))
-                    .frame(width: 250, height: 250)
-                    .blur(radius: 50)
+                    .frame(width: isIpad ? 400 : 250, height: isIpad ? 400 : 250) // Larger for iPad
+                    .blur(radius: isIpad ? 80 : 50)
                     .offset(x: geo.size.width - 150, y: geo.size.height / 2)
             }
             .ignoresSafeArea()
@@ -132,40 +138,41 @@ struct PaywallView: View {
                     .scaleEffect(1.5)
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 24) {
+                    VStack(spacing: isIpad ? 40 : 24) { // Larger spacing on iPad
                         
                         // Header
-                        VStack(spacing: 8) {
+                        VStack(spacing: isIpad ? 16 : 8) {
                             Text("プレミアムプラン")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: isIpad ? 48 : 32, weight: .bold, design: .rounded)) // Larger font
                                 .foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.8)], startPoint: .top, endPoint: .bottom))
                             
                             Text("ワンコインでもっと楽しよう")
-                                .font(.title3)
+                                .font(isIpad ? .title : .title3) // Larger font
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                         }
-                        .padding(.top, 40)
+                        .padding(.top, isIpad ? 60 : 40)
                         
                         // Switcher
                         HStack(spacing: 0) {
-                            PlanSwitchButton(title: "月払い", isSelected: !isYearly) { isYearly = false }
-                            PlanSwitchButton(title: "年払い", isSelected: isYearly, badge: "20%お得") { isYearly = true }
+                            PlanSwitchButton(title: "月払い", isSelected: !isYearly, isIpad: isIpad) { isYearly = false }
+                            PlanSwitchButton(title: "年払い", isSelected: isYearly, badge: "20%お得", isIpad: isIpad) { isYearly = true }
                         }
+                        .frame(maxWidth: isIpad ? 500 : .infinity) // Limit width on iPad
                         .background(Color.black.opacity(0.3))
                         .cornerRadius(30)
-                        .padding(.horizontal, 40)
+                        .padding(.horizontal, isIpad ? 0 : 40)
                         
                         // Cards Stack
-                        VStack(spacing: 20) {
+                        VStack(spacing: isIpad ? 30 : 20) {
                             if let offering = currentOffering {
                                 
                                 // --- STANDARD ---
                                 if let standardPkg = getPackage(for: "standard", isYearly: isYearly, offering: offering) {
                                     PremiumPlanCard(
-                                        title: "Standard",
-                                        price: standardPkg.storeProduct.localizedPriceString,
-                                        period: isYearly ? "/ 年" : "/ 月",
+                                        title: "Standardプラン", // Explicit Name
+                                        price: "月額 " + standardPkg.storeProduct.localizedPriceString, // Explicit Price
+                                        period: isYearly ? "1年" : "1ヶ月", // Explicit Period
                                         description: "一番人気のプラン",
                                         features: [
                                             "チャット: 100回 / 日",
@@ -179,6 +186,7 @@ struct PaywallView: View {
                                         isPremium: true,
                                         recommended: true,
                                         buttonText: "Standardにする",
+                                        isIpad: isIpad,
                                         action: { purchase(package: standardPkg) }
                                     )
                                 }
@@ -186,9 +194,9 @@ struct PaywallView: View {
                                 // --- PREMIUM ---
                                 if let premiumPkg = getPackage(for: "premium", isYearly: isYearly, offering: offering) {
                                     PremiumPlanCard(
-                                        title: "Premium",
-                                        price: premiumPkg.storeProduct.localizedPriceString,
-                                        period: isYearly ? "/ 年" : "/ 月",
+                                        title: "Premiumプラン", // Explicit Name
+                                        price: "月額 " + premiumPkg.storeProduct.localizedPriceString, // Explicit Price
+                                        period: isYearly ? "1年" : "1ヶ月", // Explicit Period
                                         description: "ヘビーユーザー向け",
                                         features: [
                                             "チャット: 200回 / 日",
@@ -203,15 +211,16 @@ struct PaywallView: View {
                                         isPremium: true,
                                         recommended: false,
                                         buttonText: "Premiumにする",
+                                        isIpad: isIpad,
                                         action: { purchase(package: premiumPkg) }
                                     )
                                 }
                                 
                                 // --- FREE ---
                                 PremiumPlanCard(
-                                    title: "Free",
+                                    title: "Freeプラン", // Explicit Name
                                     price: "¥0",
-                                    period: "ずっと",
+                                    period: "ずっと", // Explicit Period
                                     description: "基本機能のお試し",
                                     features: [
                                         "チャット: 10回 / 日",
@@ -224,19 +233,45 @@ struct PaywallView: View {
                                     ],
                                     isPremium: false,
                                     buttonText: "現在のプラン",
+                                    isIpad: isIpad,
                                     action: nil
                                 )
                             }
                         }
+                        .frame(maxWidth: isIpad ? 600 : .infinity) // Limit width on iPad for better readability
                         .padding(.horizontal, 16)
                         
                         // Footer
                         VStack(spacing: 16) {
+                            // Auto-renewal Disclosure (Required by Apple)
+                            VStack(spacing: 8) {
+                                Text("課金について")
+                                    .font(isIpad ? .headline : .caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .frame(maxWidth: isIpad ? 600 : .infinity, alignment: .leading)
+                                
+                                Text("""
+                                • お支払いは、購入確認時にApple IDアカウントに請求されます。
+                                • サブスクリプションは、現在の期間が終了する少なくとも24時間前に自動更新がオフにされない限り、自動的に更新されます。
+                                • アカウントには、現在の期間が終了する前の24時間以内に更新料金が請求され、更新費用が特定されます。
+                                • サブスクリプションはユーザーが管理でき、購入後にApp Storeのアカウント設定で自動更新をオフにすることができます。
+                                • 無料トライアル期間の未使用分は、ユーザーがそのパブリケーションのサブスクリプションを購入した際に失効します。
+                                """)
+                                .font(isIpad ? .body : .caption2)
+                                .foregroundColor(.white.opacity(0.4))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .lineSpacing(2)
+                                .frame(maxWidth: isIpad ? 600 : .infinity)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 8)
+                            
                             Button {
                                 restorePurchases()
                             } label: {
                                 Text("購入を復元する")
-                                    .font(.footnote)
+                                    .font(isIpad ? .body : .footnote)
                                     .foregroundColor(.white.opacity(0.5))
                                     .underline()
                             }
@@ -245,7 +280,7 @@ struct PaywallView: View {
                                 Link("利用規約", destination: URL(string: "https://jibun-ai.com/terms")!)
                                 Link("プライバシー", destination: URL(string: "https://jibun-ai.com/privacy")!)
                             }
-                            .font(.caption2)
+                            .font(isIpad ? .callout : .caption2)
                             .foregroundColor(.white.opacity(0.3))
                         }
                         .padding(.bottom, 40)
@@ -294,27 +329,47 @@ struct PaywallView: View {
     }
     
     func fetchOfferings() {
+        print("📡 Fetching RevenueCat offerings...")
         Purchases.shared.getOfferings { (offerings, error) in
             DispatchQueue.main.async {
-                if let offerings = offerings, let current = offerings.current {
-                    self.currentOffering = current
-                }
                 self.isLoading = false
+                
+                if let error = error {
+                    print("❌ Error fetching offerings: \(error.localizedDescription)")
+                    self.errorMessage = "プラン情報の取得エラー: \(error.localizedDescription)"
+                    self.showError = true
+                    return
+                }
+                
+                if let offerings = offerings, let current = offerings.current {
+                    print("📦 Offerings fetched. Current: \(current.identifier)")
+                    self.currentOffering = current
+                } else {
+                    print("⚠️ No current offering configured!")
+                    self.errorMessage = "プラン情報が見つかりません (No Current Offering)"
+                    self.showError = true
+                }
             }
         }
     }
     
     func purchase(package: Package) {
+        print("💰 Purchase started: \(package.identifier)")
         self.isPurchasing = true
         Purchases.shared.purchase(package: package) { (transaction, info, error, userCancelled) in
             DispatchQueue.main.async {
                 self.isPurchasing = false
                 if let error = error {
+                    print("❌ Purchase failed: \(error.localizedDescription)")
                     if !userCancelled {
-                        self.errorMessage = error.localizedDescription
+                        let nsError = error as NSError
+                        self.errorMessage = "購入エラー: \(error.localizedDescription) (Code: \(nsError.code))"
                         self.showError = true
+                    } else {
+                        print("🚫 User cancelled purchase")
                     }
                 } else if !userCancelled {
+                    print("✅ Purchase success")
                     onPurchaseCompleted()
                 }
             }
@@ -322,18 +377,22 @@ struct PaywallView: View {
     }
     
     func restorePurchases() {
+        print("🔄 Restore started")
         self.isPurchasing = true
         Purchases.shared.restorePurchases { (info, error) in
             DispatchQueue.main.async {
                 self.isPurchasing = false
                 if let error = error {
-                    self.errorMessage = error.localizedDescription
+                    print("❌ Restore failed: \(error.localizedDescription)")
+                    self.errorMessage = "復元エラー: \(error.localizedDescription)"
                     self.showError = true
                 } else if let info = info {
                     if info.entitlements.active.isEmpty {
+                         print("ℹ️ No active entitlements found")
                         self.errorMessage = "復元可能な購入が見つかりませんでした。"
                         self.showError = true
                     } else {
+                        print("✅ Restore success: \(info.entitlements.active.keys)")
                         self.successMessage = "購入を復元しました。"
                         self.showSuccess = true
                         onPurchaseCompleted()
@@ -350,16 +409,18 @@ struct PlanSwitchButton: View {
     let title: String
     let isSelected: Bool
     var badge: String? = nil
+    var isIpad: Bool = false
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Text(title)
+                    .font(isIpad ? .title3 : .body) // Larger font
                     .fontWeight(.bold)
                 if let badge = badge {
                     Text(badge)
-                        .font(.caption2)
+                        .font(isIpad ? .subheadline : .caption2) // Larger font
                         .fontWeight(.bold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -369,7 +430,7 @@ struct PlanSwitchButton: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.vertical, isIpad ? 16 : 12) // Larger padding
             .background(isSelected ? Color.white.opacity(0.15) : Color.clear)
             .foregroundColor(isSelected ? .white : .gray)
             .cornerRadius(30)
@@ -386,21 +447,22 @@ struct PremiumPlanCard: View {
     let isPremium: Bool
     var recommended: Bool = false
     let buttonText: String
+    var isIpad: Bool = false
     let action: (() -> Void)?
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            VStack(spacing: 16) {
+            VStack(spacing: isIpad ? 24 : 16) {
                 // Title & Price
                 HStack(alignment: .top) { // Align top to handle height diff
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
-                            .font(.title3)
+                            .font(isIpad ? .title2 : .title3)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                         
                         Text(description)
-                            .font(.caption)
+                            .font(isIpad ? .body : .caption)
                             .foregroundColor(.white.opacity(0.6))
                     }
                     
@@ -408,11 +470,11 @@ struct PremiumPlanCard: View {
                     
                     VStack(alignment: .trailing, spacing: 0) {
                         Text(price)
-                            .font(.system(size: 36, weight: .heavy, design: .rounded)) // More emphasis
+                            .font(.system(size: isIpad ? 48 : 36, weight: .heavy, design: .rounded)) // More emphasis
                             .foregroundColor(.white)
                             .shadow(color: isPremium ? .cyan.opacity(0.5) : .clear, radius: 10) // Glow for premium text
                         Text(period)
-                            .font(.caption2)
+                            .font(isIpad ? .body : .caption2)
                             .foregroundColor(.white.opacity(0.6))
                     }
                     .padding(.top, recommended ? 8 : 0) // Shift price down if recommended
@@ -421,14 +483,14 @@ struct PremiumPlanCard: View {
                 Divider().background(Color.white.opacity(0.1))
                 
                 // Features
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: isIpad ? 12 : 8) {
                     ForEach(features, id: \.self) { feature in
                         HStack(spacing: 10) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(isPremium ? Color.cyan : Color.gray)
-                                .font(.system(size: 14))
+                                .font(.system(size: isIpad ? 20 : 14))
                             Text(feature)
-                                .font(.subheadline)
+                                .font(isIpad ? .body : .subheadline)
                                 .foregroundColor(.white.opacity(0.9))
                         }
                     }
@@ -441,11 +503,11 @@ struct PremiumPlanCard: View {
                 if let action = action {
                     Button(action: action) {
                         Text(buttonText)
-                            .font(.headline)
+                            .font(isIpad ? .title3 : .headline)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .padding(.vertical, isIpad ? 18 : 14)
                             .background(
                                 isPremium
                                 ? AnyView(LinearGradient(colors: [Color.cyan, Color.blue], startPoint: .leading, endPoint: .trailing))
@@ -456,16 +518,16 @@ struct PremiumPlanCard: View {
                     }
                 } else {
                     Text(buttonText)
-                        .font(.headline)
+                        .font(isIpad ? .title3 : .headline)
                         .fontWeight(.bold)
                         .foregroundColor(.white.opacity(0.5))
-                        .padding(.vertical, 14)
+                        .padding(.vertical, isIpad ? 18 : 14)
                         .frame(maxWidth: .infinity)
                         .background(Color.black.opacity(0.3))
                         .cornerRadius(12)
                 }
             }
-            .padding(24)
+            .padding(isIpad ? 32 : 24)
             .background(.ultraThinMaterial)
             .cornerRadius(24)
             .overlay(
@@ -484,15 +546,15 @@ struct PremiumPlanCard: View {
             // Badge
             if recommended {
                 Text("おすすめ")
-                    .font(.system(size: 11, weight: .bold)) // Slightly larger text
+                    .font(.system(size: isIpad ? 14 : 11, weight: .bold)) // Slightly larger text
                     .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, isIpad ? 14 : 10)
+                    .padding(.vertical, isIpad ? 8 : 5)
                     .background(
                         LinearGradient(colors: [.cyan, .blue], startPoint: .leading, endPoint: .trailing)
                     )
                     .cornerRadius(10) // More rounded
-                    .padding([.top, .trailing], 12) // Moved closer to edge
+                    .padding([.top, .trailing], isIpad ? 16 : 12) // Moved closer to edge
             }
         }
     }
@@ -597,5 +659,22 @@ extension AuthService {
 struct SubscriptionView_Previews: PreviewProvider {
     static var previews: some View {
         SubscriptionView()
+    }
+}
+
+// MARK: - Extensions
+
+extension View {
+    @ViewBuilder
+    func adaptivePaywallSheet(isPresented: Binding<Bool>, onPurchaseCompleted: @escaping () -> Void) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            self.fullScreenCover(isPresented: isPresented) {
+                PaywallView(onPurchaseCompleted: onPurchaseCompleted)
+            }
+        } else {
+            self.sheet(isPresented: isPresented) {
+                PaywallView(onPurchaseCompleted: onPurchaseCompleted)
+            }
+        }
     }
 }

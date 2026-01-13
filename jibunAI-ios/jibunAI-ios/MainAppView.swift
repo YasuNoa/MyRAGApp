@@ -11,6 +11,7 @@
 //
 
 import SwiftUI
+import AppTrackingTransparency
 
 // メイン機能画面
 struct MainAppView: View {
@@ -88,6 +89,25 @@ struct MainAppView: View {
         .sheet(isPresented: $showPaywall) {
             SubscriptionView()
         }
+    .onAppear {
+        // ATTリクエスト (少し遅延させる)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            ATTrackingManager.requestTrackingAuthorization { status in
+                switch status {
+                case .authorized:
+                    print("ATT: Authorized")
+                case .denied:
+                    print("ATT: Denied")
+                case .notDetermined:
+                    print("ATT: Not Determined")
+                case .restricted:
+                    print("ATT: Restricted")
+                @unknown default:
+                    print("ATT: Unknown")
+                }
+            }
+        }
+    }
     }
 }
 

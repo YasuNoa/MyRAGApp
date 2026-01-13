@@ -219,6 +219,21 @@ final class AppStateManager: ObservableObject {
             print("⚠️ Failed to sign out: \(error)")
         }
     }
+
+    // アカウント削除
+    func deleteAccount() async throws {
+        guard let user = Auth.auth().currentUser else { return }
+        
+        // Firebase Authから削除
+        try await user.delete()
+        
+        // ログアウト処理と同様にローカル状態をクリア
+        await MainActor.run {
+            self.signOut()
+        }
+        
+        print("👋 Account deleted successfully")
+    }
     
     // ログイン成功時の処理
     func loginSuccess(user: User, token: String) {

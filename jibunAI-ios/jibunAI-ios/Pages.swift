@@ -203,10 +203,8 @@ struct ChatView: View {
             // カテゴリ（タグ）を最新化
             await viewModel.loadCategories()
         }
-        .sheet(isPresented: $viewModel.showPaywall) {
-             PaywallView(onPurchaseCompleted: {
-                 viewModel.showPaywall = false
-             })
+        .adaptivePaywallSheet(isPresented: $viewModel.showPaywall) {
+             viewModel.showPaywall = false
         }
         .alert("利用上限に達しました", isPresented: $viewModel.showLimitAlert) {
             Button("プランを確認", role: .cancel) {
@@ -499,10 +497,8 @@ struct KnowledgeView: View {
         ) { result in
             handleFileImport(result: result)
         }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(onPurchaseCompleted: {
-                showPaywall = false
-            })
+        .adaptivePaywallSheet(isPresented: $showPaywall) {
+            showPaywall = false
         }
         .alert("利用上限に達しました", isPresented: $showLimitAlert) {
             Button("プランを確認", role: .cancel) {
@@ -984,10 +980,8 @@ struct NoteView: View {
                         } message: {
                             Text(viewModel.limitAlertMessage ?? "")
                         }
-                        .sheet(isPresented: $showPaywall) {
-                            PaywallView(onPurchaseCompleted: {
-                                showPaywall = false
-                            })
+                        .adaptivePaywallSheet(isPresented: $showPaywall) {
+                            showPaywall = false
                         }
                         
                         // Time Display (only when recording)
@@ -1556,6 +1550,7 @@ struct FeedbackView: View {
 struct SettingsView: View {
     @EnvironmentObject var appState: AppStateManager
     @State private var showLogoutAlert = false
+    @State private var showDeleteAccountAlert = false
     @State private var showPaywall = false
 
     var body: some View {
@@ -1759,6 +1754,39 @@ struct SettingsView: View {
                         Text("ログアウトしてもよろしいですか？")
                     }
                     .padding(.top, 16)
+                    
+                    // アカウント削除ボタン
+                    Button {
+                        showDeleteAccountAlert = true
+                    } label: {
+                        Text("アカウント削除")
+                            .font(.headline)
+                            .foregroundColor(.red.opacity(0.8))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    .alert("アカウント削除", isPresented: $showDeleteAccountAlert) {
+                        Button("キャンセル", role: .cancel) { }
+                        Button("完全に削除する", role: .destructive) {
+                            Task {
+                                do {
+                                    try await appState.deleteAccount()
+                                } catch {
+                                    // エラーハンドリング（必要に応じてアラート表示など）
+                                    print("Delete account failed: \(error)")
+                                }
+                            }
+                        }
+                    } message: {
+                        Text("アカウントを削除すると、全てのデータ（保存した知識、チャット履歴、設定）が永久に削除され、復元することはできません。\n\n本当に削除しますか？")
+                    }
+                    .padding(.top, 8)
                     
                     // コピーライト
                     Text("© 2025 じぶんAI")

@@ -49,8 +49,8 @@ class APIService: ObservableObject {
     /// ベースURL
     #if DEBUG
     // 開発環境 (MacのIPアドレス)
-    static let baseURL = "http://192.168.11.21:8000"
-    static let authBaseURL = "http://192.168.11.21:3000"
+    static let baseURL = "http://192.168.11.2:8000"
+    static let authBaseURL = "http://192.168.11.2:3000"
     #else
     // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
