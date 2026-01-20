@@ -1,3 +1,4 @@
+# LLM（Gemini）へのシステムプロンプト定義を管理するファイル
 # System Prompts for Gemini API
 
 CHAT_SYSTEM_PROMPT = """

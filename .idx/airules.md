@@ -94,3 +94,13 @@
     * `ARCHITECTURE.md` に記載されていない場所に、独自の判断で新しいディレクトリやファイルを作成しないでください。
     * 特に Backend の `main.py` や iOS の `Pages.swift` にロジックを追加することは固く禁じます。これらは分割対象です。
     * 「とりあえず動くから」という理由で、責務（Router, Service, ViewModel等）を無視した実装を行わないでください。
+
+## 10. 開発環境
+* **IDE:** Antigravity
+* **言語:** Python, Swift, TypeScript, HTML, CSS, JavaScript
+* **フレームワーク:** FastAPI, Next.js, SwiftUI
+* **データベース:** PostgreSQL
+* **インフラ:** Docker, Google Cloud Run
+
+## 11. 開発フロー
+* **コード修正後の検証:** コードの実装または修正案を作成した後、出力する前に必ずcheck.mdを確認して、違反がないか検証を行ってください。違反がある場合は、直ちに修正してください。

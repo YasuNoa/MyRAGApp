@@ -1,3 +1,4 @@
+# 知識データ（PDF/画像/テキスト）のパースとVectorDBへのインポートを担当するサービス
 import logging
 import json
 from typing import List, Optional, Dict, Any

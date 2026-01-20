@@ -1,0 +1,17 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.terraform": true,
+        "**/.next": true,
+        "**/node_modules": true,
+        "stripe": true,
+        "tsconfig.tsbuildinfo": true,
+        "terraform.tfstate*": true,
+        "package-lock.json": true,
+        "next-env.d.ts": true,
+        "node_modules_backup": true
+    }
+}

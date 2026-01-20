@@ -1,3 +1,4 @@
+# Web検索機能（Tavily API）を担当するサービス
 import os
 from typing import List, Optional
 from tavily import TavilyClient

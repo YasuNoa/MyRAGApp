@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from schemas.knowledge import TextImportRequest
 import os
 import io
 import json
@@ -148,13 +149,7 @@ async def line_auth_callback(
     return RedirectResponse(url=ios_scheme_url)
 
 
-class TextImportRequest(BaseModel):
-    text: str
-    userId: str
-    source: str = "manual"
-    dbId: Optional[str] = None
-    tags: List[str] = [] # categoryからtagsリストに変更 (柔軟な分類のため)
-    summary: Optional[str] = None
+# TextImportRequest moved to schemas.knowledge
 
 # --- CORS ---
 origins = [

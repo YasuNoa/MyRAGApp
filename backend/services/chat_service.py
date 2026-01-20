@@ -1,3 +1,4 @@
+# チャット機能（RAGを含む対話ロジック、履歴管理）を担当するサービス
 import os
 import logging
 from typing import List, Dict, Any, Optional

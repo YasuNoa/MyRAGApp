@@ -1,4 +1,5 @@
 from typing import Optional, Dict
+# 音声データの処理（文字起こし、要約、音声保存）を担当するサービス
 import os
 import shutil
 import uuid
@@ -9,10 +10,8 @@ from pydub import AudioSegment
 import google.generativeai as genai
 from fastapi import HTTPException
 
-from db import db
-from prompts import AUDIO_CHUNK_PROMPT, SUMMARY_FROM_TEXT_PROMPT
-from services.rag_service import RagService
-from services.vector_service import VectorService
+from services.chat_service import RagService
+from services.knowledge_service import VectorService
 
 # Setup Logger
 logger = logging.getLogger(__name__)

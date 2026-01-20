@@ -9,6 +9,7 @@ ARCHITECTURE.md - Refactoring Specifications
 2. Backend Architecture (FastAPI)
 2.1 Directory Structure
 backend/ 配下を以下のレイヤードアーキテクチャ構成とする。
+このアーキテクチャ構造をファイルやフォルダ追加で破壊してはいけない。
 
 Plaintext
 
@@ -23,9 +24,10 @@ backend/
 │   ├── knowledge.py     # File import/query endpoints
 │   └── user.py          # User management endpoints
 ├── services/            # Business Logic Layer
-│   ├── chat_service.py      # RAG logic, Chat history
+│   ├── chat_service.py      # RAG high-level logic (Retrieve & Generate), Chat history
 │   ├── voice_service.py     # FFMPEG, Gemini API integration
-│   ├── knowledge_service.py # PDF/Image parsing, Vector DB operations
+│   ├── knowledge_service.py # PDF/Image parsing, Data ingestion
+│   ├── vector_service.py    # Embedding generation, Vector DB operations (Upsert/Search)
 │   ├── user_service.py      # DB CRUD for users
 │   ├── prompts.py           # System prompts for Gemini API
 │   └── search_service.py    # Search service for Tavily

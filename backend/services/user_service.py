@@ -1,3 +1,4 @@
+# ユーザー情報、プラン、アカウント管理などのDB操作を担当するサービス
 from typing import Optional, Tuple
 import logging
 from datetime import datetime, timezone, timedelta
@@ -27,17 +28,7 @@ class UserService:
         if user:
             return user.id
 
-        # 2. 見つからない場合、Accountテーブルを Provider ID で検索
-        # 2. If not found, search Account table by Provider Account ID
-        # Note: id_or_uid might be "line:Uc36..." or just "Uc36..."
-        # We search strictly by providerAccountId matching the input string.
-        # Firebase Auth UIDs are passed as is.
-        # If the input contains a prefix like "line:", we might need to handle it if stored without prefix.
-        # But currently, auth sync saves providerAccountId exactly as received from token.
-        
-        # Try finding account with this providerAccountId
-        # Since provider is part of the unique key, we can't search easily without knowing the provider.
-        # But we can findFirst.
+       
         
         account = await db.account.find_first(
             where={'providerAccountId': id_or_uid},
