@@ -28,19 +28,13 @@ struct jibunAI_iosApp: App {
         print("✅ Firebase configured")
         
         // RevenueCat初期化
-        #if DEBUG
-        // 開発環境 (Test Key)
-        let revenueCatAPIKey = "appl_kzidfVNDgEaDpKUiLeOeBzWsqeN"
-        print("🔧 Running in DEBUG mode with Dev Key")
-        #else
-        // 本番環境 (Prod Key) - Info.plistから読み込む
+        // Info.plistから読み込む
         let revenueCatAPIKey = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String ?? ""
         if revenueCatAPIKey.isEmpty {
             print("⚠️ RevenueCatAPIKey not found in Info.plist")
         } else {
-            print("🚀 Running in RELEASE mode with Prod Key from Info.plist")
+            print("🚀 RevenueCat configured with key from Info.plist")
         }
-        #endif
         
         Purchases.logLevel = .debug
         Purchases.configure(withAPIKey: revenueCatAPIKey)
