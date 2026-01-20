@@ -26,7 +26,9 @@ backend/
 │   ├── chat_service.py      # RAG logic, Chat history
 │   ├── voice_service.py     # FFMPEG, Gemini API integration
 │   ├── knowledge_service.py # PDF/Image parsing, Vector DB operations
-│   └── user_service.py      # DB CRUD for users
+│   ├── user_service.py      # DB CRUD for users
+│   ├── prompts.py           # System prompts for Gemini API
+│   └── search_service.py    # Search service for Tavily
 ├── schemas/             # Data Transfer Objects (Pydantic Models)
 │   ├── chat.py          # Request/Response models for Chat
 │   ├── knowledge.py     # Request/Response models for Knowledge

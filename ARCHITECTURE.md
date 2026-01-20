@@ -1,6 +1,6 @@
-提供されたリファクタリング計画に基づき、IDE搭載のAI（GitHub Copilot, Cursor, Windsurf等）がコンテキストとして理解し、コード移行を正確に実行するための設計仕様書を作成しました。
-
-この内容をプロジェクトのルートディレクトリに ARCHITECTURE.md または .cursorrules (Cursorの場合) として配置し、AIに対して「この設計書に従ってリファクタリングを実行せよ」と指示してください。
+---
+trigger: always_on
+---
 
 ARCHITECTURE.md - Refactoring Specifications
 1. Project Overview & Objective
@@ -26,7 +26,9 @@ backend/
 │   ├── chat_service.py      # RAG logic, Chat history
 │   ├── voice_service.py     # FFMPEG, Gemini API integration
 │   ├── knowledge_service.py # PDF/Image parsing, Vector DB operations
-│   └── user_service.py      # DB CRUD for users
+│   ├── user_service.py      # DB CRUD for users
+│   ├── prompts.py           # System prompts for Gemini API
+│   └── search_service.py    # Search service for Tavily
 ├── schemas/             # Data Transfer Objects (Pydantic Models)
 │   ├── chat.py          # Request/Response models for Chat
 │   ├── knowledge.py     # Request/Response models for Knowledge
