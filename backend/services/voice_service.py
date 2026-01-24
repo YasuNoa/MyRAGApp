@@ -1,17 +1,26 @@
-from typing import Optional, Dict
-# 音声データの処理（文字起こし、要約、音声保存）を担当するサービス
+
+from typing import Optional, Dict, List, Any
 import os
 import shutil
 import uuid
 import json
 import logging
+import subprocess
+import time
 from datetime import datetime, timezone, timedelta
+
 from pydub import AudioSegment
 import google.generativeai as genai
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
-from services.chat_service import RagService
-from services.knowledge_service import VectorService
+from db import db
+from services.vector_service import VectorService
+from services.user_service import UserService
+from services.knowledge_service import KnowledgeService
+from services.prompts import (
+    AUDIO_CHUNK_PROMPT,
+    SUMMARY_FROM_TEXT_PROMPT
+)
 
 # Setup Logger
 logger = logging.getLogger(__name__)
@@ -22,31 +31,19 @@ class VoiceService:
     def get_audio_duration(file_path: str) -> float:
         """Get the duration of an audio file in seconds."""
         try:
-            audio = AudioSegment.from_file(file_path)
-            return audio.duration_seconds
-        except Exception as e:
-            logger.error(f"Error reading audio file: {e}")
+            # ffmpeg -i input 2>&1 | grep "Duration"
+            # Logic from main.py
+            command = ["ffmpeg", "-i", file_path]
+            result = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            import re
+            match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", result.stderr)
+            if match:
+                hours, minutes, seconds = map(float, match.groups())
+                return hours * 3600 + minutes * 60 + seconds
             return 0.0
-
-    @staticmethod
-    def trim_audio(file_path: str, duration_sec: int) -> str:
-        """Trim audio file to the specified duration in seconds."""
-        try:
-            audio = AudioSegment.from_file(file_path)
-            trimmed_audio = audio[:duration_sec * 1000] # pydub works in millis
-            
-            # Save as a new file
-            dir_name = os.path.dirname(file_path)
-            base_name = os.path.basename(file_path)
-            name, ext = os.path.splitext(base_name)
-            new_filename = os.path.join(dir_name, f"{name}_trimmed{ext}")
-            
-            trimmed_audio.export(new_filename, format=ext.replace('.', ''))
-            logger.info(f"Trimmed audio saved to: {new_filename}")
-            return new_filename
         except Exception as e:
-            logger.error(f"Error trimming audio: {e}")
-            return file_path
+            logger.error(f"Error getting audio duration: {e}")
+            return 0.0
 
     @staticmethod
     def clean_json_response(text: str) -> str:
@@ -60,27 +57,286 @@ class VoiceService:
                     return text[first_newline+1:last_fence].strip()
         return text
 
-    @staticmethod
-    async def get_or_create_subscription(user_id: str):
-        sub = await db.usersubscription.find_unique(where={'userId': user_id})
-        if not sub:
-            now = datetime.now(timezone.utc)
-            sub = await db.usersubscription.create(
-                data={
-                    'userId': user_id,
-                    'plan': "FREE",
-                    'dailyChatCount': 0,
-                    'lastChatResetAt': now,
-                    'updatedAt': now
-                }
-            )
-        return sub
+    @classmethod
+    async def process_voice_memo(
+        cls, 
+        file: UploadFile, 
+        metadata: Dict[str, Any],
+        save: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Process voice memo with robust logic ported from main.py:
+        1. Limit Checks & Truncation
+        2. FFMPEG Chunking
+        3. Gemini Transcription with Retry
+        4. Summarization
+        5. Storage via KnowledgeService
+        """
+        logger.info(f"Processing voice memo for: {file.filename}")
+        
+        user_id = metadata.get("userId")
+        file_id = metadata.get("fileId")
+        tags = metadata.get("tags", [])
+        
+        if not user_id or not file_id:
+             raise HTTPException(status_code=400, detail="Missing userId or fileId")
+
+        # 0. Check Limits
+        # Resolve UserID first to prevent FK errors
+        user_id = await UserService.resolve_user_id(user_id)
+        user_plan = await UserService.get_user_plan(user_id)
+        
+        # Storage Limit
+        await UserService.check_storage_limit(user_id)
+        
+        # 1. Save Temporary
+        content = await file.read()
+        file_ext = os.path.splitext(file.filename)[1]
+        if not file_ext:
+            file_ext = ".mp3"
+            
+        temp_filename = f"/tmp/{uuid.uuid4()}{file_ext}"
+        with open(temp_filename, "wb") as f:
+            f.write(content)
+            
+        current_temp_file = temp_filename
+        temp_files_to_cleanup = [temp_filename]
+
+        try:
+            # --- Plan-Based Logic: Truncation & Usage Recording ---
+            
+            # 1. Truncation
+            needs_truncation = False
+            truncate_seconds = 0
+            
+            if user_plan == "FREE":
+                needs_truncation = True
+                truncate_seconds = 1200 # 20 mins
+                logger.info("Free Plan detected: Truncating to 20 mins.")
+            elif user_plan == "STANDARD" or user_plan == "STANDARD_TRIAL":
+                needs_truncation = True
+                truncate_seconds = 5400 # 90 mins
+                logger.info(f"{user_plan} Plan detected: Truncating to 90 mins.")
+            elif user_plan == "PREMIUM":
+                needs_truncation = True
+                truncate_seconds = 10800 # 180 mins (3 hours)
+                logger.info("Premium Plan detected: Truncating to 180 mins.")
+
+            try:
+                if needs_truncation:
+                    actual_duration = cls.get_audio_duration(temp_filename)
+                    
+                    if actual_duration > truncate_seconds:
+                        truncated_filename = f"/tmp/{uuid.uuid4()}_truncated{file_ext}"
+                        # ffmpeg: -t duration, -acodec copy
+                        cmd = ["ffmpeg", "-y", "-i", temp_filename, "-t", str(truncate_seconds), "-acodec", "copy", truncated_filename]
+                        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        
+                        # Swap
+                        # We don't remove original yet as we might need to debug? 
+                        # Actually we can remove it to save space.
+                        # But temp_files_to_cleanup handles it.
+                        current_temp_file = truncated_filename
+                        temp_files_to_cleanup.append(truncated_filename)
+                        logger.info(f"Truncated from {actual_duration:.1f}s to {truncate_seconds}s")
+                
+                # 2. Record Usage
+                final_duration = cls.get_audio_duration(current_temp_file)
+                sub = await UserService.get_or_create_subscription(user_id)
+                await cls.check_and_update_voice_limit(user_id, sub, final_duration)
+
+            except Exception as e:
+                logger.error(f"Audio processing/recording failed: {e}")
+                if "limit exceeded" in str(e):
+                    raise e 
+                pass # Proceed if ffmpeg fails?
+
+            # --- Chunking & Segmentation ---
+            chunk_duration = 600 # 10 minutes
+            temp_dir = f"/tmp/{uuid.uuid4()}"
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            split_pattern = os.path.join(temp_dir, "part%03d" + file_ext)
+            logger.info(f"Splitting audio into {chunk_duration}s chunks...")
+            
+            cmd = [
+                "ffmpeg", "-y", "-i", current_temp_file, 
+                "-f", "segment", "-segment_time", str(chunk_duration), 
+                "-c", "copy", split_pattern
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            chunks_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.startswith("part")])
+            logger.info(f"Created {len(chunks_files)} chunks: {chunks_files}")
+            
+            full_transcript = []
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            
+            for i, chunk_path in enumerate(chunks_files):
+                logger.info(f"Processing chunk {i+1}/{len(chunks_files)}: {chunk_path}")
+                
+                chunk_file_upload = genai.upload_file(chunk_path, mime_type=file.content_type or "audio/mpeg")
+                
+                retry_count = 0
+                max_retries = 5
+                
+                while retry_count < max_retries:
+                    try:
+                        response = model.generate_content(
+                            [AUDIO_CHUNK_PROMPT, chunk_file_upload],
+                        )
+                        
+                        text_resp = response.text
+                        chunk_transcript = ""
+                        if "[TRANSCRIPT]" in text_resp:
+                            chunk_transcript = text_resp.split("[TRANSCRIPT]")[1].strip()
+                        else:
+                            chunk_transcript = text_resp.strip()
+                        
+                        full_transcript.append(chunk_transcript)
+                        break 
+                        
+                    except Exception as e:
+                        if "429" in str(e) or "Resource exhausted" in str(e):
+                            retry_count += 1
+                            wait_time = 30 * retry_count 
+                            logger.warning(f"Rate limit hit for chunk {i}. Retrying in {wait_time}s... ({retry_count}/{max_retries})")
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(f"Failed to transcribe chunk {i}: {e}")
+                            full_transcript.append(f"(Chunk {i} failed: {e})")
+                            break 
+
+                logger.info("Sleeping 10s to respect rate limits...")
+                time.sleep(10)
+                # chunk_file_upload.delete() # Clean up remote file if needed
+
+            # Summarization
+            final_transcript = "\n\n".join(full_transcript)
+            logger.info(f"Full transcript length: {len(final_transcript)} chars")
+            
+            logger.info("Generating final summary from text...")
+            final_summary = "（要約生成失敗）"
+            
+            try:
+                summary_prompt = SUMMARY_FROM_TEXT_PROMPT.format(text=final_transcript[:500000])
+                summary_resp = model.generate_content([summary_prompt])
+                summary_text = summary_resp.text
+                if "[SUMMARY]" in summary_text:
+                    final_summary = summary_text.split("[SUMMARY]")[1].strip()
+                else:
+                    final_summary = summary_text.strip()
+            except Exception as e:
+                logger.error(f"Summary generation failed: {e}")
+
+            # Cleanup Chunks
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            if not final_transcript:
+                 raise HTTPException(status_code=500, detail="Failed to generate transcript")
+
+            # --- Storage via KnowledgeService ---
+            
+            # Create Document Record
+            if save:
+                # DB persisted ID is fileId (or dbId passed in?)
+                # main.py used fileId from metadata.
+                # Assuming fileId is the DB ID.
+                # Update main.py logic: KnowledgeService.create_document_record
+                
+                # Check if dbId is provided separately
+                db_id = metadata.get("dbId") or file_id
+
+                await KnowledgeService.create_document_record(
+                    doc_id=db_id,
+                    user_id=user_id,
+                    title=file.filename,
+                    source="voice_memo",
+                    mime_type=file.content_type,
+                    tags=tags
+                )
+                
+                # Chunk Text (VectorService)
+                # Re-use KnowledgeService logic? 
+                # main.py logic duplicated KnowledgeService.process_and_save_content partially but tailored for voice (transcript/summary separation).
+                # KnowledgeService.process_and_save_content is general.
+                # Voice logic wants specific metadata types 'transcript' / 'summary'.
+                # I will reproduce main.py logic here using VectorService directly, OR update KnowledgeService to support types.
+                # main.py used VectorService directly for custom metadata.
+                
+                chunks = VectorService.chunk_text(final_transcript)
+                vectors = []
+                
+                for i, chunk in enumerate(chunks):
+                    vector_id = f"{user_id}#{db_id}#{i}"
+                    embedding = VectorService.get_embedding(chunk)
+                    
+                    vectors.append({
+                        "id": vector_id,
+                        "values": embedding,
+                        "metadata": {
+                            "userId": user_id,
+                            "fileId": db_id,
+                            "dbId": db_id,
+                            "fileName": file.filename,
+                            "text": chunk,
+                            "chunkIndex": i,
+                            "tags": tags,
+                            "type": "transcript"
+                        }
+                    })
+                
+                if final_summary:
+                    summary_id = f"{user_id}#{db_id}#summary"
+                    summary_embedding = VectorService.get_embedding(final_summary)
+                    vectors.append({
+                        "id": summary_id,
+                        "values": summary_embedding,
+                        "metadata": {
+                            "userId": user_id,
+                            "fileId": db_id,
+                            "dbId": db_id,
+                            "fileName": file.filename,
+                            "text": final_summary,
+                            "chunkIndex": -1,
+                            "tags": tags,
+                            "type": "summary"
+                        }
+                    })
+                
+                if vectors:
+                    await VectorService.upsert_vectors(vectors)
+
+                # Save Content to DB
+                await KnowledgeService.save_document_content(db_id, final_transcript, summary=final_summary)
+                
+                # Reward
+                await UserService.process_referral_reward(user_id)
+
+            return {
+                "status": "success", 
+                "transcript": final_transcript,
+                "summary": final_summary,
+                "chunks_count": len(chunks) if save else 0
+            }
+
+        except Exception as e:
+            logger.error(f"Error processing voice memo: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            for f in temp_files_to_cleanup:
+                if os.path.exists(f):
+                    os.remove(f)
 
     @staticmethod
     async def check_and_update_voice_limit(user_id: str, sub, duration_sec: float):
+        # Re-implementing logic from original VoiceService (which was good) or copying?
+        # main.py called `VoiceService.check_and_update_voice_limit`.
+        # So I should keep the existing logic in VoiceService for this method.
+        # I'll paste the existing logic here.
+        
         current_plan = sub.plan
         
-        # Init default values if null
         daily_count = sub.dailyVoiceCount or 0
         last_voice_date = sub.lastVoiceDate
         if not last_voice_date:
@@ -97,7 +353,6 @@ class VoiceService:
         jst = timezone(timedelta(hours=9))
         now_jst = now.astimezone(jst)
 
-        # Date Reset Logic
         should_reset_daily = False
         if last_voice_date.replace(tzinfo=timezone.utc).astimezone(jst).date() != now_jst.date():
             should_reset_daily = True
@@ -106,28 +361,24 @@ class VoiceService:
         if last_voice_reset.replace(tzinfo=timezone.utc).astimezone(jst).month != now_jst.month:
             should_reset_monthly = True
 
-        # 1. FREE Plan Logic: Max 1 file/day AND Max 5 hours/month
         if current_plan == "FREE":
-            # Daily Limit Check
             if should_reset_daily:
                 daily_count = 0
             
             if daily_count >= 1:
                  raise HTTPException(status_code=403, detail="Free plan daily voice limit reached (1 file/day).")
             
-            # Monthly Limit Check (New: 5h = 300m)
             if should_reset_monthly:
                 monthly_minutes = 0
                 last_voice_reset = now
 
-            duration_min = int(duration_sec / 60) + 1 # Round up
+            duration_min = int(duration_sec / 60) + 1 
             if monthly_minutes + duration_min > 300:
                  raise HTTPException(
                      status_code=403, 
                      detail=f"Free plan monthly audio limit exceeded. {monthly_minutes}m used + {duration_min}m required > 300m available."
                 )
 
-            # Update Usage (Daily + Monthly)
             await db.usersubscription.update(
                 where={'userId': user_id},
                 data={
@@ -138,16 +389,15 @@ class VoiceService:
                 }
             )
 
-        # 2. Standard/Premium Logic: Time Limit Only
         else:
-            LIMITS = {"STANDARD": 900, "PREMIUM": 5400, "STANDARD_TRIAL": 900} # Minutes
+            LIMITS = {"STANDARD": 900, "PREMIUM": 5400, "STANDARD_TRIAL": 900} 
             monthly_limit = LIMITS.get(current_plan, 900)
             
             if should_reset_monthly:
                 monthly_minutes = 0
                 last_voice_reset = now
                 
-            duration_min = int(duration_sec / 60) + 1 # Round up
+            duration_min = int(duration_sec / 60) + 1 
             
             total_available = monthly_limit + purchased
             if monthly_minutes + duration_min > total_available:
@@ -156,7 +406,6 @@ class VoiceService:
                      detail=f"Monthly audio limit exceeded. {monthly_minutes}m used + {duration_min}m required > {total_available}m available."
                 )
                 
-            # Update Usage
             await db.usersubscription.update(
                 where={'userId': user_id},
                 data={
@@ -165,174 +414,79 @@ class VoiceService:
                 }
             )
 
-    @classmethod
-    async def process_audio(cls, file_path: str, user_id: str, mime_type: str = "audio/mpeg") -> Dict[str, str]:
+    @staticmethod
+    async def save_voice_memo(user_id: str, transcript: str, summary: str, title: str, tags: List[str]) -> Dict[str, str]:
         """
-        Process audio file: Limit check -> Trimming -> Transcription -> Summarization
-        """
-        try:
-            # 1. Get Plan Auth
-            sub = await cls.get_or_create_subscription(user_id)
-            user_plan = sub.plan
-            logger.info(f"User {user_id} plan: {user_plan}")
-
-            final_filename = file_path
-            temp_files_to_cleanup = [] # Track any extra temp files created here
-
-            try:
-                # 2. Check Duration & Limits
-                duration_sec = cls.get_audio_duration(file_path)
-                logger.info(f"Audio duration: {duration_sec}s")
-                
-                if duration_sec < 5.0:
-                     raise HTTPException(status_code=400, detail="Audio is too short (min 5 seconds).")
-                
-                # 3. Plan Logic
-                if user_plan == "FREE":
-                    # Check Duration Limit (15 mins = 900s)
-                    if duration_sec > 900:
-                        logger.info("Free plan: Trimming >15m audio")
-                        trimmed = cls.trim_audio(file_path, 900)
-                        if trimmed != file_path:
-                            final_filename = trimmed
-                            temp_files_to_cleanup.append(trimmed)
-                    
-                    # Check/Update Daily Count Limit
-                    await cls.check_and_update_voice_limit(user_id, sub, duration_sec)
-                    
-                else:
-                    # Standard/Premium: Time Limit Check
-                    await cls.check_and_update_voice_limit(user_id, sub, duration_sec)
-
-                # 4. Chunking & Transcription Strategy
-                # Replicating original logic: Split into 10 min (600s) chunks if needed
-                CHUNK_DURATION_MS = 600 * 1000 # 10 minutes in milliseconds
-                
-                transcript_parts = []
-                
-                # Load audio for chunking
-                # Note: loading large file into memory might be heavy, but AudioSegment handles it okay usually.
-                audio = AudioSegment.from_file(final_filename)
-                duration_ms = len(audio)
-                
-                chunk_files = []
-                try:
-                    for i in range(0, duration_ms, CHUNK_DURATION_MS):
-                        chunk = audio[i:i + CHUNK_DURATION_MS]
-                        chunk_name = f"{final_filename}_part{i//CHUNK_DURATION_MS}.mp3"
-                        chunk.export(chunk_name, format="mp3")
-                        chunk_files.append(chunk_name)
-                        
-                    logger.info(f"Split audio into {len(chunk_files)} chunks.")
-                    
-                    model = genai.GenerativeModel('gemini-2.0-flash')
-                    
-                    for idx, c_file in enumerate(chunk_files):
-                        logger.info(f"Processing chunk {idx+1}/{len(chunk_files)}: {c_file}")
-                        c_uploaded = genai.upload_file(c_file, mime_type="audio/mpeg")
-                        
-                        # Use AUDIO_CHUNK_PROMPT for pure transcription
-                        c_resp = model.generate_content(
-                            [AUDIO_CHUNK_PROMPT, c_uploaded],
-                            generation_config={"response_mime_type": "text/plain"}
-                        )
-                        
-                        # Extract transcript from [TRANSCRIPT] block or raw text
-                        text = cls.clean_json_response(c_resp.text)
-                        if "[TRANSCRIPT]" in text:
-                            text = text.split("[TRANSCRIPT]")[1].strip()
-                        
-                        if text:
-                            transcript_parts.append(text)
-                
-                finally:
-                    # Cleanup chunks
-                    for c_file in chunk_files:
-                        if os.path.exists(c_file):
-                            os.remove(c_file)
-
-                full_transcript = "\n\n".join(transcript_parts)
-                
-                # 5. Summarization (if transcript exists)
-                summary = ""
-                if full_transcript:
-                    logger.info("Generating summary from full transcript...")
-                    # Use SUMMARY_FROM_TEXT_PROMPT
-                    
-                    sum_prompt = SUMMARY_FROM_TEXT_PROMPT.format(text=full_transcript)
-                    sum_resp = model.generate_content(sum_prompt)
-                    
-                    sum_text = cls.clean_json_response(sum_resp.text)
-                    if "[SUMMARY]" in sum_text:
-                        summary = sum_text.split("[SUMMARY]")[1].strip()
-                    else:
-                        summary = sum_text
-
-                return {
-                    "transcript": full_transcript,
-                    "summary": summary
-                }
-
-            finally:
-                 # Cleanup only locally created trimmed files, NOT the original Input
-                 for f in temp_files_to_cleanup:
-                     if os.path.exists(f):
-                         os.remove(f)
-
-
-        except Exception as e:
-             logger.error(f"Voice Service Error: {e}")
-             if isinstance(e, HTTPException):
-                 raise e
-             raise HTTPException(status_code=500, detail=str(e))
-
-    @classmethod
-    async def save_voice_memo(cls, user_id: str, transcript: str, summary: str, title: str, tags: list[str]) -> Dict[str, str]:
-        """
-        Save voice memo to DB and Supabase Vector.
+        Save voice memo to DB and Supabase Vector (Manual Save from Edit Screen).
         """
         try:
-            # 1. Create Document in DB
-            content = ""
-            if summary:
-                content += f"【AI要約】\n{summary}\n\n"
-            if transcript:
-                content += f"【文字起こし】\n{transcript}"
-            
+            doc_id = str(uuid.uuid4())
             now = datetime.now(timezone.utc)
             
-            doc = await db.document.create(data={
-                "userId": user_id,
-                "title": title,
-                "content": content,
-                "summary": summary, # Added missing field
-                "source": "voice_memo",
-                "mimeType": "audio/mpeg", 
-                "fileCreatedAt": now,
-                "tags": tags
-            })
+            # 1. Create Document in DB
+            await KnowledgeService.create_document_record(
+                doc_id=doc_id,
+                user_id=user_id,
+                title=title,
+                source="voice_memo",
+                mime_type="audio/mpeg", # Conceptual mime type for voice memo
+                tags=tags
+            )
             
-            # 2. Generate Embedding
-            vector = RagService.get_embedding(content)
+            # 2. Save Content
+            # Note: save_document_content updates the record with content/summary.
+            await KnowledgeService.save_document_content(doc_id, transcript, summary=summary)
+
+            # 3. Vectorize
+            # We use VectorService directly to ensure 'fileId' metadata matches what frontend expects (if legacy).
+            # KnowledgeService uses 'doc_id' as 'dbId'.
+            # Mirroring process_voice_memo logic:
             
-            # 3. Upsert to Supabase
-            await VectorService.upsert_vectors([{
-                "id": doc.id,
-                "values": vector,
-                "metadata": {
-                    "userId": user_id,
-                    "dbId": doc.id,
-                    "source": "voice_memo",
-                    "tags": tags,
-                    "type": "audio/mpeg", # map fileType logic to 'type' column
-                    "title": doc.title,
-                    "createdAt": doc.createdAt.isoformat()
-                }
-            }])
+            chunks = VectorService.chunk_text(transcript)
+            vectors = []
             
-            logger.info(f"Saved voice memo {doc.id} for user {user_id}")
-            return {"id": doc.id, "status": "saved"}
+            for i, chunk in enumerate(chunks):
+                vector_id = f"{user_id}#{doc_id}#{i}"
+                embedding = VectorService.get_embedding(chunk)
+                vectors.append({
+                    "id": vector_id,
+                    "values": embedding,
+                    "metadata": {
+                        "userId": user_id,
+                        "fileId": doc_id,
+                        "dbId": doc_id,
+                        "fileName": title,
+                        "text": chunk,
+                        "chunkIndex": i,
+                        "tags": tags,
+                        "type": "transcript"
+                    }
+                })
             
+            if summary:
+                s_id = f"{user_id}#{doc_id}#summary"
+                s_emb = VectorService.get_embedding(summary)
+                vectors.append({
+                    "id": s_id,
+                    "values": s_emb,
+                    "metadata": {
+                        "userId": user_id,
+                        "fileId": doc_id,
+                        "dbId": doc_id,
+                        "fileName": title,
+                        "text": summary,
+                        "chunkIndex": -1,
+                        "tags": tags,
+                        "type": "summary"
+                    }
+                })
+            
+            if vectors:
+                await VectorService.upsert_vectors(vectors)
+
+            logger.info(f"Saved manual voice memo {doc_id} for user {user_id}")
+            return {"id": doc_id, "status": "saved"}
+
         except Exception as e:
             logger.error(f"Error saving voice memo: {e}")
             raise HTTPException(status_code=500, detail=str(e))

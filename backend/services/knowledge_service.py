@@ -1,208 +1,364 @@
-# 知識データ（PDF/画像/テキスト）のパースとVectorDBへのインポートを担当するサービス
+
+import os
+import io
+import uuid
 import logging
 import json
-from typing import List, Optional, Dict, Any
-from db import db
+import re
+import subprocess
+from typing import List, Dict, Any, Optional
 
+import google.generativeai as genai
+from pypdf import PdfReader
+from pptx import Presentation
+from docx import Document as DocxDocument
+import pandas as pd
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from database.db import db, db_pool
+from services.vector_service import VectorService
+from services.user_service import UserService
+from services.prompts import (
+    PDF_TRANSCRIPTION_PROMPT,
+    IMAGE_DESCRIPTION_PROMPT
+)
+
+# Setup Logger
 logger = logging.getLogger(__name__)
 
-class VectorService:
+# Initialize Clients
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+class KnowledgeService:
+
     @staticmethod
-    async def upsert_vectors(vectors: List[Dict[str, Any]]):
-        """
-        Upsert vectors and metadata to Supabase (Postgres) via DocumentChunk table.
-        vectors: List of dicts with 'values' (embedding), 'metadata' (dict)
-        """
-        if not vectors:
+    def extract_text_from_pdf(file_content: bytes) -> str:
+        # PDFファイルのバイナリデータからテキストを抽出します。
+        # pypdfライブラリを使用して、ページごとにテキストを読み取ります。
+        try:
+            reader = PdfReader(io.BytesIO(file_content))
+            text = ""
+            for page in reader.pages:
+                extracted = page.extract_text()
+                if extracted:
+                    text += extracted + "\n"
+            return text
+        except Exception as e:
+            logger.error(f"Error extracting text from PDF: {e}")
+            return "" 
+
+    @staticmethod
+    async def _process_pdf_with_gemini(content: bytes) -> str:
+        # PDFをGemini 2.0 Flashにアップロードして、テキスト抽出 (OCR) を行います。
+        # 通常のテキスト抽出が失敗した場合や、画像中心のPDFの場合に使用します。
+        temp_filename = f"/tmp/{uuid.uuid4()}.pdf"
+        try:
+            with open(temp_filename, "wb") as f:
+                f.write(content)
+            
+            logger.info("Uploading PDF to Gemini for OCR...")
+            uploaded_file = genai.upload_file(temp_filename, mime_type="application/pdf")
+            
+            logger.info("Generating PDF transcript...")
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            prompt = PDF_TRANSCRIPTION_PROMPT
+            response = model.generate_content([prompt, uploaded_file])
+            
+            # Check if we have a valid response
+            if not response.candidates:
+                logger.warning(f"Gemini PDF processing returned no candidates. Prompt feedback: {response.prompt_feedback}")
+                return ""
+                
+            try:
+                return response.text
+            except ValueError:
+                # response.text raises ValueError if the response was blocked
+                logger.warning(f"Gemini PDF processing blocked. Prompt feedback: {response.prompt_feedback}")
+                return ""
+        except Exception as e:
+            logger.error(f"Error processing PDF with Gemini: {e}")
+            return ""
+        finally:
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+
+    @classmethod
+    async def process_pdf(cls, content: bytes) -> str:
+        text = cls.extract_text_from_pdf(content)
+        if not text.strip() or len(text.strip()) < 50: 
+            logger.info("PDF text extraction yielded little/no text. Attempting Gemini OCR...")
+            ocr_text = await cls._process_pdf_with_gemini(content)
+            if ocr_text.strip():
+                text = ocr_text
+        return text
+
+    @staticmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception)
+    )
+    async def process_image(content: bytes, mime_type: str, filename: str) -> str:
+        # 画像をGeminiにアップロードして、その内容説明 (Description) を生成させます。
+        # これにより、画像の内容もテキストとして検索可能になります。
+        temp_filename = f"/tmp/{uuid.uuid4()}_{filename}"
+        with open(temp_filename, "wb") as f:
+            f.write(content)
+        
+        try:
+            logger.info("Uploading image to Gemini...")
+            uploaded_file = genai.upload_file(temp_filename, mime_type=mime_type)
+            
+            logger.info("Generating image description...")
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            prompt = IMAGE_DESCRIPTION_PROMPT
+            response = model.generate_content([prompt, uploaded_file])
+            return response.text
+        finally:
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+
+    @staticmethod
+    async def process_pptx(content: bytes) -> str:
+        ppt = Presentation(io.BytesIO(content))
+        text = ""
+        for slide in ppt.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text += shape.text + "\n"
+        return text
+
+    @staticmethod
+    async def process_docx(content: bytes) -> str:
+        doc = DocxDocument(io.BytesIO(content))
+        text = ""
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+        return text
+
+    @staticmethod
+    async def process_xlsx(content: bytes) -> str:
+        xls = pd.read_excel(io.BytesIO(content), sheet_name=None)
+        text = ""
+        for sheet_name, df in xls.items():
+            text += f"--- Sheet: {sheet_name} ---\n"
+            text += df.to_string(index=False) + "\n\n"
+        return text
+
+    @staticmethod
+    async def process_csv(content: bytes) -> str:
+        return content.decode("utf-8")
+
+    @staticmethod
+    async def process_text_file(content: bytes) -> str:
+         # Fallback decode
+         try:
+             return content.decode("utf-8")
+         except:
+             return content.decode("utf-8", errors="ignore")
+
+    @staticmethod
+    async def create_document_record(
+        doc_id: str,
+        user_id: str,
+        title: str,
+        source: str = "import",
+        mime_type: Optional[str] = None,
+        tags: List[str] = []
+    ):
+        if not db_pool:
+            return
+        
+        try:
+            async with db_pool.acquire() as conn:
+                # Check if exists (idempotency)
+                row = await conn.fetchrow('SELECT id FROM "Document" WHERE id = $1', doc_id)
+                if row:
+                    return
+
+                query = """
+                    INSERT INTO "Document" 
+                    ("id", "userId", "title", "source", "mimeType", "tags", "createdAt")
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                """
+                await conn.execute(query, doc_id, user_id, title, source, mime_type, tags)
+                logger.info(f"Created Document record: {doc_id}")
+        except Exception as e:
+            logger.error(f"Error creating Document record: {e}")
+            raise e
+
+    @staticmethod
+    async def save_document_content(
+        doc_id: str, 
+        content: str, 
+        category: Optional[str] = None, 
+        summary: Optional[str] = None,
+        mime_type: Optional[str] = None
+    ):
+        # ドキュメントの全文テキスト、要約、MIMEタイプをPostgreSQLに保存します。
+        # これにより、RAGで検索した際に、元の文脈全体を参照できるようになります (Long Context RAG)。
+        if not db_pool:
+            logger.warning("DB Pool not initialized, skipping content save.")
             return
 
         try:
-            # Prisma does not support bulk insert for Unsupported types well, 
-            # so we iterate or construct a raw query. 
-            # For reliability with 'vector' type, we use execute_raw with parameterized queries.
-            
-            # Note: Batch inserting is more efficient.
-            # We construct a large VALUES ... string.
-            
-            values_list = []
-            params = []
-            
-            # $1, $2, etc. placeholders
-            # We need to manage parameter indices manually for bulk insert in raw query
-            
-            # Loop for individual inserts (Simpler implementation for now)
-            # Optimize to batch if performance is an issue.
-            
-            count = 0
-            for vec in vectors:
-                embedding = vec['values'] # List[float]
-                meta = vec['metadata']
-                
-                # Extract metadata fields
-                user_id = meta.get('userId')
-                file_id = meta.get('fileId')
-                file_name = meta.get('fileName')
-                text = meta.get('text', '')
-                chunk_index = meta.get('chunkIndex', 0)
-                tags = meta.get('tags', [])
-                doc_type = meta.get('type', 'transcript')
-                
-                # dbId in metadata -> documentId
-                document_id = meta.get('dbId') 
-                
-                # Format vector for Postgres pgvector: '[1,2,3]'
-                vector_str = f"[{','.join(map(str, embedding))}]"
-                
-                # Insert
+            async with db_pool.acquire() as conn:
+                # IDで更新
                 query = """
-                    INSERT INTO "DocumentChunk" 
-                    ("id", "userId", "fileId", "fileName", "content", "chunkIndex", "tags", "type", "documentId", "embedding", "createdAt")
-                    VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9::vector, NOW())
+                    UPDATE "Document"
+                    SET content = $1, summary = $2, "mimeType" = $3
+                    WHERE id = $4
                 """
-                
-                # tags (List[str]) -> Postgres Array
-                # Prisma execute_raw params handling: List[str] usually maps to ARRAY.
-                
-                await db.execute_raw(
-                    query,
-                    user_id,
-                    file_id,
-                    file_name,
-                    text,
-                    chunk_index,
-                    tags,
-                    doc_type,
-                    document_id,
-                    vector_str 
-                )
-                count += 1
-                
-            logger.info(f"Successfully inserted {count} chunks to Supabase Vector.")
-
+                result = await conn.execute(query, content, summary, mime_type, doc_id)
+                logger.info(f"Saved content for document {doc_id}")
         except Exception as e:
-            logger.error(f"Error upserting vectors to Supabase: {e}")
+            logger.error(f"Error saving content to DB: {e}")
+
+    @staticmethod
+    async def get_document_content(doc_id: str) -> str:
+        # PostgreSQLからドキュメントの全文テキストを取得します。
+        # RAGで回答を生成する際、検索でヒットした断片だけでなく、この全文をAIに渡すことで精度を高めます。
+        if not db_pool:
+            return ""
+        
+        try:
+            async with db_pool.acquire() as conn:
+                row = await conn.fetchrow('SELECT content FROM "Document" WHERE id = $1', doc_id)
+                if row:
+                    return row['content'] or ""
+                return ""
+        except Exception as e:
+            logger.error(f"Error fetching content from DB: {e}")
+            return ""
+
+    @classmethod
+    async def process_and_save_content(
+        cls,
+        text: str, 
+        metadata: dict, 
+        summary: Optional[str] = None
+    ):
+
+        if not text.strip() and not summary:
+            # raise HTTPException(status_code=400, detail="Extracted text is empty")
+            # We are in Service layer, so maybe just raise Exception
+            raise ValueError("Extracted text is empty")
+
+        user_id = metadata.get("userId")
+        # file_id is legacy, we use dbId for Document ID
+        file_id = metadata.get("fileId") 
+        tags = metadata.get("tags", [])
+        file_name = metadata.get("fileName", "Unknown")
+        db_id = metadata.get("dbId")
+        mime_type = metadata.get("mimeType") # Get mimeType
+
+        # Ensure we have a db_id (Document ID) and the Document record exists
+        if not db_id:
+            db_id = str(uuid.uuid4())
+            metadata["dbId"] = db_id
+        
+        # Create Document Row if needed
+        if user_id: # Only if we have a user to attach to
+            await cls.create_document_record(
+                doc_id=db_id,
+                user_id=user_id,
+                title=file_name,
+                source=metadata.get("source", "import"),
+                mime_type=mime_type,
+                tags=tags
+            )
+
+        # テキストのチャンク分割
+        chunks = VectorService.chunk_text(text)
+        logger.info(f"Generated {len(chunks)} chunks for file {file_name}")
+
+        # ベクトル化とPgvectorへの保存
+        vectors = []
+        for i, chunk in enumerate(chunks):
+            vector_id = f"{user_id}#{db_id}#{i}"
+            embedding = VectorService.get_embedding(chunk)
+            
+            metadata_payload = {
+                "userId": user_id,
+                "fileId": db_id, # Use dbId as fileId for consistency
+                "dbId": db_id,   # Explicit documentId
+                "fileName": file_name,
+                "text": chunk,
+                "chunkIndex": i,
+                "tags": tags
+            }
+            
+            vectors.append({
+                "id": vector_id,
+                "values": embedding,
+                "metadata": metadata_payload
+            })
+            
+            if len(vectors) >= 100:
+                await VectorService.upsert_vectors(vectors)
+                vectors = []
+
+        if vectors:
+            await VectorService.upsert_vectors(vectors)
+
+        # 全文コンテンツをDBに保存 (UPDATE)
+        # create_document_recordで作成済みなので、ここではcontent, summaryを更新
+        if db_id:
+             # PostgreSQLはNULLバイトを許容しないため、サニタイズします
+             clean_text = text.replace("\x00", "")
+             clean_summary = summary.replace("\x00", "") if summary else None
+             
+             await cls.save_document_content(db_id, clean_text, summary=clean_summary, mime_type=mime_type)
+        
+        return {
+            "status": "success", 
+            "message": f"Successfully processed {file_name}",
+            "chunks_count": len(chunks),
+            "fileId": file_id
+        }
+    @staticmethod
+    async def delete_document(doc_id: str, user_id: str):
+        """
+        ドキュメントを削除します (DBレコード + ベクトルデータ)。
+        """
+        if not db_pool:
+            return
+
+        try:
+            # 1. Delete from DB (Document table)
+            async with db_pool.acquire() as conn:
+                await conn.execute('DELETE FROM "Document" WHERE id = $1 AND "userId" = $2', doc_id, user_id)
+                logger.info(f"Deleted Document record: {doc_id}")
+
+            # 2. Delete Vectors (Supabase)
+            # Legacy fileId might differ, but in new logic fileId == dbId.
+            # Assuming doc_id is the key used for vectors as well.
+            await VectorService.delete_vectors(file_id=doc_id, user_id=user_id)
+            
+        except Exception as e:
+            logger.error(f"Error deleting document {doc_id}: {e}")
             raise e
 
     @staticmethod
-    async def search_vectors(
-        query_embedding: List[float], 
-        top_k: int = 20, 
-        filter: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    async def update_tags(doc_id: str, user_id: str, tags: List[str]):
         """
-        Search vectors in DocumentChunk using cosine distance.
-        Returns format similar to Pinecone for compatibility:
-        { 'matches': [ {'id': ..., 'score': ..., 'metadata': ...} ] }
+        タグを更新します (DBレコード + ベクトルメタデータ)。
         """
-        try:
-            vector_str = f"[{','.join(map(str, query_embedding))}]"
-            
-            # Construct Filter Clause
-            # Pinecone filter example: {"userId": "...", "tags": {"$in": [...]}}
-            
-            where_clauses = []
-            params = [vector_str, top_k] # $1=vector, $2=limit
-            param_idx = 3
-            
-            if filter:
-                if 'userId' in filter:
-                    where_clauses.append(f'"userId" = ${param_idx}')
-                    params.append(filter['userId'])
-                    param_idx += 1
-                    
-                if 'tags' in filter:
-                    # Handle MongoDB-style "$in" if present
-                    tag_filter = filter['tags']
-                    if isinstance(tag_filter, dict) and '$in' in tag_filter:
-                        # Postgres: "tags" && ARRAY[...] (overlap)
-                        # or exact match? Pinecone $in means "if any of these tags are present in the document tags"?
-                        # Pinecone: "The tag field contains any of these values" -> one of logic?
-                        # Actually Pinecone 'tags': {'$in': ['a']} checks if the scalar field value is in the list.
-                        # But here 'tags' is an array column.
-                        # If query tags is ['a', 'b'], we usually want docs that have 'a' OR 'b'.
-                        # Postgres: "tags" && $3
-                        tags_list = tag_filter['$in']
-                        where_clauses.append(f'"tags" && ${param_idx}')
-                        params.append(tags_list)
-                        param_idx += 1
-                    elif isinstance(tag_filter, list):
-                        # Simple list usually implies exact match or containment? 
-                        # Let's assume overlap for array column.
-                        where_clauses.append(f'"tags" && ${param_idx}')
-                        params.append(tag_filter)
-                        param_idx += 1
-            
-            where_sql = ""
-            if where_clauses:
-                where_sql = "WHERE " + " AND ".join(where_clauses)
-            
-            # Query ordering by cosine distance (<=>)
-            # 1 - (embedding <=> query) is cosine similarity if normalized?
-            # pgvector <=> operator returns cosine distance (0..2). 
-            # Similarity = 1 - distance (approx).
-            
-            sql = f"""
-                SELECT 
-                    id, 
-                    "userId", "fileId", "fileName", "content", "chunkIndex", "tags", "type", "documentId",
-                    1 - (embedding <=> $1::vector) as score
-                FROM "DocumentChunk"
-                {where_sql}
-                ORDER BY embedding <=> $1::vector
-                LIMIT $2
-            """
-            
-            # Execute
-            rows = await db.query_raw(sql, *params)
-            
-            matches = []
-            for row in rows:
-                # Map back to Pinecone-ish format
-                matches.append({
-                    "id": row['id'],
-                    "score": float(row['score']),
-                    "metadata": {
-                        "userId": row['userId'],
-                        "fileId": row['fileId'],
-                        "fileName": row['fileName'],
-                        "text": row['content'],
-                        "chunkIndex": row['chunkIndex'],
-                        "tags": row['tags'],
-                        "type": row['type'],
-                        "dbId": row['documentId']
-                    }
-                })
-                
-            return {"matches": matches}
+        if not db_pool:
+            return
 
-        except Exception as e:
-            logger.error(f"Error searching vectors in Supabase: {e}")
-            raise e
-    @staticmethod
-    async def delete_vectors(file_id: str, user_id: str):
-        """
-        Delete vectors/chunks associated with a fileId.
-        """
         try:
-            query = 'DELETE FROM "DocumentChunk" WHERE "fileId" = $1 AND "userId" = $2'
-            count = await db.execute_raw(query, file_id, user_id)
-            logger.info(f"Deleted {count} chunks for file {file_id}")
-            return count
-        except Exception as e:
-            logger.error(f"Error deleting vectors from Supabase: {e}")
-            raise e
+            # 1. Update DB (Document table)
+            async with db_pool.acquire() as conn:
+                await conn.execute('UPDATE "Document" SET tags = $1 WHERE id = $2 AND "userId" = $3', tags, doc_id, user_id)
+                logger.info(f"Updated tags for Document {doc_id}")
 
-    @staticmethod
-    async def update_tags(file_id: str, user_id: str, tags: List[str]):
-        """
-        Update tags for all chunks associated with a fileId.
-        """
-        try:
-            # tags list -> Postgres Array
-            query = 'UPDATE "DocumentChunk" SET "tags" = $1 WHERE "fileId" = $2 AND "userId" = $3'
-            count = await db.execute_raw(query, tags, file_id, user_id)
-            logger.info(f"Updated tags for {count} chunks for file {file_id}")
-            return count
+            # 2. Update Vectors (Supabase)
+            await VectorService.update_tags(file_id=doc_id, user_id=user_id, tags=tags)
+            
         except Exception as e:
-            logger.error(f"Error updating tags in Supabase: {e}")
+            logger.error(f"Error updating tags for document {doc_id}: {e}")
             raise e

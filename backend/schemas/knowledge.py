@@ -1,3 +1,5 @@
+# Request/Response models for Knowledge
+
 from pydantic import BaseModel
 from typing import List, Optional
 

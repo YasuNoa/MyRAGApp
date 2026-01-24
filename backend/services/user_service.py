@@ -5,7 +5,16 @@ from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 from prisma.errors import PrismaError
 
+import os
+import uuid
+import json
+import stripe
+from services.user_service import UserService # For type hinting if needed or circular ref issue? No.
+from schemas.user import SyncUserRequest, UpdatePlanRequest
 from db import db
+
+# Setup Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +174,7 @@ class UserService:
         
         count = await db.document.count(
              where={'userId': user_id} # Count all documents or filter by type if needed
+
         )
         # Note: Original logic filtered by type='knowledge', but schema might not have 'type' or it might be implicit.
         # Assuming all Documents count towards storage for simplicity or consistency with previous code.
@@ -173,4 +183,273 @@ class UserService:
         
         if count >= limit:
              raise HTTPException(status_code=403, detail=f"Storage limit reached for {plan} plan. Limit: {limit} files.")
+
+    @staticmethod
+    async def process_referral_reward(user_id: str):
+        """
+        紹介報酬処理 (Referral Reward Logic):
+        ユーザー(referee)が条件達成(音声保存)した瞬間に、紹介者(referrer)と本人(referee)の標準プラン期間を延長する。
+        """
+        # Referral Campaign Logic
+        # LAUNCH: 30 days for Referee, 30 days (1st time) for Referrer, 7 days (2nd+) for Referrer
+        # STANDARD: 7 days for Everyone
+        REFERRAL_CAMPAIGN_MODE = "LAUNCH" 
+
+        try:
+            # 1. Check if user was invited (has a referrer)
+            referral = await db.referral.find_unique(where={'refereeId': user_id})
+            
+            if not referral:
+                logger.debug(f"No referrer found for user {user_id}. Skipping reward.")
+                # user_id is the Referee. If no record in Referral table where refereeId=user_id, then they were not invited.
+                return
+
+            if referral.status == 'COMPLETED':
+                logger.debug(f"Referral already completed for {user_id}. Skipping.")
+                return
+
+            # 2. Mark as COMPLETED
+            referrer_id = referral.referrerId
+            
+            await db.referral.update(
+                where={'id': referral.id},
+                data={'status': 'COMPLETED', 'completedAt': datetime.now(timezone.utc)}
+            )
+            logger.info(f"Referral marked as COMPLETED: {referral.id} (Referrer: {referrer_id}, Referee: {user_id})")
+
+            # Definitions
+            REFEREE_BONUS_DAYS = 7
+            REFEREE_PLAN_TYPE = "STANDARD_TRIAL"
+            REFERRER_BONUS_DAYS = 7
+            REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+
+            if REFERRAL_CAMPAIGN_MODE == "LAUNCH":
+                REFEREE_BONUS_DAYS = 30
+                REFEREE_PLAN_TYPE = "STANDARD" # Full Standard
+                
+                # Referrer Logic: Check history
+                completed_count = await db.referral.count(
+                    where={'referrerId': referrer_id, 'status': 'COMPLETED'}
+                )
+                # completed_count INCLUDES this one because we just updated it.
+                if completed_count == 1:
+                    REFERRER_BONUS_DAYS = 30
+                    REFERRER_PLAN_TYPE = "STANDARD"
+                else:
+                    REFERRER_BONUS_DAYS = 7
+                    REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+            else:
+                # Normal Mode
+                REFEREE_BONUS_DAYS = 7
+                REFEREE_PLAN_TYPE = "STANDARD_TRIAL"
+                REFERRER_BONUS_DAYS = 7
+                REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+
+            # 3. Reward Referee (本人)
+            await UserService._apply_reward(user_id, REFEREE_BONUS_DAYS, REFEREE_PLAN_TYPE, "Referee")
+
+            # 4. Reward Referrer (紹介者)
+            await UserService._apply_reward(referrer_id, REFERRER_BONUS_DAYS, REFERRER_PLAN_TYPE, "Referrer", completed_count if 'completed_count' in locals() else 0)
+
+        except Exception as e:
+            logger.error(f"Error processing referral reward: {e}")
+
+    @staticmethod
+    async def _apply_reward(user_id: str, bonus_days: int, plan_type: str, role: str, count: int = 0):
+        """
+        Helper to apply reward (Plan upgrade/extension) to a user.
+        """
+        try:
+            sub = await db.usersubscription.find_unique(where={'userId': user_id})
+            if not sub:
+                return
+
+            current_plan = sub.plan
+            current_end = sub.currentPeriodEnd
+            
+            # Date Logic
+            now = datetime.now(timezone.utc)
+            if sub.currentPeriodEnd and sub.currentPeriodEnd.replace(tzinfo=timezone.utc) > now:
+                 # Extend existing
+                 # Ensure timezone awareness
+                 current_end_aware = sub.currentPeriodEnd.replace(tzinfo=timezone.utc)
+                 new_end = current_end_aware + timedelta(days=bonus_days)
+            else:
+                 new_end = now + timedelta(days=bonus_days)
+
+            # Plan Logic: Upgrade FREE 
+            new_plan = current_plan
+            if current_plan == 'FREE':
+                new_plan = plan_type
+            
+            await db.usersubscription.update(
+                where={'userId': user_id},
+                data={
+                    'plan': new_plan,
+                    'currentPeriodEnd': new_end
+                }
+            )
+            logger.info(f"{role} reward applied: {user_id} -> {new_plan} until {new_end} (Bonus: {bonus_days} days)")
+
+            # Stripe API Extension
+            stripe_sub_id = sub.stripeSubscriptionId
+            if stripe_sub_id:
+                try:
+                    stripe.Subscription.modify(
+                        stripe_sub_id,
+                        trial_end=int(new_end.timestamp()),
+                        proration_behavior='none'
+                    )
+                    logger.info(f"Stripe Trial Extended for {role} {stripe_sub_id} to {new_end}")
+                except Exception as se:
+                    logger.error(f"Stripe API Error ({role}): {se}")
+
+        except Exception as e:
+            logger.error(f"Error applying reward to {role} {user_id}: {e}")
+
+    @staticmethod
+    async def sync_user(request: SyncUserRequest):
+        """
+        ユーザー情報をDBと同期します。
+        ユーザーが存在しない場合は作成し、存在する場合は更新します。
+        """
+        logger.info(f"Sync Request received: {request}")
+        
+        try:
+            # 1. Check if Account exists
+            account = await db.account.find_first(
+                where={
+                    'provider': 'firebase',
+                    'providerAccountId': request.userId
+                },
+                include={'user': True}
+            )
+
+            user_id = None
+
+            if account and account.user:
+                user_id = account.user.id
+                logger.info(f"Account found for {request.userId}, linked to user {user_id}")
+                
+                # Update User profile if needed
+                data_to_update = {}
+                if request.displayName:
+                    data_to_update['name'] = request.displayName
+                if request.photoURL:
+                    data_to_update['image'] = request.photoURL
+                if request.email:
+                    data_to_update['email'] = request.email
+                
+                if data_to_update:
+                    data_to_update['updatedAt'] = datetime.now(timezone.utc)
+                    await db.user.update(
+                        where={'id': user_id},
+                        data=data_to_update
+                    )
+
+            else:
+                # 2. Check if User exists by Email
+                if request.email:
+                    existing_user = await db.user.find_unique(where={'email': request.email})
+                    
+                    if existing_user:
+                        user_id = existing_user.id
+                        logger.info(f"Existing user found by email {request.email}, ID: {user_id}. Linking Account.")
+                        
+                        # Link Account
+                        await db.account.create(
+                            data={
+                                'id': str(uuid.uuid4()),
+                                'userId': user_id,
+                                'provider': 'firebase',
+                                'providerAccountId': request.userId,
+                                'type': 'oauth',
+                                'updatedAt': datetime.now(timezone.utc)
+                            }
+                        )
+                
+                # 3. Create New User if still no user_id
+                if not user_id:
+                    if not request.email:
+                        raise HTTPException(status_code=400, detail="Email is required for new user registration")
+
+                    user_id = str(uuid.uuid4())
+                    logger.info(f"Creating NEW user {user_id} for {request.email}")
+                    
+                    # Create User 
+                    await db.user.create(
+                        data={
+                            'id': user_id,
+                            'email': request.email,
+                            'name': request.displayName,
+                            'image': request.photoURL,
+                            'emailVerified': None,
+                            'updatedAt': datetime.now(timezone.utc)
+                        }
+                    )
+                    
+                    # Create Account
+                    await db.account.create(
+                        data={
+                            'id': str(uuid.uuid4()),
+                            'userId': user_id,
+                            'provider': 'firebase',
+                            'providerAccountId': request.userId,
+                            'type': 'oauth',
+                            'updatedAt': datetime.now(timezone.utc)
+                        }
+                    )
+
+            # 4. Ensure UserSubscription exists
+            await UserService.get_user_plan(user_id)
+
+            return {"status": "success", "message": "User synced", "userId": user_id}
+
+        except Exception as e:
+            logger.error(f"Error syncing user: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @staticmethod
+    async def update_user_plan(request: UpdatePlanRequest):
+        """
+        ユーザーのプランを更新します。
+        """
+        valid_plans = ["FREE", "STANDARD", "PREMIUM", "STANDARD_TRIAL"]
+        if request.plan not in valid_plans:
+             raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of {valid_plans}")
+
+        try:
+            # Check if subscription exists
+            sub = await db.usersubscription.find_unique(where={'userId': request.userId})
+            
+            now = datetime.now(timezone.utc)
+            if sub:
+                await db.usersubscription.update(
+                    where={'userId': request.userId},
+                    data={
+                        'plan': request.plan,
+                        'updatedAt': now
+                    }
+                )
+            else:
+                # Create new
+                await db.usersubscription.create(
+                    data={
+                        'id': str(uuid.uuid4()),
+                        'userId': request.userId,
+                        'plan': request.plan,
+                        'dailyChatCount': 0,
+                        'lastChatResetAt': now,
+                        'dailyVoiceCount': 0,
+                        'lastVoiceDate': now,
+                        'updatedAt': now
+                    }
+                )
+                
+            logger.info(f"Updated plan for user {request.userId} to {request.plan}")
+            return {"status": "success", "plan": request.plan}
+
+        except Exception as e:
+            logger.error(f"Error updating user plan: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 

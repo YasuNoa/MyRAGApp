@@ -1,6 +1,7 @@
 from prisma import Prisma
 
 db = Prisma()
+db_pool = None
 
 async def connect_db():
     await db.connect()
