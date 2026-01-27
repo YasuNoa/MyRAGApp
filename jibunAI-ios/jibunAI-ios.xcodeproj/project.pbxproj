@@ -29,11 +29,7 @@
 		BFC281862EFAFDB300152E1C /* SignInWithAppleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */; };
 		BFC281872EFAFDB300152E1C /* VoiceNoteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */; };
 		BFC281882EFAFDB300152E1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFC281662EFAFDB300152E1C /* Assets.xcassets */; };
-		BFC281892EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */; };
 		BFC2818A2EFAFDB300152E1C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */; };
-		BFC2818C2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */; };
-		BFC2818D2EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */; };
-		BFC2818E2EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */; };
 		BFC281902F0049A000152E1C /* ReferralModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC2818F2F0049A000152E1C /* ReferralModels.swift */; };
 		BFE07E022EF54F26000C2C72 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BFE07E012EF54F26000C2C72 /* FirebaseAuth */; };
 		BFE07E052EF551A8000C2C72 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BFE07E042EF551A8000C2C72 /* GoogleSignIn */; };
@@ -55,10 +51,8 @@
 		BFC281672EFAFDB300152E1C /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		BFC281682EFAFDB300152E1C /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		BFC281692EFAFDB300152E1C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FIREBASE_SETUP_GUIDE.md; sourceTree = "<group>"; };
 		BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		BFC2816C2EFAFDB300152E1C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = INFO_PLIST_SETTINGS.md; sourceTree = "<group>"; };
 		BFC2816E2EFAFDB300152E1C /* jibunAI_iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = jibunAI_iosApp.swift; sourceTree = "<group>"; };
 		BFC2816F2EFAFDB300152E1C /* jibunAI-ios.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "jibunAI-ios.entitlements"; sourceTree = "<group>"; };
 		BFC281702EFAFDB300152E1C /* LandingPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingPageView.swift; sourceTree = "<group>"; };
@@ -66,8 +60,6 @@
 		BFC281722EFAFDB300152E1C /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
 		BFC281732EFAFDB300152E1C /* Pages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages.swift; sourceTree = "<group>"; };
 		BFC281742EFAFDB300152E1C /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
-		BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = REVENUECAT_SETUP_GUIDE.md; sourceTree = "<group>"; };
-		BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETUP_INSTRUCTIONS.md; sourceTree = "<group>"; };
 		BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInWithAppleCoordinator.swift; sourceTree = "<group>"; };
 		BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceNoteViewModel.swift; sourceTree = "<group>"; };
 		BFC2818F2F0049A000152E1C /* ReferralModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralModels.swift; sourceTree = "<group>"; };
@@ -132,10 +124,8 @@
 				BFC281672EFAFDB300152E1C /* AuthService.swift */,
 				BFC281682EFAFDB300152E1C /* ChatViewModel.swift */,
 				BFC281692EFAFDB300152E1C /* ContentView.swift */,
-				BFC2816A2EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md */,
 				BFC2816B2EFAFDB300152E1C /* GoogleService-Info.plist */,
 				BFC2816C2EFAFDB300152E1C /* Info.plist */,
-				BFC2816D2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md */,
 				BFC2816E2EFAFDB300152E1C /* jibunAI_iosApp.swift */,
 				BFC2816F2EFAFDB300152E1C /* jibunAI-ios.entitlements */,
 				BFC281702EFAFDB300152E1C /* LandingPageView.swift */,
@@ -143,8 +133,6 @@
 				BFC281722EFAFDB300152E1C /* MainAppView.swift */,
 				BFC281732EFAFDB300152E1C /* Pages.swift */,
 				BFC281742EFAFDB300152E1C /* PaywallView.swift */,
-				BFC281752EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md */,
-				BFC281762EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md */,
 				BFC281772EFAFDB300152E1C /* SignInWithAppleCoordinator.swift */,
 				BFC281782EFAFDB300152E1C /* VoiceNoteViewModel.swift */,
 			);
@@ -227,13 +215,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFC281882EFAFDB300152E1C /* Assets.xcassets in Resources */,
-				BFC281892EFAFDB300152E1C /* FIREBASE_SETUP_GUIDE.md in Resources */,
 				BFC2818A2EFAFDB300152E1C /* GoogleService-Info.plist in Resources */,
 				BF36C6AF2F03D90B00AA39A3 /* StoreKitTestCertificate.cer in Resources */,
 				BF36C6AD2F03D5A000AA39A3 /* jibunAI.storekit in Resources */,
-				BFC2818C2EFAFDB300152E1C /* INFO_PLIST_SETTINGS.md in Resources */,
-				BFC2818D2EFAFDB300152E1C /* REVENUECAT_SETUP_GUIDE.md in Resources */,
-				BFC2818E2EFAFDB300152E1C /* SETUP_INSTRUCTIONS.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

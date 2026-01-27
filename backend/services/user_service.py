@@ -11,7 +11,7 @@ import json
 import stripe
 from services.user_service import UserService # For type hinting if needed or circular ref issue? No.
 from schemas.user import SyncUserRequest, UpdatePlanRequest
-from db import db
+from database.db import db
 
 # Setup Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")

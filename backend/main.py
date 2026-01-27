@@ -80,18 +80,13 @@ def get_audio_duration(file_path: str) -> float:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
-from routers import ask, voice, auth, user, chat, knowledge
-from services.user_service import UserService
-from services.knowledge_service import KnowledgeService
+from routers.api import router as api_router
 
 app = FastAPI()
 
-app.include_router(ask.router)
-app.include_router(voice.router, prefix="/voice")
-app.include_router(auth.router)
-app.include_router(user.router, prefix="/api")
-app.include_router(chat.router, prefix="/api") # /api/ask
-app.include_router(knowledge.router) # /import-file, etc. -> Root level for legacy compat
+# --- Router Registration ---
+# すべてのルーター定義は routers/api.py に集約されています。
+app.include_router(api_router)
 
 # --- Universal Links Support ---
 
@@ -184,23 +179,3 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
-from pptx import Presentation
-import csv
-from docx import Document as DocxDocument
-import pandas as pd
-from datetime import datetime, timedelta, timezone
-import stripe
-
-# ... (Previous imports)
-
-# Setup Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
-
-import subprocess
-
-
-    except Exception as e:
-        logger.error(f"Error searching documents by title: {e}")
-        return []

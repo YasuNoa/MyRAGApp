@@ -13,7 +13,7 @@ from pydub import AudioSegment
 import google.generativeai as genai
 from fastapi import HTTPException, UploadFile
 
-from db import db
+from database.db import db
 from services.vector_service import VectorService
 from services.user_service import UserService
 from services.knowledge_service import KnowledgeService

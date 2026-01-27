@@ -36,6 +36,7 @@ model User {
   accounts      Account[]                      // 連携アカウント: Google, LINEなどの外部ログイン情報
   messages      Message[]                      // 送信メッセージ履歴: ユーザーが送ったチャット
   threads       Thread[]                       // チャットスレッド: 過去の会話のまとまり
+  courses       Course[]                       // コース一覧: ユーザーが作成した科目フォルダ
   documents     Document[]                     // 登録ドキュメント: ユーザーがアップロードした知識データ
   feedbacks     Feedback[]                     // フィードバック: 運営への意見・要望
   subscription  UserSubscription?              // サブスクリプション: プラン契約情報 (1対1)
@@ -46,11 +47,29 @@ model User {
   updatedAt     DateTime  @updatedAt           // アカウント情報最終更新日時
 }
 
+// 科目（コース）を管理するテーブル
+// ユーザーは全ての資料を科目単位でフォルダ管理します。
+model Course {
+  id        String   @id @default(cuid()) // コースID
+  userId    String                        // 所有者のユーザーID
+  title     String                        // 科目名: "数学", "歴史" など
+  color     String   @default("blue")     // フォルダ色: UI表示用 (blue, red, green, etc.)
+  icon      String?                       // アイコン: 絵文字など (オプション)
+  createdAt DateTime @default(now())      // 作成日時
+  updatedAt DateTime @updatedAt           // 更新日時
+
+  // リレーション
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents Document[]                    // この科目に含まれる資料
+  exams     Exam[]                        // この科目から作られた試験
+}
+
 // 登録された知識（ドキュメント）を管理するテーブル
 // ユーザーがアップロードしたPDFや録音データなどがここに保存されます。
 model Document {
   id         String   @id @default(cuid()) // ドキュメントID
   userId     String                        // 所有者のユーザーID (Userテーブルのidと紐付け)
+  courseId   String?                       // コースID: 所属する科目 (マイグレーション中はOptional、後で必須化を検討)
   title      String                        // タイトル: ファイル名やユーザーが付けた名前
   content    String?                       // 本文テキスト: 全文検索やAIの参照用 (OCR結果や文字起こし)
   summary    String?                       // 要約テキスト: 一覧画面での表示や概要検索用
@@ -65,9 +84,38 @@ model Document {
   
   fileCreatedAt DateTime?                  // ファイル自体の作成日時 (アップロード日時とは別に、ファイルの更新日を保持)
   createdAt  DateTime @default(now())      // 登録日時 (システムへのアップロード日)
+  deletedAt  DateTime?                     // 削除日時 (ゴミ箱機能用: nullなら有効、入っていればゴミ箱)
   
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade) // ユーザーが削除されたらドキュメントも削除
+  course     Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull) // 科目リレーション
   chunks     DocumentChunk[] // Vector chunks for this document
+}
+
+// 試験（Exam）全体を管理するテーブル
+model Exam {
+  id        String    @id @default(cuid())
+  courseId  String
+  title     String    // 試験タイトル (例: "中間テスト対策")
+  createdAt DateTime  @default(now())
+
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+// 試験の各問題（Question）を管理するテーブル
+model Question {
+  id        String    @id @default(cuid())
+  examId    String
+  type      String    // 問題タイプ: "MULTIPLE_CHOICE", "FILL_IN", "ESSAY"
+  text      String    // 問題文
+  order     Int       // 出題順
+  
+  // 柔軟なデータ構造（選択肢、正解、解説など）
+  // 4択: { "options": ["A", "B", "C", "D"], "answer": "A", "explanation": "..." }
+  // 穴埋め: { "answer": "徳川家康", "explanation": "..." }
+  data      Json
+  
+  exam      Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
 }
 
 // チャットのメッセージ履歴を管理するテーブル

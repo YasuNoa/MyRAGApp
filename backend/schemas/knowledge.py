@@ -8,5 +8,6 @@ class TextImportRequest(BaseModel):
     userId: str
     source: str = "manual"
     dbId: Optional[str] = None
+    courseId: Optional[str] = None # Added for course support
     tags: List[str] = [] # categoryからtagsリストに変更 (柔軟な分類のため)
     summary: Optional[str] = None

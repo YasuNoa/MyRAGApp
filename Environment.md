@@ -13,8 +13,8 @@ mailでアカウントを新規作成した場合は、Userモデルに情報を
 DBにUserとAccountをPOSTする。
 
 知識登録
-知識登録は、テキストを入力し、保存すると、PosgreにDocumentに知識をPOSTし、次にGeminiでベクトル化し、それをPinecornにPOSTする。
+知識登録は、テキストを入力し、保存すると、PosgreにDocumentに知識をPOSTし、次にGeminiでベクトル化し、それをvectorDBにPOSTする。
 
-チャットは、ユーザからチャットが送られると、Geminiにチャット送信され、GeminiがPinecornの内容をGETし、チャットにPOSTする。
+チャットは、ユーザからチャットが送られると、Geminiにチャット送信され、GeminiがvectorDBの内容をGETし、チャットにPOSTする。
 場合によってはDBもGETしに行くかな。
 

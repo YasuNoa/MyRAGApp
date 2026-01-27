@@ -69,6 +69,7 @@ struct QueryRequest: Codable {
 struct TextImportRequest: Codable {
     let text: String
     let userId: String
+    let courseId: String? // Added
     let source: String
     let dbId: String?
     let tags: [String]
@@ -77,6 +78,7 @@ struct TextImportRequest: Codable {
     enum CodingKeys: String, CodingKey {
         case text
         case userId
+        case courseId // Added
         case source
         case dbId
         case tags
@@ -340,4 +342,44 @@ struct UpdateKnowledgeRequest: Codable {
 struct WebSuccessResponse: Codable {
     let success: Bool
     let error: String?
+}
+
+// MARK: - Course & Exam Models
+
+struct Course: Codable, Identifiable, Equatable {
+    let id: String
+    let userId: String
+    let title: String
+    let color: String // blue, red, green, etc.
+    let icon: String?
+    let createdAt: String
+    let documentCount: Int? // Optional counts
+    let examCount: Int?
+    
+    // Detailed list
+    let documents: [KnowledgeDocument]?
+    let exams: [Exam]?
+}
+
+struct CourseCreateRequest: Codable {
+    let title: String
+    let color: String
+    let icon: String?
+}
+
+struct Exam: Codable, Identifiable, Equatable {
+    let id: String
+    let courseId: String
+    let title: String
+    let createdAt: String
+    let questions: [Question]?
+}
+
+struct Question: Codable, Identifiable, Equatable {
+    let id: String
+    let examId: String
+    let type: String // MULTIPLE_CHOICE, FILL_IN, ESSAY
+    let text: String
+    let order: Int
+    let data: AnyCodable // JSON Data
 }

@@ -27,6 +27,15 @@ async def classify_intent(request: ClassifyRequest):
     """
     return ChatService.classify_intent(request.text)
 
+@router.get("/threads")
+async def get_threads(current_user: dict = Depends(get_current_user)):
+    try:
+        user_id = current_user["uid"]
+        return await chat_service.get_threads(user_id)
+    except Exception as e:
+        logger.error(f"Error fetching threads: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/ask")
 async def ask(request: AskRequest):
     """

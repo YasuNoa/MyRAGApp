@@ -19,24 +19,31 @@ backend/
 ├── routers/             # Interface Layer (HTTP Handling)
 │   ├── api.py           # Main router aggregator
 │   ├── auth.py          # Auth endpoints
-│   ├── chat.py          # Chat/Ask endpoints (Refactored from ask.py)
+│   ├── chat.py          # Chat/Ask/Thread endpoints
 │   ├── voice.py         # Voice processing endpoints
-│   ├── knowledge.py     # File import/query endpoints
-│   └── user.py          # User management endpoints
+│   ├── knowledge.py     # File import/Trash endpoints
+│   ├── user.py          # User management endpoints
+│   ├── course.py        # [NEW] Course/Exam endpoints
+│   └── feedback.py      # [NEW] Feedback endpoints
 ├── services/            # Business Logic Layer
-│   ├── chat_service.py      # RAG high-level logic (Retrieve & Generate), Chat history
-│   ├── voice_service.py     # FFMPEG, Gemini API integration
-│   ├── knowledge_service.py # PDF/Image parsing, Data ingestion
-│   ├── vector_service.py    # Embedding generation, Vector DB operations (Upsert/Search)
-│   ├── user_service.py      # DB CRUD for users
-│   ├── prompts.py           # System prompts for Gemini API
-│   └── search_service.py    # Search service for Tavily
+│   ├── chat_service.py      # RAG logic, Chat history, Thread management
+│   ├── voice_service.py     # FFMPEG, Gemini API
+│   ├── knowledge_service.py # PDF/Image parsing, Vector DB, Soft Delete/Trash
+│   ├── vector_service.py    # Embedding generation, Pgvector operations
+│   ├── user_service.py      # User DB CRUD
+│   ├── course_service.py    # [NEW] Course/Exam logic, Soft delete cascading
+│   ├── feedback_service.py  # [NEW] Feedback logic
+│   ├── prompts.py           # System prompts
+│   └── search_service.py    # Tavily Search
 ├── schemas/             # Data Transfer Objects (Pydantic Models)
-│   ├── chat.py          # Request/Response models for Chat
-│   ├── knowledge.py     # Request/Response models for Knowledge
+│   ├── chat.py          # Chat Request/Response
+│   ├── knowledge.py     # Import Request, Document Meta
+│   ├── course.py        # [NEW] Course models
+│   ├── exam.py          # [NEW] Exam/Question models
+│   ├── feedback.py      # [NEW] Feedback models
 │   └── common.py        # Shared models
 └── database/            # Infrastructure Layer
-    └── db.py            # DB connection, Session management
+    └── db.py            # DB connection
 2.2 Implementation Rules
 main.py
 責務: アプリケーションの初期化、CORS等のミドルウェア設定、トップレベルの例外ハンドリング、app.include_router の実行のみを行う。
@@ -72,24 +79,30 @@ jibunAI-ios/
 │   ├── Chat/
 │   │   ├── Views/
 │   │   │   ├── ChatView.swift
-│   │   │   └── Components/   # Chat specific UI components
+│   │   │   └── Components/
 │   │   └── ViewModels/
 │   │       └── ChatViewModel.swift
-│   ├── Knowledge/
-│   │   ├── Views/
-│   │   │   ├── KnowledgeView.swift
-│   │   │   └── EditKnowledgeView.swift
-│   │   └── ViewModels/
-│   │       └── KnowledgeViewModel.swift (Refactored from DataViewModel)
+│   ├── Course/               # [NEW] Course Management & Browse
+    │   ├── Views/
+    │   │   ├── CourseListView.swift     # Replaces DataView (Home)
+    │   │   ├── CourseDetailView.swift   # Course content & Exams
+    │   │   └── TrashView.swift          # Recently Deleted items
+    │   └── ViewModels/
+    │       └── CourseViewModel.swift
+    ├── Knowledge/            # Input & Upload Focus
+    │   ├── Views/
+    │   │   └── KnowledgeView.swift      # Input form (requires Course selection)
+    │   └── ViewModels/
+    │       └── KnowledgeViewModel.swift # File Upload/Input state
 │   ├── Voice/
 │   │   ├── Views/
 │   │   │   └── NoteView.swift
 │   │   └── ViewModels/
 │   │       └── VoiceNoteViewModel.swift
 ├── Shared/                   # Shared resources
-│   ├── Components/           # Common UI (Buttons, Loaders)
-│   ├── Models/               # API Data Models (Codable)
-│   └── Services/             # API Client (Alamofire/URLSession wrapper)
+│   ├── Components/
+│   ├── Models/               # API Data Models (Course, Exam, Document, etc.)
+│   └── Services/             # APIService.swift (Updated with Trash/Course APIs)
 └── Resources/                # Assets, Colors, Localizations
 3.2 Implementation Rules
 General

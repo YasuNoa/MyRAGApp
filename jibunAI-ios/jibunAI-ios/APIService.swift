@@ -417,8 +417,8 @@ class APIService: ObservableObject {
     }
     
     /// テキストインポート (POST /import-text)
-    func importText(text: String, userId: String, source: String = "manual", dbId: String? = nil, tags: [String] = [], summary: String? = nil) async throws -> SuccessResponse {
-        let request = TextImportRequest(text: text, userId: userId, source: source, dbId: dbId, tags: tags, summary: summary)
+    func importText(text: String, userId: String, courseId: String? = nil, source: String = "manual", dbId: String? = nil, tags: [String] = [], summary: String? = nil) async throws -> SuccessResponse {
+        let request = TextImportRequest(text: text, userId: userId, courseId: courseId, source: source, dbId: dbId, tags: tags, summary: summary)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/import-text", method: "POST", body: body)
     }
@@ -427,16 +427,21 @@ class APIService: ObservableObject {
     func importFile(
         fileURL: URL,
         userId: String,
+        courseId: String? = nil, // Added courseId
         userPlan: String = "FREE",
         tags: [String] = [],
         progressHandler: ((Double) -> Void)? = nil
     ) async throws -> SuccessResponse {
-        let metadata: [String: Any] = [
+        var metadata: [String: Any] = [
             "userId": userId,
             "userPlan": userPlan,
             "tags": tags,
             "mimeType": fileURL.mimeType()
         ]
+        if let courseId = courseId {
+            metadata["courseId"] = courseId
+        }
+        
         return try await uploadMultipartFile(
             endpoint: "/import-file",
             fileURL: fileURL,
@@ -447,10 +452,30 @@ class APIService: ObservableObject {
     }
     
     /// ファイル削除 (POST /delete-file)
+    /// ファイル削除 (POST /delete-file) - Soft Delete (Move to Trash)
     func deleteFile(fileId: String, userId: String) async throws -> SuccessResponse {
         let request = DeleteRequest(fileId: fileId, userId: userId)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/delete-file", method: "POST", body: body)
+    }
+    
+    /// ファイル復元 (POST /restore-file)
+    func restoreFile(fileId: String, userId: String) async throws -> SuccessResponse {
+        let request = DeleteRequest(fileId: fileId, userId: userId)
+        let body = try JSONEncoder().encode(request)
+        return try await performRequest(endpoint: "/restore-file", method: "POST", body: body)
+    }
+    
+    /// ファイル完全削除 (POST /delete-file/permanent)
+    func deleteFilePermanently(fileId: String, userId: String) async throws -> SuccessResponse {
+        let request = DeleteRequest(fileId: fileId, userId: userId)
+        let body = try JSONEncoder().encode(request)
+        return try await performRequest(endpoint: "/delete-file/permanent", method: "POST", body: body)
+    }
+    
+    /// ゴミ箱一覧取得 (GET /trash)
+    func fetchTrash(userId: String) async throws -> [KnowledgeDocument] {
+         return try await performRequest(endpoint: "/trash?userId=\(userId)", method: "GET")
     }
     
     /// タグ更新 (POST /update-tags)
@@ -501,6 +526,68 @@ class APIService: ObservableObject {
         let request = UpdateKnowledgeRequest(id: id, tags: tags, title: title)
         let body = try JSONEncoder().encode(request)
         return try await performRequest(endpoint: "/api/knowledge/update", method: "POST", body: body, customBaseURL: Self.authBaseURL)
+    }
+    // MARK: - Course API
+    
+    /// コース作成 (POST /api/courses)
+    func createCourse(title: String, color: String, icon: String?) async throws -> Course {
+        let request = CourseCreateRequest(title: title, color: color, icon: icon)
+        let body = try JSONEncoder().encode(request)
+        return try await performRequest(endpoint: "/api/courses", method: "POST", body: body)
+    }
+    
+    /// コース一覧取得 (GET /api/courses)
+    func fetchCourses() async throws -> [Course] {
+        return try await performRequest(endpoint: "/api/courses", method: "GET")
+    }
+
+    /// コース詳細取得 (GET /api/courses/{id})
+    func fetchCourseDetail(courseId: String) async throws -> Course {
+        return try await performRequest(endpoint: "/api/courses/\(courseId)", method: "GET")
+    }
+    
+    /// コース削除 (DELETE /api/courses/{id})
+    func deleteCourse(courseId: String) async throws -> Bool {
+        // DELETE returns 204 No Content, so performRequest might fail decoding.
+        // Special consistency handling needed? 
+        // Our performRequest expects T: Decodable. 
+        // If API returns 204, we should probably handle it.
+        // But for simplicity, let's assume performRequest handles empty body if T is Optional or Void (not easy in Swift).
+        // Let's create a specific method or modify performRequest for Void.
+        // For now, let's assume we return a SuccessResponse or similar if possible, OR just check status.
+        // But backend course.py delete returns status 204 No Content.
+        // We need a helper for void request.
+        return try await performRequestVoid(endpoint: "/api/courses/\(courseId)", method: "DELETE")
+    }
+
+}
+
+extension APIService {
+    /// Voidレスポンス用のリクエストド
+    private func performRequestVoid(
+        endpoint: String,
+        method: String = "DELETE",
+        body: Data? = nil,
+        requiresAuth: Bool = true
+    ) async throws -> Bool {
+       guard let url = URL(string: "\(Self.baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        
+        if requiresAuth, let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        do {
+            let (_, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { return false }
+            return (200...299).contains(httpResponse.statusCode)
+        } catch {
+             throw APIError.networkError(error)
+        }
     }
 }
 

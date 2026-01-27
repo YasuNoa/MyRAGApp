@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import traceback
 
 import json
-from db import db
+from database.db import db
 from services.prompts import CHAT_SYSTEM_PROMPT, INTENT_CLASSIFICATION_PROMPT
 from search_service import SearchService
 from services.vector_service import VectorService
@@ -26,6 +26,20 @@ if GOOGLE_API_KEY:
 class ChatService:
     def __init__(self):
         self.search_service = SearchService()
+
+    @staticmethod
+    async def get_threads(user_id: str, limit: int = 50) -> List[Dict]:
+        """
+        ユーザーのスレッド履歴を取得
+        """
+        prisma = await get_prisma()
+        threads = await prisma.thread.find_many(
+            where={"userId": user_id},
+            order={"updatedAt": "desc"},
+            take=limit
+        )
+        # Convert to dict or schema? Prisma objects usually dumpable
+        return [t.model_dump() for t in threads]
 
     @staticmethod
     def classify_intent(text: str) -> Dict[str, Any]:

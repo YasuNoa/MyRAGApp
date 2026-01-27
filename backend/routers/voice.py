@@ -40,7 +40,7 @@ async def save_voice(req: SaveVoiceRequest):
         logger.error(f"Save Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/process-voice-memo")
+@router.post("/process")
 async def process_voice_memo_endpoint(
     file: UploadFile = File(...),
     metadata: str = Form(...),

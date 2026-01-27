@@ -165,6 +165,7 @@ class KnowledgeService:
         doc_id: str,
         user_id: str,
         title: str,
+        course_id: Optional[str] = None, # course_idを追加
         source: str = "import",
         mime_type: Optional[str] = None,
         tags: List[str] = []
@@ -181,11 +182,11 @@ class KnowledgeService:
 
                 query = """
                     INSERT INTO "Document" 
-                    ("id", "userId", "title", "source", "mimeType", "tags", "createdAt")
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    ("id", "userId", "courseId", "title", "source", "mimeType", "tags", "createdAt")
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
                 """
-                await conn.execute(query, doc_id, user_id, title, source, mime_type, tags)
-                logger.info(f"Created Document record: {doc_id}")
+                await conn.execute(query, doc_id, user_id, course_id, title, source, mime_type, tags)
+                logger.info(f"Created Document record: {doc_id} in Course: {course_id}")
         except Exception as e:
             logger.error(f"Error creating Document record: {e}")
             raise e
@@ -254,6 +255,7 @@ class KnowledgeService:
         file_name = metadata.get("fileName", "Unknown")
         db_id = metadata.get("dbId")
         mime_type = metadata.get("mimeType") # Get mimeType
+        course_id = metadata.get("courseId") # メタデータからcourseIdを取得
 
         # Ensure we have a db_id (Document ID) and the Document record exists
         if not db_id:
@@ -266,6 +268,7 @@ class KnowledgeService:
                 doc_id=db_id,
                 user_id=user_id,
                 title=file_name,
+                course_id=course_id, # serviceへ渡す
                 source=metadata.get("source", "import"),
                 mime_type=mime_type,
                 tags=tags
@@ -319,10 +322,65 @@ class KnowledgeService:
             "chunks_count": len(chunks),
             "fileId": file_id
         }
+
+    @staticmethod
+    async def get_categories(user_id: str) -> List[str]:
+        if not db_pool:
+            return []
+        try:
+            async with db_pool.acquire() as conn:
+                # tags is text[] in postgres
+                rows = await conn.fetch('SELECT DISTINCT unnest(tags) as tag FROM "Document" WHERE "userId" = $1', user_id)
+                return [row['tag'] for row in rows if row['tag']]
+        except Exception as e:
+            logger.error(f"Error fetching categories: {e}")
+            return []
+
+    @staticmethod
+    async def get_trash_documents(user_id: str) -> List[Dict]:
+        if not db_pool:
+            return []
+        try:
+            async with db_pool.acquire() as conn:
+                # 30日以上前のものは自動削除するバッチが必要だが、ここでは取得時にフィルタはしない（すべて表示）
+                rows = await conn.fetch('SELECT * FROM "Document" WHERE "userId" = $1 AND "deletedAt" IS NOT NULL ORDER BY "deletedAt" DESC', user_id)
+                return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching trash documents: {e}")
+            return []
+
+    @staticmethod
+    async def restore_document(doc_id: str, user_id: str):
+        if not db_pool:
+            return
+        try:
+            async with db_pool.acquire() as conn:
+                await conn.execute('UPDATE "Document" SET "deletedAt" = NULL WHERE id = $1 AND "userId" = $2', doc_id, user_id)
+                logger.info(f"Restored Document: {doc_id}")
+        except Exception as e:
+            logger.error(f"Error restoring document {doc_id}: {e}")
+            raise e
+
     @staticmethod
     async def delete_document(doc_id: str, user_id: str):
         """
-        ドキュメントを削除します (DBレコード + ベクトルデータ)。
+        Soft Delete: Set deletedAt to NOW.
+        The file remains in storage/vector DB but is hidden from normal views.
+        """
+        if not db_pool:
+            return
+        try:
+            async with db_pool.acquire() as conn:
+                await conn.execute('UPDATE "Document" SET "deletedAt" = NOW() WHERE id = $1 AND "userId" = $2', doc_id, user_id)
+                logger.info(f"Soft Deleted Document: {doc_id}")
+        except Exception as e:
+            logger.error(f"Error soft deleting document {doc_id}: {e}")
+            raise e
+
+    @staticmethod
+    async def permanent_delete_document(doc_id: str, user_id: str):
+        """
+        Hard Delete: Remove from DB record and Vector DB.
         """
         if not db_pool:
             return
@@ -331,7 +389,7 @@ class KnowledgeService:
             # 1. Delete from DB (Document table)
             async with db_pool.acquire() as conn:
                 await conn.execute('DELETE FROM "Document" WHERE id = $1 AND "userId" = $2', doc_id, user_id)
-                logger.info(f"Deleted Document record: {doc_id}")
+                logger.info(f"Permanently Deleted Document record: {doc_id}")
 
             # 2. Delete Vectors (Supabase)
             # Legacy fileId might differ, but in new logic fileId == dbId.

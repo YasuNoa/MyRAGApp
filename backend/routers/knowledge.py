@@ -74,6 +74,7 @@ async def import_text(request: TextImportRequest):
             "userId": request.userId,
             "fileId": request.dbId, # Use dbId
             "dbId": request.dbId,
+            "courseId": request.courseId, # Added
             "fileName": "Text Entry",
             "tags": request.tags,
             "source": request.source
@@ -91,11 +92,39 @@ class DeleteRequest(BaseModel):
 @router.post("/delete-file")
 async def delete_file(request: DeleteRequest):
     try:
-        # Service handles both DB and Vector deletion
+        # Soft delete
         await KnowledgeService.delete_document(doc_id=request.fileId, user_id=request.userId)
-        return {"status": "success", "message": f"Deleted file {request.fileId}"}
+        return {"status": "success", "message": f"Moved file {request.fileId} to trash"}
     except Exception as e:
         logger.error(f"Error deleting file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/restore-file")
+async def restore_file(request: DeleteRequest):
+    try:
+        await KnowledgeService.restore_document(doc_id=request.fileId, user_id=request.userId)
+        return {"status": "success", "message": f"Restored file {request.fileId}"}
+    except Exception as e:
+        logger.error(f"Error restoring file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/delete-file/permanent")
+async def permanent_delete_file(request: DeleteRequest):
+    try:
+        await KnowledgeService.permanent_delete_document(doc_id=request.fileId, user_id=request.userId)
+        return {"status": "success", "message": f"Permanently deleted file {request.fileId}"}
+    except Exception as e:
+        logger.error(f"Error permanently deleting file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/trash")
+async def get_trash(userId: str):
+    try:
+        docs = await KnowledgeService.get_trash_documents(user_id=userId)
+        # Format dates? or return active rows
+        return docs
+    except Exception as e:
+        logger.error(f"Error fetching trash: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class UpdateTagsRequest(BaseModel):
@@ -132,6 +161,15 @@ async def process_pptx_endpoint(file: UploadFile = File(...), metadata: str = Fo
     content = await file.read()
     text = await KnowledgeService.process_pptx(content)
     return await KnowledgeService.process_and_save_content(text, meta_dict)
+
+@router.get("/categories")
+async def get_categories(userId: str):
+    try:
+        tags = await KnowledgeService.get_categories(user_id=userId)
+        return {"tags": tags}
+    except Exception as e:
+        logger.error(f"Error fetching categories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/process-docx")
 async def process_docx_endpoint(file: UploadFile = File(...), metadata: str = Form(...)):

@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from db import db
+from database.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +232,7 @@ class VectorService:
             raise e
 
     @staticmethod
-    def chunk_text(text: str, chunk_size: int = 1500, overlap: int = 150) -> List[str]:
+    def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
         """
         Split long text into chunks using LangChain's RecursiveCharacterTextSplitter.
         """
