@@ -4,22 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:INFO_PLIST_CONFIG.md">
-   </FileRef>
-   <FileRef
-      location = "group:DEBUGGING_GUIDE.md">
-   </FileRef>
-   <FileRef
-      location = "group:UNIVERSAL_LINK_SETUP.md">
-   </FileRef>
-   <FileRef
-      location = "group:jibunAI_iosApp.swift">
-   </FileRef>
-   <FileRef
-      location = "group:SETUP_COMPLETE_GUIDE.md">
-   </FileRef>
-   <FileRef
-      location = "group:BACKEND_IMPLEMENTATION_GUIDE.md">
-   </FileRef>
 </Workspace>

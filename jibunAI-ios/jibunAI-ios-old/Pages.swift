@@ -229,68 +229,9 @@ struct ChatView: View {
 }
 
 // チャットバブルコンポーネント
-struct MessageBubble: View {
-    let message: ChatMessage
+// MessageBubble moved to Shared/Components/MessageBubble.swift
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if message.isUser {
-                Spacer()
-            } else {
-                // AIアイコン
-                Circle()
-                    .fill(Color(red: 0.2, green: 0.8, blue: 0.6))
-                    .frame(width: 32, height: 32)
-                    .overlay(Text("AI").font(.caption).bold().foregroundColor(.black))
-            }
-
-            VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
-                if message.isThinking {
-                    HStack(spacing: 4) {
-                        Circle().fill(Color.white).frame(width: 6, height: 6)
-                        Circle().fill(Color.white).frame(width: 6, height: 6)
-                        Circle().fill(Color.white).frame(width: 6, height: 6)
-                    }
-                    .padding(12)
-                    .background(Color(red: 0.15, green: 0.15, blue: 0.15))
-                    .cornerRadius(16)
-                } else {
-                    Text(message.text)
-                        .foregroundColor(.white)
-                        .padding(12)
-                        .background(
-                            message.isUser
-                                ? Color(red: 0.3, green: 0.4, blue: 0.9)  // ユーザー色
-                                : Color(red: 0.15, green: 0.15, blue: 0.15)  // AI色
-                        )
-                        .cornerRadius(16)
-                }
-            }
-
-            if !message.isUser {
-                Spacer()
-            }
-        }
-    }
-}
-
-struct QuickActionButton: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(20)
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.3)))
-        }
-    }
-}
+// QuickActionButton moved to Shared/Components/QuickActionButton.swift
 
 // MARK: - Legacy KnowledgeView Removed
 // Replaced by CourseListView.swift
@@ -840,118 +781,9 @@ struct DataView: View {
     }
 }
 
-struct FilterChip: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption)
-                .fontWeight(isSelected ? .bold : .regular)
-                .foregroundColor(isSelected ? .white : .white.opacity(0.7))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color(red: 0.3, green: 0.4, blue: 0.9) : Color.white.opacity(0.1))
-                .cornerRadius(20) // Chip style
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
-        }
-    }
-}
+// FilterChip moved to Shared/Components/FilterChip.swift
 
-struct DataDocumentRow: View {
-    let document: KnowledgeDocument
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    
-    var formattedDate: String {
-        let iso = document.createdAt
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: iso) {
-            return date.formatted(date: .numeric, time: .omitted)
-        }
-        return iso.prefix(10).description
-    }
-    
-    var iconName: String {
-        if document.mimeType?.contains("audio") == true { return "waveform" }
-        if document.mimeType?.contains("pdf") == true { return "doc.text.fill" }
-        if document.type == "note" { return "note.text" }
-        return "doc.text"
-    }
-
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 48, height: 48)
-                Image(systemName: iconName)
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.8))
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(document.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-
-                HStack(spacing: 8) {
-                    Text(formattedDate)
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.5))
-                    
-                    if !document.tags.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 4) {
-                                ForEach(document.tags, id: \.self) { tag in
-                                    Text(tag)
-                                        .font(.caption2)
-                                        .foregroundColor(.white.opacity(0.9))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color(red: 0.3, green: 0.4, blue: 0.8).opacity(0.5))
-                                        .cornerRadius(4)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Menu Button
-            Menu {
-                Button(action: onEdit) {
-                    Label("編集", systemImage: "pencil")
-                }
-                
-                Button(role: .destructive, action: onDelete) {
-                    Label("削除", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.6))
-                    .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
-            }
-            .highPriorityGesture(TapGesture()) // Listのタップと競合しないように
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 16)
-        .background(Color(red: 0.1, green: 0.1, blue: 0.1))
-        .cornerRadius(12)
-    }
-}
+// DataDocumentRow moved to Shared/Components/DataDocumentRow.swift
 
 
 // MARK: - Guide View
@@ -1343,65 +1175,7 @@ struct SettingsView: View {
     }
 }
 
-struct SettingsRow<Content: View>: View {
-    let icon: String
-    let title: String
-    let hasChevron: Bool
-    let rightContent: (() -> Content)?
-    let action: (() -> Void)? // タップ時のアクション
-
-    init(
-        icon: String, title: String, hasChevron: Bool,
-        action: (() -> Void)? = nil,
-        @ViewBuilder rightContent: @escaping () -> Content
-    ) {
-        self.icon = icon
-        self.title = title
-        self.hasChevron = hasChevron
-        self.action = action
-        self.rightContent = rightContent
-    }
-
-    init(icon: String, title: String, hasChevron: Bool, action: (() -> Void)? = nil) where Content == EmptyView {
-        self.icon = icon
-        self.title = title
-        self.hasChevron = hasChevron
-        self.action = action
-        self.rightContent = nil
-    }
-
-    var body: some View {
-        Button {
-            action?() // アクション実行
-        } label: {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.6))
-                    .frame(width: 30)
-                
-                Text(title)
-                    .font(.body)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                if let rightContent = rightContent {
-                    rightContent()
-                }
-                
-                if hasChevron {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-        }
-        .disabled(action == nil) // アクションがない場合はボタン無効化（見た目はそのまま）
-    }
-}
+// SettingsRow moved to Shared/Components/SettingsRow.swift
 
 // MARK: - Edit Knowledge View
 
@@ -1454,11 +1228,4 @@ struct EditKnowledgeView: View {
     }
 }
 
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
+// PressableButtonStyle moved to Shared/Styles/PressableButtonStyle.swift

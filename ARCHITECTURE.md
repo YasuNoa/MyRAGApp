@@ -79,26 +79,26 @@ jibunAI-ios/
 │   ├── Chat/
 │   │   ├── Views/
 │   │   │   ├── ChatView.swift
-│   │   │   └── Components/
+│   │   │   
 │   │   └── ViewModels/
 │   │       └── ChatViewModel.swift
 │   ├── Course/               # [NEW] Course Management & Browse
-    │   ├── Views/
-    │   │   ├── CourseListView.swift     # Replaces DataView (Home)
-    │   │   ├── CourseDetailView.swift   # Course content & Exams
-    │   │   └── TrashView.swift          # Recently Deleted items
-    │   └── ViewModels/
-    │       └── CourseViewModel.swift
-    ├── Knowledge/            # Input & Upload Focus
-    │   ├── Views/
-    │   │   └── KnowledgeView.swift      # Input form (requires Course selection)
-    │   └── ViewModels/
-    │       └── KnowledgeViewModel.swift # File Upload/Input state
-│   ├── Voice/
 │   │   ├── Views/
-│   │   │   └── NoteView.swift
+│   │   │   ├── CourseListView.swift     # Replaces DataView (Home)
+│   │   │   ├── CourseDetailView.swift   # Course content & Exams
+│   │   │   └── TrashView.swift          # Recently Deleted items
 │   │   └── ViewModels/
-│   │       └── VoiceNoteViewModel.swift
+│   │       └── CourseViewModel.swift
+│   ├── Knowledge/            # Input & Upload Focus
+│   │   ├── Views/
+│   │   │   └── KnowledgeView.swift      # Input form (requires Course selection)
+│   │   └── ViewModels/
+│   │       └── KnowledgeViewModel.swift # File Upload/Input state
+│   ├── Voice/
+│       ├── Views/
+│       │   └── VoiceNoteView.swift
+│       └── ViewModels/
+│           └── VoiceNoteViewModel.swift
 ├── Shared/                   # Shared resources
 │   ├── Components/
 │   ├── Models/               # API Data Models (Course, Exam, Document, etc.)
