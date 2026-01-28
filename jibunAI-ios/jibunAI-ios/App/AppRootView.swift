@@ -2,13 +2,7 @@
 //  AppRootView.swift
 //  jibunAI-ios
 //
-//  Created by AI Assistant on 2025/12/19.
-//
-//  アプリ全体の状態（ログイン済みかどうか、画面遷移など）を一元管理するルートViewクラスです。
-//
-//  ・最初はLP（LandingPageView）を表示
-//  ・「無料で始める」or「ログイン」でLoginViewへ遷移
-//  ・ログイン成功後はメイン機能画面（MainAppView）へ遷移
+//  Created by Automation on 2026/01/28.
 //
 
 import SwiftUI

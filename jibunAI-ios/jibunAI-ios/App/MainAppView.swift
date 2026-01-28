@@ -2,12 +2,7 @@
 //  MainAppView.swift
 //  jibunAI-ios
 //
-//  Created by AI Assistant on 2025/12/19.
-//
-//  Webアプリ相当のメイン画面（サイドバー＋各ページ）
-//  - サイドバーでページ選択
-//  - 中央に各機能画面を表示
-//  - Webアプリと同じダークテーマデザイン
+//  Created by Automation on 2026/01/28.
 //
 
 import SwiftUI
@@ -87,7 +82,7 @@ struct MainAppView: View {
         .preferredColorScheme(.dark)
         // 課金画面のシート表示
         .sheet(isPresented: $showPaywall) {
-            SubscriptionView()
+            PaywallView()
         }
     .onAppear {
         // ATTリクエスト (少し遅延させる)
@@ -279,7 +274,3 @@ struct RecentChatItem: View {
         .padding(.vertical, 6)
     }
 }
-
-// MARK: - Top Bar View
-
-

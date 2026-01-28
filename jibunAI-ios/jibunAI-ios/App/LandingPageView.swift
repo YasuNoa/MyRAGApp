@@ -2,12 +2,7 @@
 //  LandingPageView.swift
 //  jibunAI-ios
 //
-//  Created by AI Assistant on 2025/12/19.
-//
-//  LP（ランディングページ）画面
-//  - Webアプリと同じダークテーマデザイン
-//  - タイトル、キャッチコピー、サブ説明文、ボタンを配置
-//  - 「無料で始める」ボタン押下でLoginViewに遷移
+//  Created by Automation on 2026/01/28.
 //
 
 import SwiftUI
