@@ -260,7 +260,7 @@ struct VoiceNoteView: View {
                                         .id("transcriptEnd")
                                 }
                                 .frame(height: 150)
-                                .onChange(of: viewModel.transcript) { _ in
+                                .onChange(of: viewModel.transcript) {
                                     withAnimation {
                                         proxy.scrollTo("transcriptEnd", anchor: .bottom)
                                     }

@@ -370,11 +370,11 @@ class APIService: ObservableObject {
     
     // MARK: - Public API Methods
     
-    /// チャット (POST /ask)
+    /// チャット (POST /api/ask)
     func ask(query: String, userId: String, threadId: String? = nil, tags: [String] = []) async throws -> AskResponse {
         let request = AskRequest(query: query, userId: userId, threadId: threadId, tags: tags)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/ask", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/ask", method: "POST", body: body)
     }
     
     /// 音声処理 (POST /voice/process) - Data版 (後方互換性)
@@ -402,11 +402,11 @@ class APIService: ObservableObject {
         return try await performRequest(endpoint: "/voice/save", method: "POST", body: body)
     }
     
-    /// インテント分類 (POST /classify)
+    /// インテント分類 (POST /api/classify)
     func classify(text: String) async throws -> ClassifyResponse {
         let request = ClassifyRequest(text: text)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/classify", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/classify", method: "POST", body: body)
     }
     
     /// 知識検索 (POST /query)
@@ -589,9 +589,15 @@ extension APIService {
              throw APIError.networkError(error)
         }
     }
+    
+    /// フィードバック送信 (POST /api/feedback)
+    func sendFeedback(content: String) async throws -> Void {
+        let request = ["content": content]
+        let body = try JSONEncoder().encode(request)
+        // Ignoring response content as it's just success: true
+        let _: SuccessResponse = try await performRequest(endpoint: "/api/feedback", method: "POST", body: body)
+    }
 }
-
-// MARK: - Extensions
 
 extension URL {
     func mimeType() -> String {

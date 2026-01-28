@@ -3,22 +3,25 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		032A0A66995B252AD6047486 /* VoiceNoteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57C8ACE4AED38255F176B99A /* VoiceNoteViewModel.swift */; };
 		05AE5663444D1FD90887CCDB /* EditKnowledgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0FA0B994AEC174A6492FE5 /* EditKnowledgeView.swift */; };
 		09DEE58A96F4CE722BDCB688 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A5742CFDE64BD4DC95EF13C7 /* Assets.xcassets */; };
+		1A655C89F3FDA74651B2CDF1 /* openapi.json in Resources */ = {isa = PBXBuildFile; fileRef = FCAE1DF3C0A07B03593A5735 /* openapi.json */; };
+		1F28D5078D77F354A732A516 /* jibunAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3C75FBEDDB4E9708C3E73624 /* jibunAI.storekit */; };
+		224B1CA359D88089047D7375 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 9F3102B1568F9AB8D59E57E3 /* FirebaseAuth */; };
 		227B6C6F480252092902EA93 /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2CEE2E194965320A9EA256 /* APIService.swift */; };
+		2587E5340B27FAA459AC4363 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 8FD63F852D27C8C3F1B1E413 /* FirebaseCrashlytics */; };
 		279943332806ED60A8A94FA9 /* KnowledgeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 531B63FEDBB728AD5A8865F3 /* KnowledgeViewModel.swift */; };
-		2946E491D2A214C4B3BC0455 /* LineAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DD4F2A78FB0A1CA7F91665F /* LineAuthManager.swift */; };
 		2A3C1F9D2DF8641DE8DF98D1 /* CourseListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D922BE57BDE1BAE94DC83B /* CourseListView.swift */; };
+		3A3D83B3FA870BD3F2C2DEF1 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 7CD1E027068112ECD4C17F19 /* Kingfisher */; };
+		417089A3FA53E8E730086EB7 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 6197B1A1E0DC50D8A2BE2042 /* GoogleSignIn */; };
 		42C9B3E8039518A37CA74FC6 /* ReferralModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C90A16B31247FA7FB3E217F7 /* ReferralModels.swift */; };
 		48524CE6112E24F67AE877A4 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C8957972D807F7B9EAD970C /* MessageBubble.swift */; };
 		4965A7F3ADB83D8EB73D340D /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6878FBBF6D2AE6E398AD2D /* APIModels.swift */; };
-		4B345F7DB20050463FE6F6B6 /* jibunAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 8DE6B54D3151352C7ED3A637 /* jibunAI.storekit */; };
-		5042F5F59456120FBD41485E /* MainAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D32F1B3BC34AD5959806BD /* MainAppView.swift */; };
 		56181AB1B5F2D470E58DDE79 /* FilterChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2783391D739CB208E65284EC /* FilterChip.swift */; };
 		56A67385A2C59969CE6F9C94 /* DataDocumentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EDAE3AED5FA6D066802CD7 /* DataDocumentRow.swift */; };
 		59BA022C12BA3CD6A2E39574 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C4BE5CBF047AD98FAB70A6 /* AppNavigation.swift */; };
@@ -26,8 +29,11 @@
 		615255E646E99103789D22DA /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2B897880E50A92B868A71A0 /* AppRootView.swift */; };
 		6194F6AF2ED3528FE3F9C2B4 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA10CC6C85200A44405D7E8 /* PaywallView.swift */; };
 		63F63AD812A1140CC8E9CA7A /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3824FF2A3B38E60881973155 /* ChatViewModel.swift */; };
+		6D36B09EA636AEFBEE08EAB3 /* LineSDK in Frameworks */ = {isa = PBXBuildFile; productRef = F58F00A18E6D1D8EBC7A6FE1 /* LineSDK */; };
 		71306E671F2550C6D26BCBAA /* QuickActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A191D492D66AC282BEA09E /* QuickActionButton.swift */; };
+		7B83347196FB09F8A5F02A75 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = DC3CC638BF6882F70CFBE8BF /* Lottie */; };
 		7CE3AA1D126777BB76C37E0A /* jibunAI_iosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C33D7DE44250832556620FF /* jibunAI_iosApp.swift */; };
+		80AA19C75B46371FE4AE5999 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 177DF69AE77BC97BEA9A4083 /* RevenueCat */; };
 		87C525C773AA98C7EB38E1BE /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F329FC0FD125E9BAB7F1FF84 /* TrashView.swift */; };
 		8AC30CC9F36F308ADF52466A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB92102E1CFABA9657649861 /* SettingsView.swift */; };
 		8D6A3AF4472413894A3117AF /* ErrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B77749E2C62E3A73DFA8D2D3 /* ErrorView.swift */; };
@@ -36,34 +42,37 @@
 		ACAD872B4E926DA89014D87E /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5878CD7AA26D935D8D566371 /* LoginView.swift */; };
 		B023CA7461E622AC2C727F47 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FF46881941E6E533BAB9AF /* ChatView.swift */; };
 		B0B88B728A97E2A0EB486A73 /* PressableButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA6E70C378E83385BC3E38D /* PressableButtonStyle.swift */; };
-		B3A84ED4432A7673D8D5E9FC /* openapi.json in Resources */ = {isa = PBXBuildFile; fileRef = C9D9FD752358923616E25329 /* openapi.json */; };
 		B43473A85FDEB82009B300FA /* CustomButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9B43CF83BC6D38EFDF894BC /* CustomButton.swift */; };
 		C124E0AC5E4193B05CC45772 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 65A3C3EB3945297CDD290449 /* GoogleService-Info.plist */; };
+		C19C3D8FE11C8E8BA007D582 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 498AC8B551CFCE05CD3CAB1D /* FirebaseMessaging */; };
 		C2FA0B6FF72B132EE4F409D1 /* View+Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB2146B8B24D12033555A04 /* View+Paywall.swift */; };
 		C5224E4CD5F4F2736FDF83C2 /* SubscriptionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7959DC81DCA3486BCEA32807 /* SubscriptionViewModel.swift */; };
-		C5B93988AD565EA24157CA49 /* LandingPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41E0820B413BAD9748837089 /* LandingPageView.swift */; };
 		CC087D3CF39C7DF31128A819 /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682CEFD84804C511A2B07D10 /* LoadingView.swift */; };
 		D13683A461CFAA5988F0B858 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0864A8CF5A9C4015C5CED7 /* FeedbackView.swift */; };
-		D41D3887363DA37D988BB3EC /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C941704167826945131F70 /* AppStateManager.swift */; };
 		E55981ABB878915E76C92281 /* SignInWithAppleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517786F2A5BA4872F8F2D62F /* SignInWithAppleCoordinator.swift */; };
 		E635304AFCCD09F0AC263764 /* GuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C741714C0E778B4633D694B /* GuideView.swift */; };
+		F012CC6E9882D70895B4106E /* LineAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC92A5A183387E83BB17673D /* LineAuthManager.swift */; };
+		F193FA1FD2FC72AD53C1BF1B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 41FB872B5966EE7A6EBDD066 /* FirebaseAnalytics */; };
+		F62A3E554B4E527ADF6AC1F9 /* MainAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28ECCEF4BB653454A00FD846 /* MainAppView.swift */; };
 		F71783BA50EF8CCF3B0BE886 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4167ACAA7253BFA98742658F /* ChatModels.swift */; };
+		F836322780B1F3D27B9A5E4B /* LandingPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B7C8523E5D5CB8FEB928AB /* LandingPageView.swift */; };
 		F88BDC68DFFFEF9137702F13 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3783B779213E49A7B0969C89 /* AuthService.swift */; };
 		F9D32D8E6D41017E26B3ACEB /* SettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BA399112E0EE4C42E703AD6 /* SettingsRow.swift */; };
 		FC4143DD0D8DA33D80079466 /* VoiceNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6110AE66E8154AACBAA9673A /* VoiceNoteView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0DD4F2A78FB0A1CA7F91665F /* LineAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineAuthManager.swift; sourceTree = "<group>"; };
+		11B7C8523E5D5CB8FEB928AB /* LandingPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingPageView.swift; sourceTree = "<group>"; };
 		1D0FA0B994AEC174A6492FE5 /* EditKnowledgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditKnowledgeView.swift; sourceTree = "<group>"; };
 		26654C7ACDC58F1439C11FF7 /* CourseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseViewModel.swift; sourceTree = "<group>"; };
 		2783391D739CB208E65284EC /* FilterChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterChip.swift; sourceTree = "<group>"; };
+		28ECCEF4BB653454A00FD846 /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
 		2EB2146B8B24D12033555A04 /* View+Paywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Paywall.swift"; sourceTree = "<group>"; };
 		3783B779213E49A7B0969C89 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		3824FF2A3B38E60881973155 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		3A2BA513E52163F5D59F2AC0 /* jibunAI-ios.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "jibunAI-ios.entitlements"; sourceTree = "<group>"; };
+		3C75FBEDDB4E9708C3E73624 /* jibunAI.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = jibunAI.storekit; sourceTree = "<group>"; };
 		4167ACAA7253BFA98742658F /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
-		41E0820B413BAD9748837089 /* LandingPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingPageView.swift; sourceTree = "<group>"; };
 		517786F2A5BA4872F8F2D62F /* SignInWithAppleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInWithAppleCoordinator.swift; sourceTree = "<group>"; };
 		531B63FEDBB728AD5A8865F3 /* KnowledgeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeViewModel.swift; sourceTree = "<group>"; };
 		57C8ACE4AED38255F176B99A /* VoiceNoteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceNoteViewModel.swift; sourceTree = "<group>"; };
@@ -73,13 +82,12 @@
 		62D922BE57BDE1BAE94DC83B /* CourseListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseListView.swift; sourceTree = "<group>"; };
 		65A3C3EB3945297CDD290449 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		682CEFD84804C511A2B07D10 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
-		6D898CBDC1F8463DBE970762 /* jibunAI-ios.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "jibunAI-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D898CBDC1F8463DBE970762 /* jibunAI-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "jibunAI-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7959DC81DCA3486BCEA32807 /* SubscriptionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionViewModel.swift; sourceTree = "<group>"; };
 		7CA10CC6C85200A44405D7E8 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		82A191D492D66AC282BEA09E /* QuickActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionButton.swift; sourceTree = "<group>"; };
 		8BA399112E0EE4C42E703AD6 /* SettingsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRow.swift; sourceTree = "<group>"; };
 		8C741714C0E778B4633D694B /* GuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideView.swift; sourceTree = "<group>"; };
-		8DE6B54D3151352C7ED3A637 /* jibunAI.storekit */ = {isa = PBXFileReference; path = jibunAI.storekit; sourceTree = "<group>"; };
 		9C33D7DE44250832556620FF /* jibunAI_iosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = jibunAI_iosApp.swift; sourceTree = "<group>"; };
 		A2FF46881941E6E533BAB9AF /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		A5742CFDE64BD4DC95EF13C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -87,27 +95,47 @@
 		B77749E2C62E3A73DFA8D2D3 /* ErrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorView.swift; sourceTree = "<group>"; };
 		BB6878FBBF6D2AE6E398AD2D /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		C0EDAE3AED5FA6D066802CD7 /* DataDocumentRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataDocumentRow.swift; sourceTree = "<group>"; };
-		C4C941704167826945131F70 /* AppStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateManager.swift; sourceTree = "<group>"; };
 		C8C4BE5CBF047AD98FAB70A6 /* AppNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigation.swift; sourceTree = "<group>"; };
 		C90A16B31247FA7FB3E217F7 /* ReferralModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralModels.swift; sourceTree = "<group>"; };
-		C9D9FD752358923616E25329 /* openapi.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = openapi.json; sourceTree = "<group>"; };
 		CB2CEE2E194965320A9EA256 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
+		CC92A5A183387E83BB17673D /* LineAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineAuthManager.swift; sourceTree = "<group>"; };
 		D9B43CF83BC6D38EFDF894BC /* CustomButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomButton.swift; sourceTree = "<group>"; };
 		E6F1A6A2B851E544D3B07974 /* KnowledgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeView.swift; sourceTree = "<group>"; };
 		EB92102E1CFABA9657649861 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F2AE601A8F88FEF7ABB9EDEB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F2B897880E50A92B868A71A0 /* AppRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootView.swift; sourceTree = "<group>"; };
-		F2D32F1B3BC34AD5959806BD /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
 		F329FC0FD125E9BAB7F1FF84 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
+		FCAE1DF3C0A07B03593A5735 /* openapi.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = openapi.json; sourceTree = "<group>"; };
 		FE0864A8CF5A9C4015C5CED7 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		FFA6E70C378E83385BC3E38D /* PressableButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressableButtonStyle.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB69C5D52D6B18577924D938 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				224B1CA359D88089047D7375 /* FirebaseAuth in Frameworks */,
+				F193FA1FD2FC72AD53C1BF1B /* FirebaseAnalytics in Frameworks */,
+				C19C3D8FE11C8E8BA007D582 /* FirebaseMessaging in Frameworks */,
+				2587E5340B27FAA459AC4363 /* FirebaseCrashlytics in Frameworks */,
+				6D36B09EA636AEFBEE08EAB3 /* LineSDK in Frameworks */,
+				417089A3FA53E8E730086EB7 /* GoogleSignIn in Frameworks */,
+				80AA19C75B46371FE4AE5999 /* RevenueCat in Frameworks */,
+				3A3D83B3FA870BD3F2C2DEF1 /* Kingfisher in Frameworks */,
+				7B83347196FB09F8A5F02A75 /* Lottie in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0877CB9946EC8122CB6438E3 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				A5742CFDE64BD4DC95EF13C7 /* Assets.xcassets */,
+				3C75FBEDDB4E9708C3E73624 /* jibunAI.storekit */,
+				FCAE1DF3C0A07B03593A5735 /* openapi.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -134,9 +162,6 @@
 			isa = PBXGroup;
 			children = (
 				A9EE1D7DCFFFBCDB4A6B5E29 /* jibunAI-ios */,
-				8DE6B54D3151352C7ED3A637 /* jibunAI.storekit */,
-				0DD4F2A78FB0A1CA7F91665F /* LineAuthManager.swift */,
-				C9D9FD752358923616E25329 /* openapi.json */,
 				429764A5B8485D37EEFFF74E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -145,6 +170,8 @@
 			isa = PBXGroup;
 			children = (
 				8C741714C0E778B4633D694B /* GuideView.swift */,
+				11B7C8523E5D5CB8FEB928AB /* LandingPageView.swift */,
+				28ECCEF4BB653454A00FD846 /* MainAppView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -162,6 +189,7 @@
 			children = (
 				CB2CEE2E194965320A9EA256 /* APIService.swift */,
 				3783B779213E49A7B0969C89 /* AuthService.swift */,
+				CC92A5A183387E83BB17673D /* LineAuthManager.swift */,
 				517786F2A5BA4872F8F2D62F /* SignInWithAppleCoordinator.swift */,
 			);
 			path = Services;
@@ -304,10 +332,7 @@
 			isa = PBXGroup;
 			children = (
 				F2B897880E50A92B868A71A0 /* AppRootView.swift */,
-				C4C941704167826945131F70 /* AppStateManager.swift */,
 				9C33D7DE44250832556620FF /* jibunAI_iosApp.swift */,
-				41E0820B413BAD9748837089 /* LandingPageView.swift */,
-				F2D32F1B3BC34AD5959806BD /* MainAppView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -430,6 +455,7 @@
 			buildPhases = (
 				63FDD0B1C45916CD59215E8F /* Sources */,
 				B4A57EB342987B7CEBFA79CC /* Resources */,
+				AB69C5D52D6B18577924D938 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -437,6 +463,15 @@
 			);
 			name = "jibunAI-ios";
 			packageProductDependencies = (
+				9F3102B1568F9AB8D59E57E3 /* FirebaseAuth */,
+				41FB872B5966EE7A6EBDD066 /* FirebaseAnalytics */,
+				498AC8B551CFCE05CD3CAB1D /* FirebaseMessaging */,
+				8FD63F852D27C8C3F1B1E413 /* FirebaseCrashlytics */,
+				F58F00A18E6D1D8EBC7A6FE1 /* LineSDK */,
+				6197B1A1E0DC50D8A2BE2042 /* GoogleSignIn */,
+				177DF69AE77BC97BEA9A4083 /* RevenueCat */,
+				7CD1E027068112ECD4C17F19 /* Kingfisher */,
+				DC3CC638BF6882F70CFBE8BF /* Lottie */,
 			);
 			productName = "jibunAI-ios";
 			productReference = 6D898CBDC1F8463DBE970762 /* jibunAI-ios.app */;
@@ -450,6 +485,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					F095AA8C738D88F3F7FB9B70 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = A601F3D23FA8DEE8ED20D3CC /* Build configuration list for PBXProject "jibunAI-ios" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -461,7 +501,14 @@
 			);
 			mainGroup = 123AE3B764592A3757954344;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+			packageReferences = (
+				7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				616A3F5168AE61FB61C5CBBF /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				E33C66DA7B82071DA93A1847 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				C3D9C9F4AA9173B01B89E3DE /* XCRemoteSwiftPackageReference "line-sdk-ios-swift" */,
+				96B71D3BEF824D2C7CE203E2 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				0A3AA23A12CF4974431BA621 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -477,8 +524,8 @@
 			files = (
 				09DEE58A96F4CE722BDCB688 /* Assets.xcassets in Resources */,
 				C124E0AC5E4193B05CC45772 /* GoogleService-Info.plist in Resources */,
-				4B345F7DB20050463FE6F6B6 /* jibunAI.storekit in Resources */,
-				B3A84ED4432A7673D8D5E9FC /* openapi.json in Resources */,
+				1F28D5078D77F354A732A516 /* jibunAI.storekit in Resources */,
+				1A655C89F3FDA74651B2CDF1 /* openapi.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -493,7 +540,6 @@
 				227B6C6F480252092902EA93 /* APIService.swift in Sources */,
 				59BA022C12BA3CD6A2E39574 /* AppNavigation.swift in Sources */,
 				615255E646E99103789D22DA /* AppRootView.swift in Sources */,
-				D41D3887363DA37D988BB3EC /* AppStateManager.swift in Sources */,
 				F88BDC68DFFFEF9137702F13 /* AuthService.swift in Sources */,
 				F71783BA50EF8CCF3B0BE886 /* ChatModels.swift in Sources */,
 				B023CA7461E622AC2C727F47 /* ChatView.swift in Sources */,
@@ -510,11 +556,11 @@
 				E635304AFCCD09F0AC263764 /* GuideView.swift in Sources */,
 				5DC3DC57B1B60CD245410CCE /* KnowledgeView.swift in Sources */,
 				279943332806ED60A8A94FA9 /* KnowledgeViewModel.swift in Sources */,
-				C5B93988AD565EA24157CA49 /* LandingPageView.swift in Sources */,
-				2946E491D2A214C4B3BC0455 /* LineAuthManager.swift in Sources */,
+				F836322780B1F3D27B9A5E4B /* LandingPageView.swift in Sources */,
+				F012CC6E9882D70895B4106E /* LineAuthManager.swift in Sources */,
 				CC087D3CF39C7DF31128A819 /* LoadingView.swift in Sources */,
 				ACAD872B4E926DA89014D87E /* LoginView.swift in Sources */,
-				5042F5F59456120FBD41485E /* MainAppView.swift in Sources */,
+				F62A3E554B4E527ADF6AC1F9 /* MainAppView.swift in Sources */,
 				48524CE6112E24F67AE877A4 /* MessageBubble.swift in Sources */,
 				6194F6AF2ED3528FE3F9C2B4 /* PaywallView.swift in Sources */,
 				B0B88B728A97E2A0EB486A73 /* PressableButtonStyle.swift in Sources */,
@@ -602,16 +648,23 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "jibunAI-ios/jibunAI-ios.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "じぶんAI";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.5.4;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.yasu.jibunAI-ios";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -679,16 +732,23 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "jibunAI-ios/jibunAI-ios.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "jibunAI-ios/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "じぶんAI";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.5.4;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.yasu.jibunAI-ios";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
@@ -718,6 +778,105 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0A3AA23A12CF4974431BA621 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		616A3F5168AE61FB61C5CBBF /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+		7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.29.0;
+			};
+		};
+		96B71D3BEF824D2C7CE203E2 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.0;
+			};
+		};
+		C3D9C9F4AA9173B01B89E3DE /* XCRemoteSwiftPackageReference "line-sdk-ios-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/line/line-sdk-ios-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		E33C66DA7B82071DA93A1847 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		177DF69AE77BC97BEA9A4083 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A3AA23A12CF4974431BA621 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		41FB872B5966EE7A6EBDD066 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		498AC8B551CFCE05CD3CAB1D /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		6197B1A1E0DC50D8A2BE2042 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 616A3F5168AE61FB61C5CBBF /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		7CD1E027068112ECD4C17F19 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E33C66DA7B82071DA93A1847 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		8FD63F852D27C8C3F1B1E413 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		9F3102B1568F9AB8D59E57E3 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DB14D3DA568B8AB37D9903D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		DC3CC638BF6882F70CFBE8BF /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96B71D3BEF824D2C7CE203E2 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+		F58F00A18E6D1D8EBC7A6FE1 /* LineSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C3D9C9F4AA9173B01B89E3DE /* XCRemoteSwiftPackageReference "line-sdk-ios-swift" */;
+			productName = LineSDK;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BA44D569A67ECDDCD44CC857 /* Project object */;
 }

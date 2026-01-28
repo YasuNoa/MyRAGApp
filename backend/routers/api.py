@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi import APIRouter
-from . import ask, voice, auth, user, chat, knowledge, course, feedback
+from . import voice, auth, user, chat, knowledge, course, feedback
 
 # -------------------------------------------------------------------------
 # Router Aggregator
@@ -13,7 +13,8 @@ router = APIRouter()
 
 # --- Legacy Ask Router ---
 # 元の main.py: app.include_router(ask.router)
-router.include_router(ask.router)
+# ask.router has been removed.
+# router.include_router(ask.router)
 
 # --- Voice Processing ---
 # 元の main.py: app.include_router(voice.router, prefix="/voice")

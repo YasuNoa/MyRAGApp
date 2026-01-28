@@ -133,6 +133,7 @@ struct jibunAI_iosApp: App {
 }
 
 /// アプリ全体の状態を管理するクラス（例：ログイン状態など）
+@MainActor
 final class AppStateManager: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var isLoading: Bool = true // 初期ロード中フラグ
@@ -141,64 +142,59 @@ final class AppStateManager: ObservableObject {
     
     // セッション復元（Firebase初期化後に呼ぶこと）
     func restoreSession() {
-        if let user = Auth.auth().currentUser {
-            print("🔄 Restoring session for user: \(user.uid)")
-            self.currentUser = User(
-                id: user.uid,
-                displayName: user.displayName,
-                email: user.email,
-                photoURL: user.photoURL?.absoluteString
-            )
-            self.isLoggedIn = true
-            
-            // IDトークンを取得してAPIServiceにセットし、バックエンドと同期
-            user.getIDToken { token, error in
-                if let token = token {
-                    print("🔑 Restored ID Token: \(String(token.prefix(10)))...")
-                    APIService.shared.authToken = token
-                    AuthService.shared.idToken = token // AuthServiceにもトークンをセット
-                    
-                    // バックエンド同期 (非同期で実行)
-                    Task {
-                        // AuthServiceのprivate関数syncUserWithBackendを呼べないので、
-                        // ここで直接APIService経由かAuthServiceのpublicメソッドを作るのが綺麗ですが、
-                        // 既存のAuthService.shared.signIn...系は使いにくいので、
-                        // 同期専用の処理を呼び出します（AuthService側で実装が必要ですが、現行のLoginViewのロジックを参考にします）
-                        // 一旦、ログだけ出しておき、AuthServiceにpublicなsyncメソッドを追加する方針とします
-                        do {
-                            // usageも戻り値として受け取るようにAuthServiceを修正予定
-                            let (dbUserId, plan, usage) = try await AuthService.shared.syncUserSession(token: token)
-                            DispatchQueue.main.async {
-                                self.userPlan = plan
-                                
-                                // Internal ID (DB ID) でユーザー情報を更新
-                                if let current = self.currentUser {
-                                    self.currentUser = User(
-                                        id: dbUserId,
-                                        displayName: current.displayName,
-                                        email: current.email,
-                                        photoURL: current.photoURL,
-                                        usage: usage
-                                    )
-                                    print("✅ Updated currentUser with DB ID: \(dbUserId), Usage: \(String(describing: usage))")
-                                }
-                            }
-                        } catch {
-                            print("⚠️ Failed to restore session sync: \(error)")
-                        }
-                    }
-                } else {
-                    print("⚠️ Failed to restore ID Token: \(error?.localizedDescription ?? "Unknown error")")
-                }
-            }
-            
-            // 課金状態の確認開始
-            self.checkSubscriptionStatus()
-        } else {
+        guard let user = Auth.auth().currentUser else {
             print("⚪️ No active session found")
             self.isLoggedIn = false
+            self.isLoading = false
+            return
         }
-        self.isLoading = false
+        
+        print("🔄 Restoring session for user: \(user.uid)")
+        self.currentUser = User(
+            id: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            photoURL: user.photoURL?.absoluteString
+        )
+        self.isLoggedIn = true
+        
+        // 非同期でトークン取得と同期処理
+        Task {
+            do {
+                let token = try await user.getIDToken()
+                print("🔑 Restored ID Token: \(String(token.prefix(10)))...")
+                
+                // MainActorコンテキストなので安全にアクセス可能
+                APIService.shared.authToken = token
+                AuthService.shared.idToken = token
+                
+                // バックエンド同期
+                let (dbUserId, plan, usage) = try await AuthService.shared.syncUserSession(token: token)
+                
+                self.userPlan = plan
+                
+                // Internal ID (DB ID) でユーザー情報を更新
+                if let current = self.currentUser {
+                    self.currentUser = User(
+                        id: dbUserId,
+                        displayName: current.displayName,
+                        email: current.email,
+                        photoURL: current.photoURL,
+                        usage: usage
+                    )
+                    print("✅ Updated currentUser with DB ID: \(dbUserId), Usage: \(String(describing: usage))")
+                }
+                
+                // 課金状態の確認開始
+                self.checkSubscriptionStatus()
+                
+            } catch {
+                print("⚠️ Failed to restore session/token: \(error)")
+                // トークンが取れない場合は再ログインを促すべきだが、一旦エラーログのみ
+            }
+            
+            self.isLoading = false
+        }
     }
     
     // ログアウト処理

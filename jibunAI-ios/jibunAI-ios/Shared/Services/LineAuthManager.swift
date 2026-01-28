@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import LineSDK
 
+@MainActor
 class LineAuthManager: ObservableObject {
 
     static let shared = LineAuthManager()

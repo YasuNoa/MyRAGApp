@@ -80,11 +80,9 @@ struct MainAppView: View {
             }
         }
         .preferredColorScheme(.dark)
-        // 課金画面のシート表示
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
-        }
-    .onAppear {
+            SubscriptionView()
+        }.onAppear {
         // ATTリクエスト (少し遅延させる)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             ATTrackingManager.requestTrackingAuthorization { status in

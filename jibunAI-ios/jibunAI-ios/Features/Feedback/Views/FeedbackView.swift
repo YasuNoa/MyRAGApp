@@ -85,12 +85,25 @@ struct FeedbackView: View {
     }
     
     private func sendFeedback() {
-        // TODO: Backend API integration
-        // Currently just a mock
+        guard !feedbackText.isEmpty else { return }
+        
         isSending = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isSending = false
-            showSuccessAlert = true
+        
+        Task {
+            do {
+                try await APIService.shared.sendFeedback(content: feedbackText)
+                
+                await MainActor.run {
+                    isSending = false
+                    showSuccessAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    isSending = false
+                    // Error handling could be added here (e.g. show alert)
+                    print("Error sending feedback: \(error)")
+                }
+            }
         }
     }
 }

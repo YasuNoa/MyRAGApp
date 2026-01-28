@@ -10,6 +10,7 @@ import RevenueCat
 import FirebaseAuth
 import Combine
 
+@MainActor
 class SubscriptionViewModel: ObservableObject {
     @Published var isLoading = false // 初期ロード待ち時間をなくす
     @Published var isEligibleForPromo = false
@@ -22,7 +23,7 @@ class SubscriptionViewModel: ObservableObject {
         }
         
         // 本来はUser IDを渡す
-        let uid = try? AuthService.shared.getCurrentUserId()
+        let uid = AuthService.shared.currentUser?.uid
         guard let uid = uid else {
             self.isLoading = false
             return

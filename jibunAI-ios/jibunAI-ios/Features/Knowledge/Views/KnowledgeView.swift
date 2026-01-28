@@ -197,15 +197,15 @@ struct KnowledgeView: View {
                         .padding(.vertical, 16)
                         .contentShape(Rectangle())
                         .background(
-                            (selectedCourseId.isEmpty || inputText.isEmpty) ? Color.gray :
-                            LinearGradient(
+                            (selectedCourseId.isEmpty || inputText.isEmpty) ? AnyView(Color.gray) :
+                            AnyView(LinearGradient(
                                 colors: [
                                     Color(red: 0.5, green: 0.6, blue: 1.0),
                                     Color(red: 0.4, green: 0.5, blue: 0.9),
                                 ],
                                 startPoint: .leading,
                                 endPoint: .trailing
-                            )
+                            ))
                         )
                         .cornerRadius(12)
                         .scaleEffect(isSaving ? 0.98 : 1.0)
