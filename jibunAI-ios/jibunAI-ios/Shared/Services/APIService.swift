@@ -383,7 +383,7 @@ class APIService: ObservableObject {
             "userId": userId,
             "tags": tags
         ]
-        return try await uploadMultipartData(endpoint: "/voice/process", fileData: audioData, fileName: fileName, metadata: metadata)
+        return try await uploadMultipartData(endpoint: "/api/voice/process", fileData: audioData, fileName: fileName, metadata: metadata)
     }
     
     /// 音声処理 (POST /voice/process) - FileURL版 (推奨: メモリ効率良)
@@ -392,14 +392,14 @@ class APIService: ObservableObject {
             "userId": userId,
             "tags": tags
         ]
-        return try await uploadMultipartFile(endpoint: "/voice/process", fileURL: fileURL, fileName: fileName, metadata: metadata)
+        return try await uploadMultipartFile(endpoint: "/api/voice/process", fileURL: fileURL, fileName: fileName, metadata: metadata)
     }
     
     /// 音声保存 (POST /voice/save)
     func saveVoice(userId: String, transcript: String, summary: String, title: String, tags: [String] = []) async throws -> VoiceSaveResponse {
         let request = SaveVoiceRequest(userId: userId, transcript: transcript, summary: summary, title: title, tags: tags)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/voice/save", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/voice/save", method: "POST", body: body)
     }
     
     /// インテント分類 (POST /api/classify)
@@ -420,7 +420,7 @@ class APIService: ObservableObject {
     func importText(text: String, userId: String, courseId: String? = nil, source: String = "manual", dbId: String? = nil, tags: [String] = [], summary: String? = nil) async throws -> SuccessResponse {
         let request = TextImportRequest(text: text, userId: userId, courseId: courseId, source: source, dbId: dbId, tags: tags, summary: summary)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/import-text", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/knowledge/import-text", method: "POST", body: body)
     }
     
     /// ファイルインポート (POST /import-file) - PDF, 画像, 音声, Officeなど
@@ -443,7 +443,7 @@ class APIService: ObservableObject {
         }
         
         return try await uploadMultipartFile(
-            endpoint: "/import-file",
+            endpoint: "/api/knowledge/import-file",
             fileURL: fileURL,
             fileName: fileURL.lastPathComponent,
             metadata: metadata,
@@ -456,39 +456,39 @@ class APIService: ObservableObject {
     func deleteFile(fileId: String, userId: String) async throws -> SuccessResponse {
         let request = DeleteRequest(fileId: fileId, userId: userId)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/delete-file", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/knowledge/delete-file", method: "POST", body: body)
     }
     
     /// ファイル復元 (POST /restore-file)
     func restoreFile(fileId: String, userId: String) async throws -> SuccessResponse {
         let request = DeleteRequest(fileId: fileId, userId: userId)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/restore-file", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/knowledge/restore-file", method: "POST", body: body)
     }
     
     /// ファイル完全削除 (POST /delete-file/permanent)
     func deleteFilePermanently(fileId: String, userId: String) async throws -> SuccessResponse {
         let request = DeleteRequest(fileId: fileId, userId: userId)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/delete-file/permanent", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/knowledge/delete-file/permanent", method: "POST", body: body)
     }
     
     /// ゴミ箱一覧取得 (GET /trash)
     func fetchTrash(userId: String) async throws -> [KnowledgeDocument] {
-         return try await performRequest(endpoint: "/trash?userId=\(userId)", method: "GET")
+         return try await performRequest(endpoint: "/api/knowledge/trash?userId=\(userId)", method: "GET")
     }
     
     /// タグ更新 (POST /update-tags)
     func updateTags(fileId: String, userId: String, tags: [String]) async throws -> SuccessResponse {
         let request = UpdateTagsRequest(fileId: fileId, userId: userId, tags: tags)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/update-tags", method: "POST", body: body)
+        return try await performRequest(endpoint: "/api/knowledge/update-tags", method: "POST", body: body)
     }
     
     /// カテゴリ取得 (GET /knowledge/categories)
     func fetchCategories() async throws -> CategoryResponse {
         // Categories endpoint is on Python Backend
-        return try await performRequest(endpoint: "/categories", method: "GET")
+        return try await performRequest(endpoint: "/api/knowledge/categories", method: "GET")
     }
     
     /// 招待特典の対象かどうかを確認 (POST /api/referral/check-eligibility)
@@ -508,11 +508,11 @@ class APIService: ObservableObject {
     }
     
     
-    /// ナレッジ更新 (POST /api/knowledge/update)
-    func updateKnowledge(id: String, tags: [String], title: String?) async throws -> WebSuccessResponse {
+    /// ナレッジ更新 (POST /update-knowledge)
+    func updateKnowledge(id: String, tags: [String]? = nil, title: String? = nil) async throws -> WebSuccessResponse {
         let request = UpdateKnowledgeRequest(id: id, tags: tags, title: title)
         let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/api/knowledge/update", method: "POST", body: body, customBaseURL: Self.authBaseURL)
+        return try await performRequest(endpoint: "/api/knowledge/update-knowledge", method: "POST", body: body)
     }
     // MARK: - Course API
     

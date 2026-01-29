@@ -17,6 +17,7 @@ from dependencies import get_current_user
 from fastapi import Depends
 
 @router.post("/import-file")
+async def import_file(
     file: UploadFile = File(...),
     metadata: str = Form(...),
     current_user: dict = Depends(get_current_user)
@@ -100,8 +101,8 @@ async def import_text(
         raise HTTPException(status_code=500, detail=str(e))
 
 class DeleteRequest(BaseModel):
-    fileId: str
-    userId: Optional[str] = None # Optional for legacy compatibility
+    id: str # Unified naming (was fileId)
+    userId: Optional[str] = None
 
 @router.post("/delete-file")
 async def delete_file(
@@ -111,8 +112,8 @@ async def delete_file(
     try:
         user_id = current_user["uid"]
         # Soft delete
-        await KnowledgeService.delete_document(doc_id=request.fileId, user_id=user_id)
-        return {"status": "success", "message": f"Moved file {request.fileId} to trash"}
+        await KnowledgeService.delete_document(doc_id=request.id, user_id=user_id)
+        return {"status": "success", "message": f"Moved file {request.id} to trash"}
     except Exception as e:
         logger.error(f"Error deleting file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -124,8 +125,8 @@ async def restore_file(
 ):
     try:
         user_id = current_user["uid"]
-        await KnowledgeService.restore_document(doc_id=request.fileId, user_id=user_id)
-        return {"status": "success", "message": f"Restored file {request.fileId}"}
+        await KnowledgeService.restore_document(doc_id=request.id, user_id=user_id)
+        return {"status": "success", "message": f"Restored file {request.id}"}
     except Exception as e:
         logger.error(f"Error restoring file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -137,8 +138,8 @@ async def permanent_delete_file(
 ):
     try:
         user_id = current_user["uid"]
-        await KnowledgeService.permanent_delete_document(doc_id=request.fileId, user_id=user_id)
-        return {"status": "success", "message": f"Permanently deleted file {request.fileId}"}
+        await KnowledgeService.permanent_delete_document(doc_id=request.id, user_id=user_id)
+        return {"status": "success", "message": f"Permanently deleted file {request.id}"}
     except Exception as e:
         logger.error(f"Error permanently deleting file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -154,30 +155,31 @@ async def get_trash(current_user: dict = Depends(get_current_user)):
         logger.error(f"Error fetching trash: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-class UpdateTagsRequest(BaseModel):
-    fileId: str
+class UpdateKnowledgeRequest(BaseModel):
+    id: str # Unified naming (was fileId)
     userId: Optional[str] = None
-    tags: List[str]
+    tags: Optional[List[str]] = None
+    title: Optional[str] = None # Added title update support
 
-@router.post("/update-tags")
-async def update_tags(
-    request: UpdateTagsRequest,
+@router.post("/update-knowledge") # Renamed from /update-tags for clarity
+async def update_knowledge(
+    request: UpdateKnowledgeRequest,
     current_user: dict = Depends(get_current_user)
 ):
     try:
         user_id = current_user["uid"]
-        # Service handles both DB and Vector update
-        await KnowledgeService.update_tags(doc_id=request.fileId, user_id=user_id, tags=request.tags)
-        return {"status": "success", "message": f"Updated tags for file {request.fileId}"}
+        # Service handles DB and Vector update
+        await KnowledgeService.update_knowledge(
+            doc_id=request.id, 
+            user_id=user_id, 
+            tags=request.tags,
+            title=request.title
+        )
+        return {"status": "success", "message": f"Updated knowledge for file {request.id}"}
     except Exception as e:
         logger.error(f"Error updating tags: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Legacy endpoints mapping (optional, or just handle via import-file unified)
-# For compatibility with existing frontend, we might validly just route everything to /import-file or keep specific endpoints if frontend calls them.
-# The `main.py` had `/process-image`, `/process-pptx` etc.
-# Ideally frontend should use `/import-file` unified, but if not, we can add aliases.
-# I will add aliases for safety.
 
 @router.post("/process-image")
 async def process_image_endpoint(

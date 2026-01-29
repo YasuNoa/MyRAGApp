@@ -401,22 +401,40 @@ class KnowledgeService:
             raise e
 
     @staticmethod
-    async def update_tags(doc_id: str, user_id: str, tags: List[str]):
+    async def update_knowledge(
+        doc_id: str, 
+        user_id: str, 
+        tags: Optional[List[str]] = None, 
+        title: Optional[str] = None
+    ):
         """
-        タグを更新します (DBレコード + ベクトルメタデータ)。
+        ドキュメントのメタデータ（タグ、タイトル）を更新します。
         """
         if not db_pool:
             return
 
         try:
-            # 1. Update DB (Document table)
             async with db_pool.acquire() as conn:
-                await conn.execute('UPDATE "Document" SET tags = $1 WHERE id = $2 AND "userId" = $3', tags, doc_id, user_id)
-                logger.info(f"Updated tags for Document {doc_id}")
+                # 1. Update Title (if provided)
+                if title is not None:
+                    await conn.execute(
+                        'UPDATE "Document" SET title = $1 WHERE id = $2 AND "userId" = $3',
+                        title, doc_id, user_id
+                    )
+                    logger.info(f"Updated title for Document {doc_id}")
 
-            # 2. Update Vectors (Supabase)
-            await VectorService.update_tags(file_id=doc_id, user_id=user_id, tags=tags)
+                # 2. Update Tags (if provided)
+                if tags is not None:
+                    # Update DB
+                    await conn.execute(
+                        'UPDATE "Document" SET tags = $1 WHERE id = $2 AND "userId" = $3',
+                        tags, doc_id, user_id
+                    )
+                    
+                    # Update Vectors
+                    await VectorService.update_tags(file_id=doc_id, user_id=user_id, tags=tags)
+                    logger.info(f"Updated tags for Document {doc_id}")
             
         except Exception as e:
-            logger.error(f"Error updating tags for document {doc_id}: {e}")
+            logger.error(f"Error updating knowledge for document {doc_id}: {e}")
             raise e

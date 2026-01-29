@@ -335,7 +335,7 @@ struct DeleteKnowledgeRequest: Codable {
 
 struct UpdateKnowledgeRequest: Codable {
     let id: String
-    let tags: [String]
+    let tags: [String]?
     let title: String?
 }
 

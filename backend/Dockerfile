@@ -29,7 +29,7 @@ RUN prisma generate --schema=./prisma/schema.prisma
 COPY backend .
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Command to run the application
 # Command to run the application

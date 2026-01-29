@@ -18,10 +18,11 @@ router = APIRouter()
 
 # --- Voice Processing ---
 # 元の main.py: app.include_router(voice.router, prefix="/voice")
-router.include_router(voice.router, prefix="/voice", tags=["Voice"])
+router.include_router(voice.router, prefix="/api/voice", tags=["Voice"])
 
 # --- Authentication ---
 # 元の main.py: app.include_router(auth.router)
+# Note: Auth router contains /.well-known which MUST be at root.
 router.include_router(auth.router, tags=["Auth"])
 
 # --- User Management ---
@@ -29,8 +30,6 @@ router.include_router(auth.router, tags=["Auth"])
 router.include_router(user.router, prefix="/api", tags=["User"])
 
 # --- Chat Functionality ---
-# 元の main.py: app.include_router(chat.router, prefix="/api")
-# Note: chat.router likely contains /chat or /ask related endpoints under /api
 router.include_router(chat.router, prefix="/api", tags=["Chat"])
 
 # --- Course Management ---
@@ -38,8 +37,8 @@ router.include_router(course.router, prefix="/api", tags=["Course"])
 
 # --- Knowledge & File Import ---
 # 元の main.py: app.include_router(knowledge.router)
-# /import-file, etc. -> Root level for legacy compat
-router.include_router(knowledge.router, tags=["Knowledge"])
+# Moved to /api/knowledge prefix
+router.include_router(knowledge.router, prefix="/api/knowledge", tags=["Knowledge"])
 
 # --- Feedback ---
 router.include_router(feedback.router, prefix="/api/feedback", tags=["Feedback"])

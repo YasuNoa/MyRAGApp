@@ -33,7 +33,7 @@ export const PythonBackendService = {
         console.log(`[PythonService] Sending file to ${PYTHON_BACKEND_URL}/import-file`, metadata);
 
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/import-file`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/knowledge/import-file`, {
                 method: "POST",
                 body: formData,
             });
@@ -54,31 +54,31 @@ export const PythonBackendService = {
     },
 
     async importPdf(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-pdf", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'application/pdf' });
     },
 
     async importImage(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-image", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: file.type || 'image/jpeg' });
     },
 
     async importPptx(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-pptx", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
     },
 
     async importDocx(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-docx", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     },
 
     async importXlsx(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-xlsx", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     },
 
     async importCsv(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-csv", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'text/csv' });
     },
 
     async importTextFile(file: Blob | File, metadata: any) {
-        return this._uploadToEndpoint("/process-text", file, metadata);
+        return this.importFile(file, { ...metadata, mimeType: 'text/plain' });
     },
 
     async _uploadToEndpoint(endpoint: string, file: Blob | File, metadata: any) {
@@ -129,13 +129,13 @@ export const PythonBackendService = {
         formData.append("metadata", JSON.stringify(metadata));
         formData.append("save", "false"); // Don't save preview to DB (prevent ghost vectors)
 
-        console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/voice/process`, metadata);
+        console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/api/voice/process`, metadata);
 
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout for audio processing
 
-            const response = await fetch(`${PYTHON_BACKEND_URL}/voice/process`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/voice/process`, {
                 method: "POST",
                 body: formData,
                 signal: controller.signal,
@@ -169,7 +169,7 @@ export const PythonBackendService = {
     }) {
         console.log(`[PythonService] Saving voice memo for user ${data.userId}`);
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/voice/save`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/voice/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
@@ -202,7 +202,7 @@ export const PythonBackendService = {
     ) {
         console.log(`[PythonService] Importing text for user ${metadata.userId}`);
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/import-text`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/knowledge/import-text`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -233,10 +233,10 @@ export const PythonBackendService = {
     async updateTags(userId: string, fileId: string, tags: string[]) {
         console.log(`[PythonService] Updating tags for file ${fileId}`);
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/update-tags`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/knowledge/update-knowledge`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, fileId, tags }),
+                body: JSON.stringify({ id: fileId, userId, tags }),
             });
 
             if (!response.ok) {
@@ -260,7 +260,7 @@ export const PythonBackendService = {
     async deleteFile(userId: string, fileId: string) {
         console.log(`[PythonService] Deleting file ${fileId} for user ${userId}`);
         try {
-            const response = await fetch(`${PYTHON_BACKEND_URL}/delete-file`, {
+            const response = await fetch(`${PYTHON_BACKEND_URL}/api/knowledge/delete-file`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId, fileId }),

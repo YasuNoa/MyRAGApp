@@ -11,10 +11,6 @@ from typing import List, Optional, Tuple
 from pypdf import PdfReader
 import google.generativeai as genai
 from dotenv import load_dotenv
-
-# from sentence_transformers import CrossEncoder # 軽量化のため削除 (REMOVED for lightweight)
-# import pytesseract # 軽量化のため削除 (REMOVED for lightweight)
-# from pdf2image import convert_from_bytes # 軽量化のため削除 (REMOVED for lightweight)
 from datetime import datetime, timedelta, timezone
 import asyncpg
 import logging
@@ -26,7 +22,6 @@ from services.prompts import (
     CHAT_SYSTEM_PROMPT,
     VOICE_MEMO_PROMPT,
     IMAGE_DESCRIPTION_PROMPT,
-    PDF_TRANSCRIPTION_PROMPT,
     PDF_TRANSCRIPTION_PROMPT,
     AUDIO_CHUNK_PROMPT,
     SUMMARY_FROM_TEXT_PROMPT,
@@ -53,7 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/myragapp") 
+DATABASE_URL = os.environ["DATABASE_URL"] 
 
 if not GOOGLE_API_KEY:
     logger.warning("API Keys not found in environment variables")
@@ -83,18 +78,8 @@ from routers.api import router as api_router
 
 app = FastAPI()
 
-# --- Router Registration ---
-# すべてのルーター定義は routers/api.py に集約されています。
 app.include_router(api_router)
 
-# --- Universal Links Support ---
-
-
-
-
-# TextImportRequest moved to schemas.knowledge
-
-# --- CORS ---
 origins = [
     "http://localhost:3000",
     "http://frontend:3000",
@@ -107,8 +92,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Reference: Request Logging Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -129,18 +112,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RequestLoggingMiddleware)
 
-# --- Startup ---
-# --- Startup ---
+
 from database.db import connect_db, disconnect_db
 import database.db as db_module
 
-# ...
 
 @app.on_event("startup")
 async def startup_event():
-    # ... (existing logging code) ...
-    
-    # Initialize Prisma
+ 
     try:
         logger.info("Connecting to Prisma...")
         await connect_db()
@@ -162,13 +141,7 @@ async def shutdown_event():
     if db_module.db_pool:
         await db_module.db_pool.close()
 
-# --- ヘルパー関数 (Helper Functions) ---
 
-
-
-
-
-# --- Endpoints ---
 
 
 @app.get("/")
