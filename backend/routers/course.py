@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from schemas.course import CourseCreate, CourseResponse, CourseUpdate, CourseDetailResponse
 from services.course_service import CourseService
-from dependencies importget_current_user
+from dependencies import get_current_user
 
 router = APIRouter()
 service = CourseService()

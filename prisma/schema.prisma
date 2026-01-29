@@ -281,7 +281,7 @@ model DocumentChunk {
   content    String   // Chunk text content
   chunkIndex Int      // Order index within the file
   
-  // Metadata matching Pinecone usage
+  // Metadata matching 
   userId     String
   fileId     String?  // ID from Voice/File metadata (optional)
   fileName   String?

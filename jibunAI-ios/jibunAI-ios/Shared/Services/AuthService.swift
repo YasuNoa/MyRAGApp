@@ -329,6 +329,9 @@ class AuthService: ObservableObject {
         currentUser = nil
         idToken = nil
         APIService.shared.authToken = nil
+        
+        // Clear persisted internal ID
+        UserDefaults.standard.removeObject(forKey: "internalUserId")
     }
 
     // MARK: - Session Management

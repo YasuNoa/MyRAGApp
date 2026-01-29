@@ -8,7 +8,7 @@ export const KnowledgeService = {
     /**
      * テキストベースの知識（手動入力、LINEなど）を追加する
      * - ベクトル化
-     * - Pineconeへ保存
+     * - Vector Store (Supabase) へ保存
      * - DBへメタデータ保存
      */
     async addTextKnowledge(userId: string, text: string, source: KnowledgeSource, tags: string[] = []) {
@@ -49,7 +49,7 @@ export const KnowledgeService = {
 
     /**
      * ドキュメント（ファイル）のメタデータを登録する
-     * ※ ベクトル化とPinecone保存は呼び出し元で行う（チャンク処理などが複雑なため）
+     * ※ ベクトル化とVector Store保存は呼び出し元で行う（チャンク処理などが複雑なため）
      */
     async registerDocument(userId: string, title: string, source: KnowledgeSource, tags: string[] = [], mimeType?: string, fileCreatedAt?: Date, googleDriveId?: string, lineMessageId?: string) {
         return await prisma.document.create({

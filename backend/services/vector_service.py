@@ -115,14 +115,12 @@ class VectorService:
     ) -> Dict[str, Any]:
         """
         Search vectors in DocumentChunk using cosine distance.
-        Returns format similar to Pinecone for compatibility:
-        { 'matches': [ {'id': ..., 'score': ..., 'metadata': ...} ] }
+        Returns: { 'matches': [ {'id': ..., 'score': ..., 'metadata': ...} ] }
         """
         try:
             vector_str = f"[{','.join(map(str, query_embedding))}]"
             
             # Construct Filter Clause
-            # Pinecone filter example: {"userId": "...", "tags": {"$in": [...]}}
             
             where_clauses = []
             params = [vector_str, top_k] # $1=vector, $2=limit
@@ -138,13 +136,8 @@ class VectorService:
                     # Handle MongoDB-style "$in" if present
                     tag_filter = filter['tags']
                     if isinstance(tag_filter, dict) and '$in' in tag_filter:
-                        # Postgres: "tags" && ARRAY[...] (overlap)
-                        # or exact match? Pinecone $in means "if any of these tags are present in the document tags"?
-                        # Pinecone: "The tag field contains any of these values" -> one of logic?
-                        # Actually Pinecone 'tags': {'$in': ['a']} checks if the scalar field value is in the list.
-                        # But here 'tags' is an array column.
-                        # If query tags is ['a', 'b'], we usually want docs that have 'a' OR 'b'.
-                        # Postgres: "tags" && $3
+                        # Postgres array overlap: "tags" && ARRAY[...]
+                        # If query tags is ['a', 'b'], we want docs that have 'a' OR 'b'.
                         tags_list = tag_filter['$in']
                         where_clauses.append(f'"tags" && ${param_idx}')
                         params.append(tags_list)
@@ -181,7 +174,6 @@ class VectorService:
             
             matches = []
             for row in rows:
-                # Map back to Pinecone-ish format
                 matches.append({
                     "id": row['id'],
                     "score": float(row['score']),

@@ -5,7 +5,7 @@ from typing import List, Optional
 
 class TextImportRequest(BaseModel):
     text: str
-    userId: str
+    userId: Optional[str] = None
     source: str = "manual"
     dbId: Optional[str] = None
     courseId: Optional[str] = None # Added for course support

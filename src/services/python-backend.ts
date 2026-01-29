@@ -110,7 +110,7 @@ export const PythonBackendService = {
     },
 
     /**
-     * Processes a voice memo: Transcribes, summarizes, and saves to Pinecone/DB.
+     * Processes a voice memo: Transcribes and summarizes.
      */
     async processVoiceMemo(
         file: Blob | File,
@@ -127,7 +127,7 @@ export const PythonBackendService = {
         const fileName = (file as File).name || "voice_memo.webm";
         formData.append("file", file, fileName);
         formData.append("metadata", JSON.stringify(metadata));
-        formData.append("save", "false"); // Don't save preview to Pinecone/DB (prevent ghost vectors)
+        formData.append("save", "false"); // Don't save preview to DB (prevent ghost vectors)
 
         console.log(`[PythonService] Sending voice memo to ${PYTHON_BACKEND_URL}/voice/process`, metadata);
 
@@ -158,7 +158,7 @@ export const PythonBackendService = {
     },
 
     /**
-     * Saves a voice memo to the backend (DB + Pinecone).
+     * Saves a voice memo to the backend (DB + Vector Store).
      */
     async saveVoiceMemo(data: {
         userId: string;
@@ -228,7 +228,7 @@ export const PythonBackendService = {
     },
 
     /**
-     * Updates tags for a file in Pinecone.
+     * Updates tags for a file in the vector store.
      */
     async updateTags(userId: string, fileId: string, tags: string[]) {
         console.log(`[PythonService] Updating tags for file ${fileId}`);
@@ -242,7 +242,7 @@ export const PythonBackendService = {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`[PythonService] Update Tags Error: ${response.status} ${errorText}`);
-                // Don't throw error here, just log it. Pinecone update failure shouldn't block DB update?
+                // Don't throw error here, just log it. Vector store update failure shouldn't block DB update?
                 // But we want consistency. Let's throw.
                 throw new Error(`Python Backend update tags failed: ${errorText}`);
             }
@@ -255,7 +255,7 @@ export const PythonBackendService = {
     },
 
     /**
-     * Deletes vectors associated with a file from Pinecone.
+     * Deletes vectors associated with a file from the vector store.
      */
     async deleteFile(userId: string, fileId: string) {
         console.log(`[PythonService] Deleting file ${fileId} for user ${userId}`);

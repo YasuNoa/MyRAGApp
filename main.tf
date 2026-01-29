@@ -68,14 +68,6 @@ resource "google_cloud_run_service" "backend" {
           value = var.google_api_key
         }
         env {
-          name  = "PINECONE_API_KEY"
-          value = var.pinecone_api_key
-        }
-        env {
-          name  = "PINECONE_INDEX"
-          value = var.pinecone_index
-        }
-        env {
           name  = "TZ"
           value = "Asia/Tokyo"
         }

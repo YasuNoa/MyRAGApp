@@ -1,4 +1,4 @@
-from database.db import get_prisma
+from database.db import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,7 +9,7 @@ class FeedbackService:
         """
         フィードバックを作成する
         """
-        prisma = await get_prisma()
+        prisma = db
         try:
             await prisma.feedback.create(
                 data={

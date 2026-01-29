@@ -14,14 +14,14 @@
 -   **ランタイム**: Python 3.10+
 -   **主要ライブラリ**:
     -   `google-generativeai`: Gemini API クライアント
-    -   `pinecone-client`: ベクトルDB クライアント
+    -   `asyncpg`: PostgreSQL (pgvector) クライアント
     -   `prisma`: DB クライアント (Python版)
     -   `langchain`: テキスト分割とオーケストレーション
     -   `ffmpeg`: 音声処理 (Docker/システムにインストール)
 
 ### データベース & ストレージ
 -   **プライマリDB**: PostgreSQL (ユーザーデータ, チャット履歴, ドキュメントメタデータ/コンテンツ)
--   **ベクトルDB**: Pinecone (Embeddings)
+-   **ベクトルDB**: Supabase Vector / pgvector (Embeddings)
 -   **オブジェクトストレージ**: 暗黙的 (ローカル一時保存または処理へのパススルー。ただしRAG用のファイルコンテンツはPostgresの `Document.content` に保存)。
 
 ## AIモデル

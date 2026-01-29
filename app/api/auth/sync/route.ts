@@ -38,14 +38,10 @@ export async function POST(req: NextRequest) {
         let user = null;
         let status = "";
 
-        // 1. Check by Internal ID (Highest Priority)
-        // If the client claims to know their User ID (internalId), verify it exists.
+        // 1. Check by Internal ID (REMOVED: Unsafe to trust client-provided ID)
+        // Identity must be resolved via Firebase UID or Email.
         if (internalId) {
-            user = await prisma.user.findUnique({ where: { id: internalId } });
-            if (user) {
-                console.log(`[Auth Sync] User found by Internal ID: ${user.id}`);
-                status = "found_by_internal_id";
-            }
+            console.warn(`[Auth Sync] Client provided internalId ${internalId}, ignoring for security.`);
         }
 
         // 2. Check if Account exists (Already linked) - If not found by Internal ID

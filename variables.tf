@@ -16,17 +16,6 @@ variable "google_api_key" {
   sensitive   = true
 }
 
-variable "pinecone_api_key" {
-  description = "Pinecone API Key"
-  type        = string
-  sensitive   = true
-}
-
-variable "pinecone_index" {
-  description = "Pinecone Index Name"
-  type        = string
-}
-
 variable "line_channel_access_token" {
   description = "LINE Channel Access Token"
   type        = string

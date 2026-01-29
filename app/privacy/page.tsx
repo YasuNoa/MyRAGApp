@@ -81,7 +81,7 @@ export default function PrivacyPage() {
       <section style={{ marginBottom: "30px" }}>
         <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "15px", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>5. データの保存と削除</h2>
         <p>
-          取得したデータは、ベクトルデータベース (Pinecone) およびアプリケーションデータベース (PostgreSQL) に保存されます。
+          取得したデータは、アプリケーションデータベース (PostgreSQL / Supabase) に保存されます。
           ユーザーは、本サービスの機能を通じて、いつでも自身のデータを削除することができます。
         </p>
       </section>

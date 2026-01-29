@@ -9,7 +9,7 @@ import os
 import uuid
 import json
 import stripe
-from services.user_service import UserService # For type hinting if needed or circular ref issue? No.
+# from services.user_service import UserService # REMOVED: Circular Import caused crash
 from schemas.user import SyncUserRequest, UpdatePlanRequest
 from database.db import db
 

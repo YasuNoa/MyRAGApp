@@ -10,7 +10,7 @@ import traceback
 import json
 from database.db import db
 from services.prompts import CHAT_SYSTEM_PROMPT, INTENT_CLASSIFICATION_PROMPT
-from search_service import SearchService
+from services.search_service import SearchService
 from services.vector_service import VectorService
 from services.user_service import UserService
 
@@ -32,7 +32,7 @@ class ChatService:
         """
         ユーザーのスレッド履歴を取得
         """
-        prisma = await get_prisma()
+        prisma = db
         threads = await prisma.thread.find_many(
             where={"userId": user_id},
             order={"updatedAt": "desc"},

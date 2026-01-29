@@ -48,9 +48,9 @@ class APIService: ObservableObject {
     
     /// ベースURL
     #if DEBUG
-    // 開発環境 (MacのIPアドレス)
-    static let baseURL = "http://192.168.11.2:8000"
-    static let authBaseURL = "http://192.168.11.2:3000"
+    // 開発環境 (Simulator)
+    static let baseURL = "http://localhost:8000"
+    static let authBaseURL = "http://localhost:3000"
     #else
     // 本番環境 (Cloud Run)
     static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
@@ -487,8 +487,8 @@ class APIService: ObservableObject {
     
     /// カテゴリ取得 (GET /knowledge/categories)
     func fetchCategories() async throws -> CategoryResponse {
-        // Categories endpoint is on Next.js Backend (authBaseURL)
-        return try await performRequest(endpoint: "/api/knowledge/categories", method: "GET", customBaseURL: Self.authBaseURL)
+        // Categories endpoint is on Python Backend
+        return try await performRequest(endpoint: "/categories", method: "GET")
     }
     
     /// 招待特典の対象かどうかを確認 (POST /api/referral/check-eligibility)
@@ -507,19 +507,6 @@ class APIService: ObservableObject {
         return try await performRequest(endpoint: "/api/referral/entry", method: "POST", body: body, customBaseURL: Self.authBaseURL)
     }
     
-    // MARK: - Knowledge Base API (Web)
-    
-    /// ナレッジ一覧取得 (GET /api/knowledge/list)
-    func fetchKnowledgeList() async throws -> KnowledgeListResponse {
-        return try await performRequest(endpoint: "/api/knowledge/list", method: "GET", customBaseURL: Self.authBaseURL)
-    }
-    
-    /// ナレッジ削除 (DELETE /api/knowledge/delete)
-    func deleteKnowledge(id: String) async throws -> WebSuccessResponse {
-        let request = DeleteKnowledgeRequest(id: id)
-        let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/api/knowledge/delete", method: "DELETE", body: body, customBaseURL: Self.authBaseURL)
-    }
     
     /// ナレッジ更新 (POST /api/knowledge/update)
     func updateKnowledge(id: String, tags: [String], title: String?) async throws -> WebSuccessResponse {

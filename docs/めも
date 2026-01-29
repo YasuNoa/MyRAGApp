@@ -41,7 +41,7 @@ Google検索:無制限
 
 変動費:
 CloudRunやCloudBuildらへんの変動費
-Pineconeのちょいコスト
+Supabaseのちょいコスト
 GeminiAPI
 SurperAPI
 
@@ -78,7 +78,7 @@ spererは初期2500まで無料。（超過は$1/1000）
 
 なんとなくこんなイ
 
-pinecornから全部supabaseに移行する。か。
+supabaseに移行済み。
 
 チャットでは、ピンポイントで検索するために、500にチャンクしたやつを、ベクトルD Bに入れて細かい質問に対応。
 

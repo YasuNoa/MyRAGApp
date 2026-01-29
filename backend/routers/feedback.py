@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from schemas.feedback import FeedbackCreate
-from database.db import get_prisma
+
 from dependencies import get_current_user
 from services.feedback_service import FeedbackService
 import logging

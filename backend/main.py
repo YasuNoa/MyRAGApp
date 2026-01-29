@@ -22,7 +22,7 @@ import sys
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import re
-from prompts import (
+from services.prompts import (
     CHAT_SYSTEM_PROMPT,
     VOICE_MEMO_PROMPT,
     IMAGE_DESCRIPTION_PROMPT,
@@ -32,7 +32,7 @@ from prompts import (
     SUMMARY_FROM_TEXT_PROMPT,
     INTENT_CLASSIFICATION_PROMPT
 )
-from search_service import SearchService
+from services.search_service import SearchService
 from services.vector_service import VectorService
 
 # Initialize Search Service
@@ -52,7 +52,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/myragapp") 
 

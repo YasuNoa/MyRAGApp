@@ -6,7 +6,7 @@ RAG (Retrieval-Augmented Generation) 技術を活用し、過去の会話や記�
 
 ## 特徴
 *   **LINE Botインターフェース**: 普段使い慣れたLINEアプリから、自然な会話形式で利用可能。
-*   **長期記憶 (RAG)**: Pinecone (Vector DB) を使用し、過去の発言を半永久的に記憶・検索可能。
+*   **長期記憶 (RAG)**: Supabase Vector (pgvector) を使用し、過去の発言を半永久的に記憶・検索可能。
 *   **意図・カテゴリ自動分類**: Google Gemini APIにより、ユーザーの発言意図（保存/検索）やカテゴリ（仕事、趣味など）を自動で判別。
 *   **ユーザー管理**: LINEログイン認証と連携し、ユーザーごとのデータをセキュアに管理。
 
@@ -14,7 +14,7 @@ RAG (Retrieval-Augmented Generation) 技術を活用し、過去の会話や記�
 *   **Frontend**: Next.js 15 (App Router), TypeScript, Auth.js
 *   **Backend**: Python (FastAPI)
 *   **Database**: PostgreSQL (Prisma ORM for schema management)
-*   **Vector Database**: Pinecone
+*   **Vector Database**: Supabase Vector (pgvector)
 *   **LLM**: Google Gemini API (gemini-2.0-flash)
 *   **Messaging Platform**: LINE Messaging API
 *   **Infrastructure**: Vercel (Frontend), Google Cloud Run (Backend), Docker (Dev Experience)
@@ -34,7 +34,7 @@ RAG (Retrieval-Augmented Generation) 技術を活用し、過去の会話や記�
 *   Docker / Docker Compose
 *   LINE Developers アカウント
 *   Google Cloud Platform アカウント (Gemini API)
-*   Pinecone アカウント
+*   Supabase アカウント (Vector Search用)
 
 ### 2. インストール
 リポジトリをクローンし、依存関係をインストールします。
