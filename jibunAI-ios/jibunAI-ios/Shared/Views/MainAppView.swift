@@ -88,15 +88,15 @@ struct MainAppView: View {
             ATTrackingManager.requestTrackingAuthorization { status in
                 switch status {
                 case .authorized:
-                    print("ATT: Authorized")
+                    AppLogger.general.info("ATT: Authorized")
                 case .denied:
-                    print("ATT: Denied")
+                    AppLogger.general.info("ATT: Denied")
                 case .notDetermined:
-                    print("ATT: Not Determined")
+                    AppLogger.general.info("ATT: Not Determined")
                 case .restricted:
-                    print("ATT: Restricted")
+                    AppLogger.general.info("ATT: Restricted")
                 @unknown default:
-                    print("ATT: Unknown")
+                    AppLogger.general.info("ATT: Unknown")
                 }
             }
         }

@@ -2,8 +2,12 @@ from database.db import db
 from schemas.course import CourseCreate, CourseUpdate
 from typing import List, Optional
 import logging
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+# Timezone Definition
+JST = timezone(timedelta(hours=9))
 
 class CourseService:
     async def create_course(self, user_id: str, data: CourseCreate):
@@ -69,8 +73,8 @@ class CourseService:
             return None
             
         # Soft delete documents: set deletedAt=NOW, courseId=None
-        from datetime import datetime
-        now = datetime.now()
+        # from datetime import datetime # Removed local import
+        now = datetime.now(JST)
         
         # Update documents belonging to this course
         await prisma.document.update_many(

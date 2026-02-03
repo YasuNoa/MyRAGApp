@@ -1,7 +1,11 @@
 
 import { REFERRAL_CAMPAIGN_END_DATE } from "@/src/lib/constants";
 
-const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY || "sk_gMlJifwmHuPPcvweJXyXxqPJWdhjm"; // TODO: Use env
+const REVENUECAT_SECRET_KEY = process.env.REVENUECAT_SECRET_KEY;
+
+if (!REVENUECAT_SECRET_KEY) {
+    console.warn("REVENUECAT_SECRET_KEY is not set. Promotional entitlements will fail.");
+}
 // プロモーショナルオファー（署名）の付与ではなく、"Promotional Entitlement" (無料期間の直接付与) を行う
 // API: POST https://api.revenuecat.com/v1/subscribers/{app_user_id}/entitlements/{entitlement_identifier}/promotional
 

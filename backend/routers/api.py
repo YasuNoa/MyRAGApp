@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi import APIRouter
+
 from . import voice, auth, user, chat, knowledge, course, feedback
 
 # -------------------------------------------------------------------------

@@ -31,3 +31,7 @@ DerivedData/
 *.xcuserdata/jibunAI-ios/jibunAI-ios/Info.plist
 
 Info.plist
+AppConfig.swift
+
+Debug.xcconfig
+Release.xcconfig

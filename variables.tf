@@ -138,3 +138,8 @@ variable "tavily_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "allowed_origins" {
+  description = "CORS Allowed Origins (comma separated)"
+  type        = string
+}

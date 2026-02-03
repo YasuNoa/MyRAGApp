@@ -4,7 +4,7 @@ import Foundation
 // MARK: - Referral API Models
 
 struct ReferralEligibilityRequest: Codable {
-    let userId: String
+    let providerId: String
 }
 
 struct ReferralEligibilityResponse: Codable {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/src/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -10,86 +9,39 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Access token is required" }, { status: 400 });
         }
 
-        // 1. Verify Access Token with LINE
-        const verifyUrl = "https://api.line.me/oauth2/v2.1/verify";
-        const verifyBody = new URLSearchParams({
-            access_token: lineAccessToken
-        });
+        // Proxy to Python Backend
+        // Default to localhost:8000 if BACKEND_URL not set
+        const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+        const proxyUrl = `${backendUrl}/api/auth/line`;
 
-        // Note: verify endpoint is GET usually, but v2.1 allows POST? 
-        // Docs say GET strictly for verify? No, wait.
-        // https://developers.line.biz/en/reference/line-login/#verify-access-token
-        // GET https://api.line.me/oauth2/v2.1/verify?access_token=...
+        console.log(`[Next.js Proxy] Forwarding LINE auth to: ${proxyUrl}`);
 
-        const verifyRes = await fetch(`${verifyUrl}?access_token=${lineAccessToken}`);
-
-        if (!verifyRes.ok) {
-            const err = await verifyRes.text();
-            console.error("LINE Token Verify Error:", err);
-            return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
-        }
-
-        const verifyData = await verifyRes.json();
-        const clientId = verifyData.client_id;
-
-        // Optional: Verify Client ID matches if we have it in env
-        if (process.env.AUTH_LINE_ID && clientId !== process.env.AUTH_LINE_ID) {
-            console.error("LINE Client ID Mismatch:", clientId);
-            // Proceed with caution or fail? Safest to fail if env is set.
-            // return NextResponse.json({ error: "Client ID mismatch" }, { status: 403 });
-        }
-
-        // 2. Get User Profile from LINE
-        const profileUrl = "https://api.line.me/v2/profile";
-        const profileRes = await fetch(profileUrl, {
+        const response = await fetch(proxyUrl, {
+            method: "POST",
             headers: {
-                Authorization: `Bearer ${lineAccessToken}`
-            }
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                lineAccessToken: lineAccessToken
+            }),
         });
 
-        if (!profileRes.ok) {
-            console.error("LINE Profile Error:", await profileRes.text());
-            return NextResponse.json({ error: "Failed to get user profile" }, { status: 500 });
-        }
-
-        const profile = await profileRes.json();
-        const lineUserId = profile.userId;
-        const name = profile.displayName;
-        const picture = profile.pictureUrl;
-        // Email is not returned by default profile endpoint without OpenID scope and specific permission.
-        // If we needed email, we'd need ID Token verification flow or check permissions.
-        // For native login, usually we rely on userId.
-
-        // 3. Create/Update Firebase User
-        const firebaseUid = `line:${lineUserId}`;
-
-        try {
-            await adminAuth.updateUser(firebaseUid, {
-                displayName: name,
-                photoURL: picture,
-                // email: email, // Email might often be missing for LINE
-            });
-        } catch (e: any) {
-            if (e.code === 'auth/user-not-found') {
-                await adminAuth.createUser({
-                    uid: firebaseUid,
-                    displayName: name,
-                    photoURL: picture,
-                    // email: email,
-                });
-            } else {
-                throw e;
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Next.js Proxy] Backend Error: ${response.status} - ${errorText}`);
+            try {
+                const errorJson = JSON.parse(errorText);
+                return NextResponse.json(errorJson, { status: response.status });
+            } catch (e) {
+                return NextResponse.json({ error: "Backend error", details: errorText }, { status: response.status });
             }
         }
 
-        // 4. Generate Custom Token
-        const customToken = await adminAuth.createCustomToken(firebaseUid);
-
-        // 5. Return Token
-        return NextResponse.json({ firebaseToken: customToken });
+        const data = await response.json();
+        return NextResponse.json(data);
 
     } catch (e: any) {
-        console.error("LINE Login API Error:", e);
+        console.error("[Next.js Proxy] Internal Error:", e);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

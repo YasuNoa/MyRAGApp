@@ -6,40 +6,14 @@ import os
 import io
 import json
 import uuid
-import subprocess # For running ffmpeg
-from typing import List, Optional, Tuple
-from pypdf import PdfReader
-import google.generativeai as genai
-from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
-import asyncpg
-import logging
-import sys
 import time
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-import re
-from services.prompts import (
-    CHAT_SYSTEM_PROMPT,
-    VOICE_MEMO_PROMPT,
-    IMAGE_DESCRIPTION_PROMPT,
-    PDF_TRANSCRIPTION_PROMPT,
-    AUDIO_CHUNK_PROMPT,
-    SUMMARY_FROM_TEXT_PROMPT,
-    INTENT_CLASSIFICATION_PROMPT
-)
-from services.search_service import SearchService
-from services.vector_service import VectorService
-
-# Initialize Search Service
-search_service = SearchService()
-
-from schemas.common import clean_json_response
+import sys
+import logging
+from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 設定 (Configuration) ---
-# ログ設定: アプリケーションの動作状況をコンソールに出力します。
-# デバッグやエラー追跡のために重要です。
+# --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -47,32 +21,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-DATABASE_URL = os.environ["DATABASE_URL"] 
-
-if not GOOGLE_API_KEY:
-    logger.warning("API Keys not found in environment variables")
-
-def get_audio_duration(file_path: str) -> float:
-    """Get the duration of an audio file in seconds using ffprobe."""
-    try:
-        cmd = [
-            "ffprobe", 
-            "-v", "error", 
-            "-show_entries", "format=duration", 
-            "-of", "default=noprint_wrappers=1:nokey=1", 
-            file_path
-        ]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        return float(result.stdout.strip())
-    except Exception as e:
-        logger.error(f"Failed to get audio duration: {e}")
-        return 0.0
-
-
-
-genai.configure(api_key=GOOGLE_API_KEY)
-
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    logger.error("DATABASE_URL is not set!")
 
 from routers.api import router as api_router
 
@@ -80,17 +31,23 @@ app = FastAPI()
 
 app.include_router(api_router)
 
-origins = [
-    "http://localhost:3000",
-    "http://frontend:3000",
-]
+# CORS Configuration
+# ALLOWED_ORIGINS環境変数から許可するオリジンを取得 (カンマ区切り)
+# 設定がない場合は空リスト（アクセス拒否）とする安全なデフォルト動作
+allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "")
+origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+if not origins:
+    logger.warning("ALLOWED_ORIGINS is empty! CORS requests might be blocked.")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # セキュリティ強化のため、許可するHTTPメソッドを明示的に指定
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    # セキュリティ強化のため、許可するヘッダーを明示的に指定
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
 )
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -114,8 +71,6 @@ app.add_middleware(RequestLoggingMiddleware)
 
 
 from database.db import connect_db, disconnect_db
-import database.db as db_module
-
 
 @app.on_event("startup")
 async def startup_event():
@@ -127,19 +82,10 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Error connecting to Prisma: {e}")
 
-    try:
-        logger.info("Connecting to Database (asyncpg)...") # Keep asyncpg for now until full migration
-        db_module.db_pool = await asyncpg.create_pool(DATABASE_URL, statement_cache_size=0)
-        logger.info("Database (asyncpg) connected.")
-    except Exception as e:
-        logger.error(f"Error connecting to database (asyncpg): {e}")
-
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down...")
     await disconnect_db()
-    if db_module.db_pool:
-        await db_module.db_pool.close()
 
 
 

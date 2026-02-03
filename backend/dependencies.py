@@ -40,7 +40,7 @@ async def get_current_user(token_auth: HTTPAuthorizationCredentials = Depends(se
         uid = decoded_token.get("uid")
         
         if not uid:
-             raise ValueError("No uid in token")
+            raise ValueError("No uid in token")
 
         # Return dict with uid (and other claims if needed)
         # ACQUIRE INTERNAL ID: Resolve Firebase UID -> Internal CUID

@@ -4,7 +4,7 @@ import os
 import logging
 from typing import List, Dict, Any, Optional
 import google.generativeai as genai
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import traceback
 
 import json
@@ -13,9 +13,13 @@ from services.prompts import CHAT_SYSTEM_PROMPT, INTENT_CLASSIFICATION_PROMPT
 from services.search_service import SearchService
 from services.vector_service import VectorService
 from services.user_service import UserService
+import asyncio
 
 # Setup Logger
 logger = logging.getLogger(__name__)
+
+# Timezone Definition
+JST = timezone(timedelta(hours=9))
 
 # Initialize Clients
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -42,7 +46,7 @@ class ChatService:
         return [t.model_dump() for t in threads]
 
     @staticmethod
-    def classify_intent(text: str) -> Dict[str, Any]:
+    async def classify_intent(text: str) -> Dict[str, Any]:
         """
         ユーザーの入力意図 (Intent) をGeminiを使って分類します。
         例: "チャットしたい", "検索したい", "保存したい" などを判別し、適切な処理に振り分けるために使用します。
@@ -50,8 +54,10 @@ class ChatService:
         try:
             prompt = INTENT_CLASSIFICATION_PROMPT.format(text=text)
             
+
             model = genai.GenerativeModel('gemini-2.0-flash')
-            response = model.generate_content(prompt)
+            # Run blocking Gemini call in thread
+            response = await asyncio.to_thread(model.generate_content, prompt)
             text_resp = response.text.strip()
             
             # Clean up code blocks if present
@@ -103,7 +109,7 @@ class ChatService:
                     )
                      thread_id = thread.id
                 else:
-                    await db.thread.update(where={'id': thread_id}, data={'updatedAt': datetime.now()})
+                    await db.thread.update(where={'id': thread_id}, data={'updatedAt': datetime.now(JST)})
 
             # Save User Message
             await db.message.create(
@@ -132,16 +138,34 @@ class ChatService:
             context_parts = []
             seen_ids = set()
             
+
             if search_results and 'matches' in search_results:
+                # --- N+1 Solution: Batch Fetch ---
+                doc_ids_to_fetch = set()
+                
+                # 1. Collect all valid doc IDs
                 for match in search_results['matches']:
                     meta = match['metadata']
-                    # Use metadata dbId/fileId or fallback to the vector ID
+                    doc_id = meta.get('dbId') or meta.get('fileId') or match['id']
+                    if doc_id:
+                        doc_ids_to_fetch.add(doc_id)
+                
+                # 2. Batch Fetch
+                fetched_docs = await db.document.find_many(
+                    where={"id": {"in": list(doc_ids_to_fetch)}}
+                )
+                
+                # 3. Create Map for O(1) Access
+                docs_map = {doc.id: doc for doc in fetched_docs}
+                
+                # 4. Construct Context
+                for match in search_results['matches']:
+                    meta = match['metadata']
                     doc_id = meta.get('dbId') or meta.get('fileId') or match['id']
                     
                     content = None
                     if doc_id and doc_id not in seen_ids:
-                        # Fetch content via Prisma
-                        doc = await db.document.find_unique(where={'id': doc_id})
+                        doc = docs_map.get(doc_id)
                         if doc and doc.content:
                             content = doc.content
                             context_parts.append(f"Source: {doc.title}\n\n{content}")
@@ -173,7 +197,8 @@ class ChatService:
             if is_internal and context_missing:
                  web_result = "(Skipped Web Search)"
             else:
-                 web_result = self.search_service.search(query, current_plan)
+                 # Run blocking Search in thread
+                 web_result = await asyncio.to_thread(self.search_service.search, query, current_plan)
 
             # 6. Generate Answer
             model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=CHAT_SYSTEM_PROMPT)
@@ -190,7 +215,8 @@ class ChatService:
             Answer (Japanese):
             """
             
-            response = model.generate_content(prompt)
+            # Run blocking Gemini call in thread
+            response = await asyncio.to_thread(model.generate_content, prompt)
             answer = response.text
             
             # Save Assistant Message

@@ -1,13 +1,23 @@
 # Request/Response models for Knowledge
 
-from pydantic import BaseModel
 from typing import List, Optional
+from .common import CamelModel
 
-class TextImportRequest(BaseModel):
+class TextImportRequest(CamelModel):
     text: str
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
     source: str = "manual"
-    dbId: Optional[str] = None
-    courseId: Optional[str] = None # Added for course support
-    tags: List[str] = [] # categoryからtagsリストに変更 (柔軟な分類のため)
+    db_id: Optional[str] = None
+    course_id: Optional[str] = None
+    tags: List[str] = []
     summary: Optional[str] = None
+
+class DeleteRequest(CamelModel):
+    id: str 
+    user_id: Optional[str] = None
+
+class UpdateKnowledgeRequest(CamelModel):
+    id: str
+    user_id: Optional[str] = None
+    tags: Optional[List[str]] = None
+    title: Optional[str] = None

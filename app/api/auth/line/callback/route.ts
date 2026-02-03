@@ -5,10 +5,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const savedState = req.cookies.get("line_oauth_state")?.value;
 
-    if (!code) {
-        return NextResponse.json({ error: "No code provided" }, { status: 400 });
+    if (!code || !state || !savedState) {
+        return NextResponse.json({ error: "Invalid request (Missing code or state)" }, { status: 400 });
     }
+
+    if (state !== savedState) {
+        return NextResponse.json({ error: "Invalid state (CSRF detected)" }, { status: 403 });
+    }
+
+    // Clear state cookie after use
+    req.cookies.delete("line_oauth_state");
 
     try {
         // 1. Exchange code for access token

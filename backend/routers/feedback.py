@@ -21,4 +21,4 @@ async def create_feedback(request: FeedbackCreate, current_user: dict = Depends(
         return {"success": True, "message": "Feedback submitted successfully"}
     except Exception as e:
         logger.error(f"Error creating feedback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")

@@ -14,9 +14,11 @@ backend/ 配下を以下のレイヤードアーキテクチャ構成とする�
 Plaintext
 
 backend/
-├── main.py              # Application entry point, Middleware, Router registration
-├── dependencies.py      # Common dependencies (e.g., get_current_user)
-├── routers/             # Interface Layer (HTTP Handling)
+├── main.py              # Application entry point
+├── dependencies.py      # Common dependencies
+├── utils/               # [NEW] Shared Utilities (Validators, etc.)
+│   └── validators.py
+├── routers/             # Interface Layer
 │   ├── api.py           # Main router aggregator
 │   ├── auth.py          # Auth endpoints
 │   ├── chat.py          # Chat/Ask/Thread endpoints
@@ -75,34 +77,33 @@ jibunAI-ios/
 ├── App/
 │   ├── jibunAI_iosApp.swift  # Entry point
 │   └── AppStateManager.swift # Global state (Auth, User session)
-├── Features/                 # Feature modules
+├── Views/                    # UI Components (Layer-based)
 │   ├── Chat/
-│   │   ├── Views/
-│   │   │   ├── ChatView.swift
-│   │   │   
-│   │   └── ViewModels/
-│   │       └── ChatViewModel.swift
-│   ├── Course/               # [NEW] Course Management & Browse
-│   │   ├── Views/
-│   │   │   ├── CourseListView.swift     # Replaces DataView (Home)
-│   │   │   ├── CourseDetailView.swift   # Course content & Exams
-│   │   │   └── TrashView.swift          # Recently Deleted items
-│   │   └── ViewModels/
-│   │       └── CourseViewModel.swift
-│   ├── Knowledge/            # Input & Upload Focus
-│   │   ├── Views/
-│   │   │   └── KnowledgeView.swift      # Input form (requires Course selection)
-│   │   └── ViewModels/
-│   │       └── KnowledgeViewModel.swift # File Upload/Input state
+│   │   └── ChatView.swift
+│   ├── Course/
+│   │   ├── CourseListView.swift
+│   │   ├── CourseDetailView.swift
+│   │   └── TrashView.swift
+│   ├── Knowledge/
+│   │   └── KnowledgeView.swift
 │   ├── Voice/
-│       ├── Views/
-│       │   └── VoiceNoteView.swift
-│       └── ViewModels/
-│           └── VoiceNoteViewModel.swift
-├── Shared/                   # Shared resources
+│   │   └── VoiceNoteView.swift
+│   └── ... (Other Features)
+├── ViewModels/               # Business Logic / State (Layer-based)
+│   ├── Chat/
+│   │   └── ChatViewModel.swift
+│   ├── Course/
+│   │   └── CourseViewModel.swift
+│   ├── Knowledge/
+│   │   └── KnowledgeViewModel.swift
+│   ├── Voice/
+│   │   └── VoiceNoteViewModel.swift
+│   └── ... (Other Features)
+├── Features/                # (Deprecated/Removed)
+├── Shared/                  # Shared resources
 │   ├── Components/
-│   ├── Models/               # API Data Models (Course, Exam, Document, etc.)
-│   └── Services/             # APIService.swift (Updated with Trash/Course APIs)
+│   ├── Models/              # API Data Models
+│   └── Services/            # APIService.swift
 └── Resources/                # Assets, Colors, Localizations
 3.2 Implementation Rules
 General
@@ -119,6 +120,8 @@ ViewModel (ObservableObject)
 責務: Viewの状態保持 (@Published)、API Serviceの呼び出し、データ加工。
 
 命名規則: [FeatureName]ViewModel
+
+構造: Layer-basedアーキテクチャを採用する。`Views/[Feature]/` および `ViewModels/[Feature]/` に配置し、機能単位のフォルダ（Features）を使用しない。
 
 Model
 責務: APIレスポンスのマッピング（Codable）。

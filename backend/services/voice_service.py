@@ -6,7 +6,7 @@ import uuid
 import json
 import logging
 import subprocess
-import time
+import asyncio
 from datetime import datetime, timezone, timedelta
 
 from pydub import AudioSegment
@@ -21,22 +21,42 @@ from services.prompts import (
     AUDIO_CHUNK_PROMPT,
     SUMMARY_FROM_TEXT_PROMPT
 )
+from schemas.common import clean_json_response
 
 # Setup Logger
 logger = logging.getLogger(__name__)
 
+# Timezone Definition
+JST = timezone(timedelta(hours=9))
+
+# Initialize GenAI
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    logger.warning("GOOGLE_API_KEY not found in environment for VoiceService.")
+
 class VoiceService:
     
     @staticmethod
-    def get_audio_duration(file_path: str) -> float:
+    async def get_audio_duration(file_path: str) -> float:
         """Get the duration of an audio file in seconds."""
         try:
             # ffmpeg -i input 2>&1 | grep "Duration"
             # Logic from main.py
-            command = ["ffmpeg", "-i", file_path]
-            result = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            cmd = ["ffmpeg", "-i", file_path]
+            
+            # Use asyncio subprocess
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            stderr_text = stderr.decode()
+
             import re
-            match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", result.stderr)
+            match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", stderr_text)
             if match:
                 hours, minutes, seconds = map(float, match.groups())
                 return hours * 3600 + minutes * 60 + seconds
@@ -45,17 +65,7 @@ class VoiceService:
             logger.error(f"Error getting audio duration: {e}")
             return 0.0
 
-    @staticmethod
-    def clean_json_response(text: str) -> str:
-        """Clean markdown code blocks."""
-        text = text.strip()
-        if text.startswith("```"):
-            first_newline = text.find("\n")
-            if first_newline != -1:
-                last_fence = text.rfind("```")
-                if last_fence != -1 and last_fence > first_newline:
-                    return text[first_newline+1:last_fence].strip()
-        return text
+
 
     @classmethod
     async def process_voice_memo(
@@ -91,8 +101,9 @@ class VoiceService:
         
         # 1. Save Temporary
         content = await file.read()
-        file_ext = os.path.splitext(file.filename)[1]
-        if not file_ext:
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        allowed_exts = {".mp3", ".m4a", ".wav", ".aac", ".caf", ".ogg", ".flac", ".webm"}
+        if file_ext not in allowed_exts:
             file_ext = ".mp3"
             
         temp_filename = f"/tmp/{uuid.uuid4()}{file_ext}"
@@ -124,24 +135,28 @@ class VoiceService:
 
             try:
                 if needs_truncation:
-                    actual_duration = cls.get_audio_duration(temp_filename)
+                    actual_duration = await cls.get_audio_duration(temp_filename)
                     
                     if actual_duration > truncate_seconds:
                         truncated_filename = f"/tmp/{uuid.uuid4()}_truncated{file_ext}"
                         # ffmpeg: -t duration, -acodec copy
                         cmd = ["ffmpeg", "-y", "-i", temp_filename, "-t", str(truncate_seconds), "-acodec", "copy", truncated_filename]
-                        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         
-                        # Swap
-                        # We don't remove original yet as we might need to debug? 
-                        # Actually we can remove it to save space.
-                        # But temp_files_to_cleanup handles it.
+                        process = await asyncio.create_subprocess_exec(
+                            *cmd,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        await process.communicate()
+                        if process.returncode != 0:
+                            raise Exception("FFmpeg truncation failed")
+                        
                         current_temp_file = truncated_filename
                         temp_files_to_cleanup.append(truncated_filename)
                         logger.info(f"Truncated from {actual_duration:.1f}s to {truncate_seconds}s")
                 
                 # 2. Record Usage
-                final_duration = cls.get_audio_duration(current_temp_file)
+                final_duration = await cls.get_audio_duration(current_temp_file)
                 sub = await UserService.get_or_create_subscription(user_id)
                 await cls.check_and_update_voice_limit(user_id, sub, final_duration)
 
@@ -164,7 +179,14 @@ class VoiceService:
                 "-f", "segment", "-segment_time", str(chunk_duration), 
                 "-c", "copy", split_pattern
             ]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process_split = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process_split.communicate()
+            if process_split.returncode != 0:
+                 raise Exception("FFmpeg splitting failed")
             
             chunks_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.startswith("part")])
             logger.info(f"Created {len(chunks_files)} chunks: {chunks_files}")
@@ -201,14 +223,14 @@ class VoiceService:
                             retry_count += 1
                             wait_time = 30 * retry_count 
                             logger.warning(f"Rate limit hit for chunk {i}. Retrying in {wait_time}s... ({retry_count}/{max_retries})")
-                            time.sleep(wait_time)
+                            await asyncio.sleep(wait_time)
                         else:
                             logger.error(f"Failed to transcribe chunk {i}: {e}")
                             full_transcript.append(f"(Chunk {i} failed: {e})")
                             break 
 
                 logger.info("Sleeping 10s to respect rate limits...")
-                time.sleep(10)
+                await asyncio.sleep(10)
                 # chunk_file_upload.delete() # Clean up remote file if needed
 
             # Summarization
@@ -239,12 +261,6 @@ class VoiceService:
             
             # Create Document Record
             if save:
-                # DB persisted ID is fileId (or dbId passed in?)
-                # main.py used fileId from metadata.
-                # Assuming fileId is the DB ID.
-                # Update main.py logic: KnowledgeService.create_document_record
-                
-                # Check if dbId is provided separately
                 db_id = metadata.get("dbId") or file_id
 
                 await KnowledgeService.create_document_record(
@@ -255,14 +271,6 @@ class VoiceService:
                     mime_type=file.content_type,
                     tags=tags
                 )
-                
-                # Chunk Text (VectorService)
-                # Re-use KnowledgeService logic? 
-                # main.py logic duplicated KnowledgeService.process_and_save_content partially but tailored for voice (transcript/summary separation).
-                # KnowledgeService.process_and_save_content is general.
-                # Voice logic wants specific metadata types 'transcript' / 'summary'.
-                # I will reproduce main.py logic here using VectorService directly, OR update KnowledgeService to support types.
-                # main.py used VectorService directly for custom metadata.
                 
                 chunks = VectorService.chunk_text(final_transcript)
                 vectors = []
@@ -322,7 +330,7 @@ class VoiceService:
 
         except Exception as e:
             logger.error(f"Error processing voice memo: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Voice processing failed due to an internal error.")
         finally:
             for f in temp_files_to_cleanup:
                 if os.path.exists(f):
@@ -340,18 +348,18 @@ class VoiceService:
         daily_count = sub.dailyVoiceCount or 0
         last_voice_date = sub.lastVoiceDate
         if not last_voice_date:
-            last_voice_date = datetime.now(timezone.utc)
+            last_voice_date = datetime.now(JST)
             
         monthly_minutes = sub.monthlyVoiceMinutes or 0
         last_voice_reset = sub.lastVoiceResetDate
         if not last_voice_reset:
-            last_voice_reset = datetime.now(timezone.utc)
+            last_voice_reset = datetime.now(JST)
         
         purchased = sub.purchasedVoiceBalance or 0
 
-        now = datetime.now(timezone.utc)
-        jst = timezone(timedelta(hours=9))
-        now_jst = now.astimezone(jst)
+        now = datetime.now(JST)
+        jst = JST
+        now_jst = now
 
         should_reset_daily = False
         if last_voice_date.replace(tzinfo=timezone.utc).astimezone(jst).date() != now_jst.date():
@@ -421,7 +429,7 @@ class VoiceService:
         """
         try:
             doc_id = str(uuid.uuid4())
-            now = datetime.now(timezone.utc)
+            now = datetime.now(JST)
             
             # 1. Create Document in DB
             await KnowledgeService.create_document_record(
@@ -489,4 +497,4 @@ class VoiceService:
 
         except Exception as e:
             logger.error(f"Error saving voice memo: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Internal Server Error")

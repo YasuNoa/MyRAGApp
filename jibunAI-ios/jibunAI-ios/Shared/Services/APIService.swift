@@ -47,16 +47,9 @@ class APIService: ObservableObject {
     // MARK: - Properties
     
     /// ベースURL
-    #if DEBUG
-    // 開発環境 (Simulator)
-    static let baseURL = "http://localhost:8000"
-    static let authBaseURL = "http://localhost:3000"
-    #else
-    // 本番環境 (Cloud Run)
-    static let baseURL = "https://myragapp-backend-968150096572.asia-northeast1.run.app"
-    // 認証用URL (Next.js Backend - Auth)
-    static let authBaseURL = "https://myragapp-frontend-968150096572.asia-northeast1.run.app"
-    #endif
+    /// ベースURL (AppConfigから取得)
+    static var baseURL: String { AppConfig.apiBaseURL }
+    static var authBaseURL: String { AppConfig.authBaseURL }
     
     /// Firebase ID Token（認証用）
     @Published var authToken: String?
@@ -179,22 +172,35 @@ class APIService: ObservableObject {
         var body = Data()
         
         // ファイルパート
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        if let boundaryData = "--\(boundary)\r\n".data(using: .utf8),
+           let dispositionData = "Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8),
+           let contentTypeData = "Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8) {
+            body.append(boundaryData)
+            body.append(dispositionData)
+            body.append(contentTypeData)
+        }
         body.append(fileData)
-        body.append("\r\n".data(using: .utf8)!)
+        if let newlineData = "\r\n".data(using: .utf8) {
+            body.append(newlineData)
+        }
         
         // メタデータパート
         if let metadataJSON = try? JSONSerialization.data(withJSONObject: metadata, options: []),
            let metadataString = String(data: metadataJSON, encoding: .utf8) {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"metadata\"\r\n\r\n".data(using: .utf8)!)
-            body.append(metadataString.data(using: .utf8)!)
-            body.append("\r\n".data(using: .utf8)!)
+            if let boundaryData = "--\(boundary)\r\n".data(using: .utf8),
+               let dispositionData = "Content-Disposition: form-data; name=\"metadata\"\r\n\r\n".data(using: .utf8),
+               let metaData = metadataString.data(using: .utf8),
+               let newlineData = "\r\n".data(using: .utf8) {
+                body.append(boundaryData)
+                body.append(dispositionData)
+                body.append(metaData)
+                body.append(newlineData)
+            }
         }
         
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        if let endBoundaryData = "--\(boundary)--\r\n".data(using: .utf8) {
+            body.append(endBoundaryData)
+        }
         request.httpBody = body
         
         do {
@@ -260,8 +266,8 @@ class APIService: ObservableObject {
             throw APIError.invalidURL
         }
         
-        print("➡️ [Upload] Starting upload to: \(url.absoluteString)")
-        print("➡️ [Upload] File: \(fileURL.lastPathComponent), Name: \(fileName)")
+        AppLogger.network.debug("➡️ [Upload] Starting upload to: \(url.absoluteString)")
+        AppLogger.network.debug("➡️ [Upload] File: \(fileURL.lastPathComponent), Name: \(fileName)")
         
         let boundary = UUID().uuidString
         var request = URLRequest(url: url)
@@ -284,18 +290,28 @@ class APIService: ObservableObject {
             defer { try? fileHandle.close() }
             
             // 1. Metadata Part
+            // 1. Metadata Part
             if let metadataJSON = try? JSONSerialization.data(withJSONObject: metadata, options: []),
                let metadataString = String(data: metadataJSON, encoding: .utf8) {
-                fileHandle.write("--\(boundary)\r\n".data(using: .utf8)!)
-                fileHandle.write("Content-Disposition: form-data; name=\"metadata\"\r\n\r\n".data(using: .utf8)!)
-                fileHandle.write(metadataString.data(using: .utf8)!)
-                fileHandle.write("\r\n".data(using: .utf8)!)
+                if let boundaryData = "--\(boundary)\r\n".data(using: .utf8),
+                   let dispositionData = "Content-Disposition: form-data; name=\"metadata\"\r\n\r\n".data(using: .utf8),
+                   let metaData = metadataString.data(using: .utf8),
+                   let newlineData = "\r\n".data(using: .utf8) {
+                    fileHandle.write(boundaryData)
+                    fileHandle.write(dispositionData)
+                    fileHandle.write(metaData)
+                    fileHandle.write(newlineData)
+                }
             }
             
             // 2. File Header Part
-            fileHandle.write("--\(boundary)\r\n".data(using: .utf8)!)
-            fileHandle.write("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-            fileHandle.write("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            if let boundaryData = "--\(boundary)\r\n".data(using: .utf8),
+               let dispositionData = "Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8),
+               let contentTypeData = "Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8) {
+                fileHandle.write(boundaryData)
+                fileHandle.write(dispositionData)
+                fileHandle.write(contentTypeData)
+            }
             
             // 3. File Content (Stream from original file)
             let originalFileHandle = try FileHandle(forReadingFrom: fileURL)
@@ -308,11 +324,14 @@ class APIService: ObservableObject {
                  fileHandle.write(data)
             }
             
-            fileHandle.write("\r\n".data(using: .utf8)!)
-            fileHandle.write("--\(boundary)--\r\n".data(using: .utf8)!)
+            if let newlineData = "\r\n".data(using: .utf8),
+               let endBoundaryData = "--\(boundary)--\r\n".data(using: .utf8) {
+                fileHandle.write(newlineData)
+                fileHandle.write(endBoundaryData)
+            }
             
         } catch {
-            print("❌ [Upload] Failed to prepare body: \(error)")
+            AppLogger.network.error("❌ [Upload] Failed to prepare body: \(error)")
             throw APIError.serverError("Failed to prepare upload body: \(error.localizedDescription)")
         }
         
@@ -329,24 +348,24 @@ class APIService: ObservableObject {
             try? FileManager.default.removeItem(at: tempFileURL)
             
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [Upload] Invalid response type")
+                AppLogger.network.error("❌ [Upload] Invalid response type")
                 throw APIError.networkError(NSError(domain: "Invalid response", code: -1))
             }
             
-            print("⬅️ [Upload] Response Status: \(httpResponse.statusCode)")
+            AppLogger.network.debug("⬅️ [Upload] Response Status: \(httpResponse.statusCode)")
             
             switch httpResponse.statusCode {
             case 200...299:
                 break
             case 401:
-                print("❌ [Upload] Unauthorized")
+                AppLogger.network.error("❌ [Upload] Unauthorized")
                 throw APIError.unauthorized
             default:
                 if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                    print("❌ [Upload] Server Error: \(errorResponse.detail)")
+                    AppLogger.network.error("❌ [Upload] Server Error: \(errorResponse.detail)")
                     throw APIError.serverError(errorResponse.detail)
                 } else {
-                    print("❌ [Upload] Server Error Code: \(httpResponse.statusCode)")
+                    AppLogger.network.error("❌ [Upload] Server Error Code: \(httpResponse.statusCode)")
                     throw APIError.serverError("HTTPステータスコード: \(httpResponse.statusCode)")
                 }
             }
@@ -354,16 +373,16 @@ class APIService: ObservableObject {
             do {
                 return try JSONDecoder().decode(T.self, from: data)
             } catch {
-                print("❌ [Upload] Decoding Error: \(error)")
+                AppLogger.network.error("❌ [Upload] Decoding Error: \(error)")
                 throw APIError.decodingError(error)
             }
         } catch let error as APIError {
             try? FileManager.default.removeItem(at: tempFileURL)
-            print("❌ [Upload] APIError: \(error)")
+            AppLogger.network.error("❌ [Upload] APIError: \(error)")
             throw error
         } catch {
             try? FileManager.default.removeItem(at: tempFileURL)
-            print("❌ [Upload] Network/Other Error: \(error)")
+            AppLogger.network.error("❌ [Upload] Network/Other Error: \(error)")
             throw APIError.networkError(error)
         }
     }
@@ -409,12 +428,7 @@ class APIService: ObservableObject {
         return try await performRequest(endpoint: "/api/classify", method: "POST", body: body)
     }
     
-    /// 知識検索 (POST /query)
-    func query(query: String, userId: String, tags: [String] = [], userPlan: String = "FREE") async throws -> QueryResponse {
-        let request = QueryRequest(query: query, userId: userId, tags: tags, userPlan: userPlan)
-        let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/query", method: "POST", body: body)
-    }
+
     
     /// テキストインポート (POST /import-text)
     func importText(text: String, userId: String, courseId: String? = nil, source: String = "manual", dbId: String? = nil, tags: [String] = [], summary: String? = nil) async throws -> SuccessResponse {
@@ -475,15 +489,10 @@ class APIService: ObservableObject {
     
     /// ゴミ箱一覧取得 (GET /trash)
     func fetchTrash(userId: String) async throws -> [KnowledgeDocument] {
-         return try await performRequest(endpoint: "/api/knowledge/trash?userId=\(userId)", method: "GET")
+         return try await performRequest(endpoint: "/api/knowledge/trash", method: "GET")
     }
     
-    /// タグ更新 (POST /update-tags)
-    func updateTags(fileId: String, userId: String, tags: [String]) async throws -> SuccessResponse {
-        let request = UpdateTagsRequest(fileId: fileId, userId: userId, tags: tags)
-        let body = try JSONEncoder().encode(request)
-        return try await performRequest(endpoint: "/api/knowledge/update-tags", method: "POST", body: body)
-    }
+
     
     /// カテゴリ取得 (GET /knowledge/categories)
     func fetchCategories() async throws -> CategoryResponse {
@@ -492,8 +501,8 @@ class APIService: ObservableObject {
     }
     
     /// 招待特典の対象かどうかを確認 (POST /api/referral/check-eligibility)
-    func checkReferralEligibility(userId: String) async throws -> ReferralEligibilityResponse {
-        let request = ReferralEligibilityRequest(userId: userId)
+    func checkReferralEligibility(providerId: String) async throws -> ReferralEligibilityResponse {
+        let request = ReferralEligibilityRequest(providerId: providerId)
         let body = try JSONEncoder().encode(request)
         // Next.js Backend (authBaseURL)
         return try await performRequest(endpoint: "/api/referral/check-eligibility", method: "POST", body: body, customBaseURL: Self.authBaseURL)

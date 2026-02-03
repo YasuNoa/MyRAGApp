@@ -6,6 +6,10 @@ options:
   xcodeVersion: 15.0
   groupSortPosition: top
 
+configFiles:
+  Debug: Configs/Debug.xcconfig
+  Release: Configs/Release.xcconfig
+
 packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
@@ -25,6 +29,9 @@ packages:
   Lottie:
     url: https://github.com/airbnb/lottie-ios
     majorVersion: 4.0.0
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    majorVersion: 4.2.2
 
 targets:
   jibunAI-ios:
@@ -64,3 +71,5 @@ targets:
         product: Kingfisher
       - package: Lottie
         product: Lottie
+      - package: KeychainAccess
+        product: KeychainAccess

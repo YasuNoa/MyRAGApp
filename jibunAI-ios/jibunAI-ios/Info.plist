@@ -27,7 +27,7 @@
 			<string>com.google.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.968150096572-jo1mhu24kkubgkfeh7jet19ve0aksp18</string>
+				<string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
 			</array>
 		</dict>
 		<dict>
@@ -37,7 +37,7 @@
 			<string>com.line.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>line3rdp.com.yasu.jibunAI-ios</string>
+				<string>$(LINE_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
@@ -46,7 +46,13 @@
 		<string>lineauth2</string>
 	</array>
 	<key>RevenueCatAPIKey</key>
-	<string>appl_kzidfVNDgEaDpKUiLeOeBzWsqeN</string>
+	<string>$(REVENUECAT_API_KEY)</string>
+    <key>APIBaseURL</key>
+    <string>$(API_BASE_URL)</string>
+    <key>LineChannelID</key>
+    <string>$(AUTH_LINE_ID)</string>
+    <key>AuthBaseURL</key>
+    <string>$(AUTH_BASE_URL)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
@@ -73,7 +79,7 @@
 	<key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
-        <true/>
+        <false/>
     </dict>
     <key>UIApplicationSceneManifest</key>
     <dict>

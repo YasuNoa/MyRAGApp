@@ -12,6 +12,7 @@ import FirebaseAuth
 import FirebaseCore
 import Foundation
 import GoogleSignIn
+import KeychainAccess
 import SwiftUI
 import CryptoKit
 
@@ -22,6 +23,7 @@ enum AuthError: LocalizedError {
     case microsoftSignInFailed(String)
     case tokenRetrievalFailed
     case userNotFound
+    case nonceGenerationFailed
 
     var errorDescription: String? {
         switch self {
@@ -37,6 +39,8 @@ enum AuthError: LocalizedError {
             return "認証トークンの取得に失敗しました"
         case .userNotFound:
             return "ユーザー情報が見つかりません"
+        case .nonceGenerationFailed:
+            return "Nonceの生成に失敗しました"
         }
     }
 }
@@ -93,7 +97,7 @@ class AuthService: ObservableObject {
             let firebaseToken = try await authResult.user.getIDToken()
 
             // バックエンドと同期
-            let (dbUserId, _, usage) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            let (dbUserId, _, usage) = try await syncUserWithBackend(providerId: authResult.user.uid, token: firebaseToken)
             
             // ユーザー情報を更新
             let appUser = AppStateManager.User(
@@ -145,7 +149,7 @@ class AuthService: ObservableObject {
             let firebaseToken = try await authResult.user.getIDToken()
 
             // バックエンドと同期
-            let (dbUserId, _, usage) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            let (dbUserId, _, usage) = try await syncUserWithBackend(providerId: authResult.user.uid, token: firebaseToken)
             
             let appUser = AppStateManager.User(
                 id: dbUserId, // Use DB ID
@@ -172,7 +176,7 @@ class AuthService: ObservableObject {
     // ...
 
     // Apple Sign-In用のNonce生成
-    static func randomNonceString(length: Int = 32) -> String {
+    static func randomNonceString(length: Int = 32) throws -> String {
         precondition(length > 0)
         let charset: [Character] = Array(
             "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
@@ -180,13 +184,11 @@ class AuthService: ObservableObject {
         var remainingLength = length
 
         while remainingLength > 0 {
-            let randoms: [UInt8] = (0..<16).map { _ in
+            let randoms: [UInt8] = try (0..<16).map { _ in
                 var random: UInt8 = 0
                 let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
                 if errorCode != errSecSuccess {
-                    fatalError(
-                        "Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)"
-                    )
+                    throw AuthError.nonceGenerationFailed
                 }
                 return random
             }
@@ -237,7 +239,7 @@ class AuthService: ObservableObject {
             let firebaseToken = try await result.user.getIDToken()
 
             // バックエンドと同期
-            let (dbUserId, _, usage) = try await syncUserWithBackend(userId: result.user.uid, token: firebaseToken)
+            let (dbUserId, _, usage) = try await syncUserWithBackend(providerId: result.user.uid, token: firebaseToken)
             
             let appUser = AppStateManager.User(
                 id: dbUserId, // Use DB ID
@@ -275,7 +277,9 @@ class AuthService: ObservableObject {
             let firebaseToken: String
         }
 
-        let url = URL(string: "\(APIService.authBaseURL)/api/auth/line")!
+        guard let url = URL(string: "\(APIService.authBaseURL)/api/auth/line") else {
+            throw AuthError.lineSignInFailed("不正なURLです")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -300,7 +304,7 @@ class AuthService: ObservableObject {
             let firebaseToken = try await authResult.user.getIDToken()
 
             // バックエンドと同期
-            let (dbUserId, _, usage) = try await syncUserWithBackend(userId: authResult.user.uid, token: firebaseToken)
+            let (dbUserId, _, usage) = try await syncUserWithBackend(providerId: authResult.user.uid, token: firebaseToken)
             
             let appUser = AppStateManager.User(
                 id: dbUserId, // Use DB ID
@@ -331,17 +335,18 @@ class AuthService: ObservableObject {
         APIService.shared.authToken = nil
         
         // Clear persisted internal ID
-        UserDefaults.standard.removeObject(forKey: "internalUserId")
+        let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
+        try? keychain.remove("internalUserId")
     }
 
     // MARK: - Session Management
     
     /// セッション復元時にバックエンドと同期するための公開メソッド
     func syncUserSession(token: String) async throws -> (id: String, plan: String, usage: AppStateManager.Usage?) {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let providerId = Auth.auth().currentUser?.uid else {
             throw AuthError.userNotFound
         }
-        return try await syncUserWithBackend(userId: userId, token: token)
+        return try await syncUserWithBackend(providerId: providerId, token: token)
     }
     
     // MARK: - Helper Methods
@@ -350,16 +355,18 @@ class AuthService: ObservableObject {
         currentUser = firebaseUser
     }
 
-    private func syncUserWithBackend(userId: String, token: String) async throws -> (id: String, plan: String, usage: AppStateManager.Usage?) {
+    private func syncUserWithBackend(providerId: String, token: String) async throws -> (id: String, plan: String, usage: AppStateManager.Usage?) {
         // バックエンドの /api/auth/sync エンドポイントを叩く (Next.js)
-        let url = URL(string: "\(APIService.authBaseURL)/api/auth/sync")!
+        guard let url = URL(string: "\(APIService.authBaseURL)/api/auth/sync") else {
+             throw AuthError.tokenRetrievalFailed // Invalid URL case
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         struct SyncRequest: Codable {
-            let userId: String
+            let providerId: String
             let email: String?
             let displayName: String?
             let photoURL: String?
@@ -367,10 +374,11 @@ class AuthService: ObservableObject {
         }
         
         // 保存済みのInternal IDがあれば取得
-        let internalId = UserDefaults.standard.string(forKey: "internalUserId")
+        let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
+        let internalId = try? keychain.getString("internalUserId")
 
         let body = SyncRequest(
-            userId: userId,
+            providerId: providerId,
             email: currentUser?.email,
             displayName: currentUser?.displayName,
             photoURL: currentUser?.photoURL?.absoluteString,
@@ -384,13 +392,13 @@ class AuthService: ObservableObject {
             (200...299).contains(httpResponse.statusCode)
         else {
              let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-             print("⚠️ バックエンド同期に失敗しました: Status \(statusCode)")
+             AppLogger.auth.error("⚠️ バックエンド同期に失敗しました: Status \(statusCode)")
              if let errorText = String(data: data, encoding: .utf8) {
-                 print("Response: \(errorText)")
+                 AppLogger.auth.error("Response: \(errorText)")
              }
              throw AuthError.tokenRetrievalFailed 
         }
-        print("✅ User synced with backend")
+        AppLogger.auth.info("✅ User synced with backend")
         
         // レスポンスからInternal ID (CUID) を取得して保存
         struct SyncResponse: Codable {
@@ -414,41 +422,48 @@ class AuthService: ObservableObject {
             let userPlan = syncResponse.user.plan ?? "FREE"
             let usage = syncResponse.user.usage
             
-            // CUIDを永続化 (次回のSyncで使用)
-            UserDefaults.standard.set(internalUserId, forKey: "internalUserId")
-            print("💾 Saved Internal User ID: \(internalUserId)")
+            // CUIDを永続化 (次回のSyncで使用) - Keychainに保存
+            let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
+            try? keychain.set(internalUserId, key: "internalUserId")
+            #if DEBUG
+            AppLogger.auth.debug("💾 Saved Internal User ID: \(internalUserId)")
+            #endif
             
             return (internalUserId, userPlan, usage)
             
         } catch {
-            print("⚠️ Failed to parse sync response for Internal ID: \(error)")
+            AppLogger.auth.error("⚠️ Failed to parse sync response for Internal ID: \(error)")
             // パース失敗時でも同期自体は成功していれば続行。プランはデフォルトのFREEを返す
             // IDが取得できない場合は、暫定的にFirebase UIDを返すが、これは不完全な状態
-            return (userId, "FREE", nil)
+            return (providerId, "FREE", nil)
         }
     }
     
     // MARK: - Plan Synchronization
     
     func syncUserPlan(plan: String) async throws {
-        guard let token = idToken, let userId = currentUser?.uid else {
-             print("⚠️ Cannot sync plan: No valid session")
+        guard let token = idToken, let providerId = currentUser?.uid else {
+             AppLogger.auth.warning("⚠️ Cannot sync plan: No valid session")
              return
         }
         
         
-        let url = URL(string: "\(APIService.authBaseURL)/api/user/plan")!
+        
+        guard let url = URL(string: "\(APIService.authBaseURL)/api/user/plan") else {
+             AppLogger.auth.error("⚠️ Cannot sync plan: Invalid URL")
+             return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         struct UpdatePlanRequest: Codable {
-            let userId: String
+            let providerId: String
             let plan: String
         }
         
-        let body = UpdatePlanRequest(userId: userId, plan: plan)
+        let body = UpdatePlanRequest(providerId: providerId, plan: plan)
         request.httpBody = try JSONEncoder().encode(body)
         
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -456,10 +471,10 @@ class AuthService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode)
         else {
-            print("⚠️ プラン同期に失敗しました")
+            AppLogger.auth.error("⚠️ プラン同期に失敗しました")
             throw AuthError.tokenRetrievalFailed // 便宜上のエラー
         }
-        print("✅ Plan synced with backend: \(plan)")
+        AppLogger.auth.info("✅ Plan synced with backend: \(plan)")
     }
 
 }

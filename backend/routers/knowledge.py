@@ -4,10 +4,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 import json
 import logging
-
 from services.knowledge_service import KnowledgeService
-from services.vector_service import VectorService
-from schemas.knowledge import TextImportRequest
+from schemas.knowledge import TextImportRequest, DeleteRequest, UpdateKnowledgeRequest
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +61,9 @@ async def import_file(
 
     except Exception as e:
         logger.error(f"Error importing file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.post("/process-text")
-async def process_text_file(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"] # Security override
-    content = await file.read()
-    text = content.decode("utf-8")
-    return await KnowledgeService.process_and_save_content(text, meta_dict)
+
 
 @router.post("/import-text")
 async def import_text(
@@ -87,9 +75,9 @@ async def import_text(
         user_id = current_user["uid"]
         meta_dict = {
             "userId": user_id,
-            "fileId": request.dbId, # Use dbId
-            "dbId": request.dbId,
-            "courseId": request.courseId, # Added
+            "fileId": request.db_id, # Use dbId
+            "dbId": request.db_id,
+            "courseId": request.course_id, # Added
             "fileName": "Text Entry",
             "tags": request.tags,
             "source": request.source
@@ -98,11 +86,9 @@ async def import_text(
 
     except Exception as e:
         logger.error(f"Error processing text: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-class DeleteRequest(BaseModel):
-    id: str # Unified naming (was fileId)
-    userId: Optional[str] = None
+
 
 @router.post("/delete-file")
 async def delete_file(
@@ -116,7 +102,7 @@ async def delete_file(
         return {"status": "success", "message": f"Moved file {request.id} to trash"}
     except Exception as e:
         logger.error(f"Error deleting file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/restore-file")
 async def restore_file(
@@ -129,7 +115,7 @@ async def restore_file(
         return {"status": "success", "message": f"Restored file {request.id}"}
     except Exception as e:
         logger.error(f"Error restoring file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/delete-file/permanent")
 async def permanent_delete_file(
@@ -142,7 +128,7 @@ async def permanent_delete_file(
         return {"status": "success", "message": f"Permanently deleted file {request.id}"}
     except Exception as e:
         logger.error(f"Error permanently deleting file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/trash")
 async def get_trash(current_user: dict = Depends(get_current_user)):
@@ -153,13 +139,9 @@ async def get_trash(current_user: dict = Depends(get_current_user)):
         return docs
     except Exception as e:
         logger.error(f"Error fetching trash: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-class UpdateKnowledgeRequest(BaseModel):
-    id: str # Unified naming (was fileId)
-    userId: Optional[str] = None
-    tags: Optional[List[str]] = None
-    title: Optional[str] = None # Added title update support
+
 
 @router.post("/update-knowledge") # Renamed from /update-tags for clarity
 async def update_knowledge(
@@ -178,32 +160,8 @@ async def update_knowledge(
         return {"status": "success", "message": f"Updated knowledge for file {request.id}"}
     except Exception as e:
         logger.error(f"Error updating tags: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-
-@router.post("/process-image")
-async def process_image_endpoint(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"]
-    content = await file.read()
-    text = await KnowledgeService.process_image(content, file.content_type, file.filename)
-    return await KnowledgeService.process_and_save_content(text, meta_dict)
-
-@router.post("/process-pptx")
-async def process_pptx_endpoint(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"]
-    content = await file.read()
-    text = await KnowledgeService.process_pptx(content)
-    return await KnowledgeService.process_and_save_content(text, meta_dict)
 
 @router.get("/categories")
 async def get_categories(current_user: dict = Depends(get_current_user)):
@@ -213,40 +171,6 @@ async def get_categories(current_user: dict = Depends(get_current_user)):
         return {"tags": tags}
     except Exception as e:
         logger.error(f"Error fetching categories: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.post("/process-docx")
-async def process_docx_endpoint(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"]
-    content = await file.read()
-    text = await KnowledgeService.process_docx(content)
-    return await KnowledgeService.process_and_save_content(text, meta_dict)
 
-@router.post("/process-xlsx")
-async def process_xlsx_endpoint(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"]
-    content = await file.read()
-    text = await KnowledgeService.process_xlsx(content)
-    return await KnowledgeService.process_and_save_content(text, meta_dict)
-
-@router.post("/process-csv")
-async def process_csv_endpoint(
-    file: UploadFile = File(...), 
-    metadata: str = Form(...),
-    current_user: dict = Depends(get_current_user)
-):
-    meta_dict = json.loads(metadata)
-    meta_dict["userId"] = current_user["uid"]
-    content = await file.read()
-    text = await KnowledgeService.process_csv(content)
-    return await KnowledgeService.process_and_save_content(text, meta_dict)

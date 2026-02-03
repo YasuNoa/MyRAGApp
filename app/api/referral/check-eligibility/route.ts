@@ -6,11 +6,32 @@ import { REFERRAL_CAMPAIGN_END_DATE } from "@/src/lib/constants";
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { userId } = body;
+        const { providerId } = body;
 
-        if (!userId) {
-            return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+        if (!providerId) {
+            return NextResponse.json({ error: "Missing providerId" }, { status: 400 });
         }
+
+        // Resolve Provider ID to Internal Service User ID
+        const account = await prisma.account.findUnique({
+            where: {
+                provider_providerAccountId: {
+                    provider: "firebase",
+                    providerAccountId: providerId
+                }
+            },
+            select: { userId: true }
+        });
+
+        if (!account) {
+            // If strictly enforcing, return error. Or treat as not eligible because user doesn't exist?
+            return NextResponse.json({
+                isEligible: false,
+                reason: "USER_NOT_FOUND"
+            });
+        }
+
+        const userId = account.userId;
 
         // 1. キャンペーン期間チェック
         const now = new Date();

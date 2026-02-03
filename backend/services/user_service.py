@@ -18,6 +18,9 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 logger = logging.getLogger(__name__)
 
+# Timezone Definition
+JST = timezone(timedelta(hours=9))
+
 class UserService:
     """
     ユーザー管理、プラン管理、制限チェックを行うサービス
@@ -62,7 +65,7 @@ class UserService:
         try:
             sub = await db.usersubscription.find_unique(where={'userId': user_id})
             if not sub:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(JST)
                 sub = await db.usersubscription.create(
                     data={
                         'userId': user_id,
@@ -94,7 +97,7 @@ class UserService:
                     if end_time.tzinfo is None:
                         end_time = end_time.replace(tzinfo=timezone.utc)
                     
-                    if datetime.now(timezone.utc) > end_time:
+                    if datetime.now(JST) > end_time:
                         logger.info(f"Trial expired for {user_id}. Treating as FREE.")
                         return "FREE"
                 except Exception as e:
@@ -112,16 +115,16 @@ class UserService:
         
         current_plan = sub.plan
         daily_count = sub.dailyChatCount
-        last_reset = sub.lastChatResetAt or datetime.now(timezone.utc)
+        last_reset = sub.lastChatResetAt or datetime.now(JST)
         
         # JST Timezone
-        jst = timezone(timedelta(hours=9))
+        jst = JST
         
         # Limits Definition
-        LIMITS = {"FREE": 5, "STANDARD": 100, "PREMIUM": 200, "STANDARD_TRIAL": 100}
+        LIMITS = {"FREE": 10, "STANDARD": 100, "PREMIUM": 200, "STANDARD_TRIAL": 100}
         limit = LIMITS.get(current_plan, 10)
         
-        now = datetime.now(timezone.utc)
+        now = datetime.now(JST)
         should_reset = False
         
         if last_reset.tzinfo is None:
@@ -213,7 +216,7 @@ class UserService:
             
             await db.referral.update(
                 where={'id': referral.id},
-                data={'status': 'COMPLETED', 'completedAt': datetime.now(timezone.utc)}
+                data={'status': 'COMPLETED', 'completedAt': datetime.now(JST)}
             )
             logger.info(f"Referral marked as COMPLETED: {referral.id} (Referrer: {referrer_id}, Referee: {user_id})")
 
@@ -268,7 +271,7 @@ class UserService:
             current_end = sub.currentPeriodEnd
             
             # Date Logic
-            now = datetime.now(timezone.utc)
+            now = datetime.now(JST)
             if sub.currentPeriodEnd and sub.currentPeriodEnd.replace(tzinfo=timezone.utc) > now:
                  # Extend existing
                  # Ensure timezone awareness
@@ -320,7 +323,7 @@ class UserService:
             account = await db.account.find_first(
                 where={
                     'provider': 'firebase',
-                    'providerAccountId': request.userId
+                    'providerAccountId': request.providerId
                 },
                 include={'user': True}
             )
@@ -329,7 +332,7 @@ class UserService:
 
             if account and account.user:
                 user_id = account.user.id
-                logger.info(f"Account found for {request.userId}, linked to user {user_id}")
+                logger.info(f"Account found for {request.providerId}, linked to user {user_id}")
                 
                 # Update User profile if needed
                 data_to_update = {}
@@ -341,7 +344,7 @@ class UserService:
                     data_to_update['email'] = request.email
                 
                 if data_to_update:
-                    data_to_update['updatedAt'] = datetime.now(timezone.utc)
+                    data_to_update['updatedAt'] = datetime.now(JST)
                     await db.user.update(
                         where={'id': user_id},
                         data=data_to_update
@@ -362,9 +365,9 @@ class UserService:
                                 'id': str(uuid.uuid4()),
                                 'userId': user_id,
                                 'provider': 'firebase',
-                                'providerAccountId': request.userId,
+                                'providerAccountId': request.providerId,
                                 'type': 'oauth',
-                                'updatedAt': datetime.now(timezone.utc)
+                                'updatedAt': datetime.now(JST)
                             }
                         )
                 
@@ -384,7 +387,7 @@ class UserService:
                             'name': request.displayName,
                             'image': request.photoURL,
                             'emailVerified': None,
-                            'updatedAt': datetime.now(timezone.utc)
+                            'updatedAt': datetime.now(JST)
                         }
                     )
                     
@@ -394,9 +397,9 @@ class UserService:
                             'id': str(uuid.uuid4()),
                             'userId': user_id,
                             'provider': 'firebase',
-                            'providerAccountId': request.userId,
+                            'providerAccountId': request.providerId,
                             'type': 'oauth',
-                            'updatedAt': datetime.now(timezone.utc)
+                            'updatedAt': datetime.now(JST)
                         }
                     )
 
@@ -407,7 +410,7 @@ class UserService:
 
         except Exception as e:
             logger.error(f"Error syncing user: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Failed to sync user.")
 
     @staticmethod
     async def update_user_plan(request: UpdatePlanRequest):
@@ -419,13 +422,16 @@ class UserService:
              raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of {valid_plans}")
 
         try:
-            # Check if subscription exists
-            sub = await db.usersubscription.find_unique(where={'userId': request.userId})
+            # Resolve Provider ID to Internal ID
+            user_id = await UserService.resolve_user_id(request.providerId)
             
-            now = datetime.now(timezone.utc)
+            # Check if subscription exists
+            sub = await db.usersubscription.find_unique(where={'userId': user_id})
+            
+            now = datetime.now(JST)
             if sub:
                 await db.usersubscription.update(
-                    where={'userId': request.userId},
+                    where={'userId': user_id},
                     data={
                         'plan': request.plan,
                         'updatedAt': now
@@ -436,7 +442,7 @@ class UserService:
                 await db.usersubscription.create(
                     data={
                         'id': str(uuid.uuid4()),
-                        'userId': request.userId,
+                        'userId': user_id,
                         'plan': request.plan,
                         'dailyChatCount': 0,
                         'lastChatResetAt': now,
@@ -446,10 +452,10 @@ class UserService:
                     }
                 )
                 
-            logger.info(f"Updated plan for user {request.userId} to {request.plan}")
+            logger.info(f"Updated plan for user {user_id} (Provider: {request.providerId}) to {request.plan}")
             return {"status": "success", "plan": request.plan}
 
         except Exception as e:
             logger.error(f"Error updating user plan: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail="Failed to update user plan.")
 

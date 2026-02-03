@@ -109,6 +109,6 @@ INTENT_CLASSIFICATION_PROMPT = """
         Output JSON format:
         {{
             "intent": "STORE" | "REVIEW" | "CHAT",
-            "category": "Category Name"
+            "tags": ["Tag1", "Tag2", "Tag3"]
         }}
         """

@@ -17,9 +17,13 @@ async def sync_user(
     ユーザー情報をDBと同期します。
     ユーザーが存在しない場合は作成し、存在する場合は更新します。
     """
-    # Enforce userId from token
-    request.userId = current_user["uid"]
-    return await UserService.sync_user(request)
+    try:
+        # Enforce providerId from token
+        request.providerId = current_user["uid"]
+        return await UserService.sync_user(request)
+    except Exception as e:
+        logger.error(f"Error syncing user: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.post("/user/plan")
 async def update_user_plan(
@@ -29,6 +33,10 @@ async def update_user_plan(
     """
     ユーザーのプランを更新します (iOS等のクライアントからの同期用)。
     """
-    # Enforce userId from token
-    request.userId = current_user["uid"]
-    return await UserService.update_user_plan(request)
+    try:
+        # Enforce providerId from token
+        request.providerId = current_user["uid"]
+        return await UserService.update_user_plan(request)
+    except Exception as e:
+        logger.error(f"Error updating user plan: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")

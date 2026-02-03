@@ -79,9 +79,14 @@ resource "google_cloud_run_service" "backend" {
           name  = "GOOGLE_CSE_ID"
           value = var.google_cse_id
         }
+        
         env {
           name  = "TAVILY_API_KEY"
           value = var.tavily_api_key
+        }
+        env {
+          name  = "ALLOWED_ORIGINS"
+          value = var.allowed_origins
         }
       }
     }

@@ -50,20 +50,7 @@ struct ClassifyRequest: Codable {
     }
 }
 
-/// クエリリクエスト (/query)
-struct QueryRequest: Codable {
-    let query: String
-    let userId: String
-    let tags: [String]
-    let userPlan: String
-    
-    enum CodingKeys: String, CodingKey {
-        case query
-        case userId
-        case tags
-        case userPlan
-    }
-}
+
 
 /// テキストインポートリクエスト (/import-text)
 struct TextImportRequest: Codable {
@@ -92,23 +79,12 @@ struct DeleteRequest: Codable {
     let userId: String
     
     enum CodingKeys: String, CodingKey {
-        case fileId
+        case fileId = "id"
         case userId
     }
 }
 
-/// タグ更新リクエスト (/update-tags)
-struct UpdateTagsRequest: Codable {
-    let fileId: String
-    let userId: String
-    let tags: [String]
-    
-    enum CodingKeys: String, CodingKey {
-        case fileId
-        case userId
-        case tags
-    }
-}
+
 
 // MARK: - Response Models
 
@@ -158,31 +134,7 @@ struct ClassifyResponse: Codable {
     }
 }
 
-/// クエリレスポンス
-struct QueryResponse: Codable {
-    let answer: String
-    let sources: [SearchResult]?
-    
-    enum CodingKeys: String, CodingKey {
-        case answer
-        case sources
-    }
-}
 
-/// 検索結果
-struct SearchResult: Codable {
-    let content: String
-    let source: String?
-    let score: Double?
-    let metadata: [String: AnyCodable]?
-    
-    enum CodingKeys: String, CodingKey {
-        case content
-        case source
-        case score
-        case metadata
-    }
-}
 
 /// 一般的な成功レスポンス
 struct SuccessResponse: Codable {
@@ -194,7 +146,7 @@ struct SuccessResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case status
         case message
-        case fileId
+        case fileId = "id"
         case chunks_count
     }
 }
@@ -310,6 +262,7 @@ struct KnowledgeDocument: Codable, Identifiable, Equatable {
     let source: String
     let mimeType: String?
     let createdAt: String // ISO8601 String
+    let deletedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -322,6 +275,7 @@ struct KnowledgeDocument: Codable, Identifiable, Equatable {
         case source
         case mimeType
         case createdAt
+        case deletedAt
     }
 }
 
@@ -353,6 +307,7 @@ struct Course: Codable, Identifiable, Equatable {
     let color: String // blue, red, green, etc.
     let icon: String?
     let createdAt: String
+    let updatedAt: String?
     let documentCount: Int? // Optional counts
     let examCount: Int?
     
