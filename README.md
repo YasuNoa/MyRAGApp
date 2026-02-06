@@ -73,5 +73,5 @@ npm run dev
 *   [要件定義書](docs/requirements.md)
 *   [基本仕様書](docs/specifications.md)
 
-WebUI：https://jibunai.vercel.app/
-公式LINE：https://line.me/ti/p/@662awtth
+WebUI：https://jibun-ai.com
+連絡先:mbdeveloperyasu@gmail.com
