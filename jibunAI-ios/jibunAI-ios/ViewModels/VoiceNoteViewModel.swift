@@ -43,6 +43,9 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
     private var audioFileURL: URL?
     private var audioFile: AVAudioFile?
     
+    // Audio I/O Queue
+    private let audioWritingQueue = DispatchQueue(label: "com.jibunAI.audioWritingQueue")
+    
     private var timer: Timer?
     
     // API
@@ -155,36 +158,47 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             guard let self = self else { return }
             
-            var isFinal = false
-            
-            if let result = result {
-                self.transcript = result.bestTranscription.formattedString
-                isFinal = result.isFinal
-            }
-            
-            if error != nil || isFinal {
-                self.audioEngine.stop()
-                inputNode.removeTap(onBus: 0)
+            // Callback can be on background thread, so dispatch to MainActor
+            Task { @MainActor in
+                var isFinal = false
                 
-                self.recognitionRequest = nil
-                self.recognitionTask = nil
+                if let result = result {
+                    self.transcript = result.bestTranscription.formattedString
+                    isFinal = result.isFinal
+                }
                 
-                // 録音終了時の処理は stopRecording で行うためここでは何もしない
+                if error != nil || isFinal {
+                    self.audioEngine.stop()
+                    inputNode.removeTap(onBus: 0)
+                    
+                    self.recognitionRequest = nil
+                    self.recognitionTask = nil
+                    
+                    // 録音終了時の処理は stopRecording で行うためここでは何もしない
+                }
             }
         }
         
+        // Local capture to avoid capturing self strongly or accessing MainActor props on audio thread
+        // Local capture to avoid capturing self strongly or accessing MainActor props on audio thread
+        let requestWrapper = UncheckedSendable(recognitionRequest)
+        let fileWrapper = UncheckedSendable(audioFile)
+        
         // マイク入力のタップ
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] (buffer, when) in
-            guard let self = self else { return }
+            // Audio Thread (Real-time priority) - Avoid File I/O here!
             
-            // 音声認識へ
-            self.recognitionRequest?.append(buffer)
+            // 1. Process recognition (Lightweight)
+            requestWrapper.value?.append(buffer)
             
-            // ファイル保存へ
-            do {
-                try self.audioFile?.write(from: buffer)
-            } catch {
-                AppLogger.general.error("Audio write error: \(error)")
+            // 2. Offload File File I/O to background serial queue
+            // Note: audioWritingQueue handles serial access to the file
+            self?.audioWritingQueue.async {
+                do {
+                    try fileWrapper.value?.write(from: buffer)
+                } catch {
+                    AppLogger.general.error("Audio write error: \(error)")
+                }
             }
         }
         
@@ -210,15 +224,13 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
         }
     }
     
-    func stopRecording(userId: String) {
+    func stopRecording(userId: String) async {
         // API処理を呼び出す通常の停止処理
         stopRecordingInternal()
         
-        Task {
-            // 少し待ってからアップロード＆解析開始
-             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-             await processAudio(userId: userId)
-        }
+        // 少し待ってからアップロード＆解析開始
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+        await processAudio(userId: userId)
     }
 
     
@@ -284,7 +296,12 @@ class VoiceNoteViewModel: NSObject, ObservableObject, SFSpeechRecognizerDelegate
         isProcessing = false
         // 一時ファイルを削除
         if let url = audioFileURL {
-            try? FileManager.default.removeItem(at: url)
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                AppLogger.general.error("削除失敗: \(error)")
+                // 必要ならユーザーへ通知
+            }
             audioFileURL = nil
         }
     }

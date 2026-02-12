@@ -225,6 +225,9 @@ class UserService:
             REFEREE_PLAN_TYPE = "STANDARD_TRIAL"
             REFERRER_BONUS_DAYS = 7
             REFERRER_PLAN_TYPE = "STANDARD_TRIAL"
+            
+            # Initialize for safety
+            completed_count = 0
 
             if REFERRAL_CAMPAIGN_MODE == "LAUNCH":
                 REFEREE_BONUS_DAYS = 30
@@ -252,7 +255,7 @@ class UserService:
             await UserService._apply_reward(user_id, REFEREE_BONUS_DAYS, REFEREE_PLAN_TYPE, "Referee")
 
             # 4. Reward Referrer (紹介者)
-            await UserService._apply_reward(referrer_id, REFERRER_BONUS_DAYS, REFERRER_PLAN_TYPE, "Referrer", completed_count if 'completed_count' in locals() else 0)
+            await UserService._apply_reward(referrer_id, REFERRER_BONUS_DAYS, REFERRER_PLAN_TYPE, "Referrer", completed_count)
 
         except Exception as e:
             logger.error(f"Error processing referral reward: {e}")
@@ -316,7 +319,11 @@ class UserService:
         ユーザー情報をDBと同期します。
         ユーザーが存在しない場合は作成し、存在する場合は更新します。
         """
-        logger.info(f"Sync Request received: {request}")
+        if request.email:
+             masked_email = request.email[:3] + "***" + request.email.split("@")[-1]
+        else:
+             masked_email = "None"
+        logger.info(f"Sync Request received: Provider={request.providerId}, Email={masked_email}")
         
         try:
             # 1. Check if Account exists

@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 chat_service = ChatService()
 
+from utils.rate_limiter import InMemoryRateLimiter
+
+# Initialize Rate Limiter (5 requests per 1 minute)
+rate_limiter = InMemoryRateLimiter(max_requests=5, window_seconds=60)
+
 @router.post("/classify", response_model=ClassifyResponse)
 async def classify_intent(
     request: ClassifyRequest,
@@ -20,6 +25,9 @@ async def classify_intent(
     """
     ユーザーの入力意図 (Intent) をGeminiを使って分類します。
     """
+    # Rate Limit Check
+    await rate_limiter.check_limit(current_user["uid"])
+
     result = await ChatService.classify_intent(request.text)
     # Service returns dict, validate against Response Model
     return result
@@ -44,6 +52,9 @@ async def ask(
     try:
         # Use authenticated user ID instead of request.userId for security
         user_id = current_user["uid"]
+        
+        # Rate Limit Check
+        await rate_limiter.check_limit(user_id)
         
         result = await chat_service.ask(
             query=request.query,

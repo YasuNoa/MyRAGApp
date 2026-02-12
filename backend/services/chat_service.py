@@ -72,7 +72,7 @@ class ChatService:
             # Fallback
             return {"intent": "CHAT", "tags": ["General"]}
 
-    async def ask(self, query: str, user_id: str, thread_id: Optional[str] = None, tags: List[str] = []) -> Dict[str, Any]:
+    async def ask(self, query: str, user_id: str, thread_id: Optional[str] = None, tags: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         RAG Process:
         1. Resolve User
@@ -82,12 +82,17 @@ class ChatService:
         5. Web Search (Optional)
         6. Generate Answer
         """
+        if tags is None:
+            tags = []
         logger.info(f"ChatService: Received ask request from {user_id}")
 
         try:
             # 1. Resolve User ID (Handle Provider ID)
             resolved_user_id = await UserService.resolve_user_id(user_id)
-            logger.info(f"User Resolved: {user_id} -> {resolved_user_id}")
+            # Log with masking
+            safe_user_id = user_id[:6] + "..." if len(user_id) > 6 else user_id
+            safe_resolved = resolved_user_id[:6] + "..." if len(resolved_user_id) > 6 else resolved_user_id
+            logger.info(f"User Resolved: {safe_user_id} -> {safe_resolved}")
             
             # 2. Check Limits & Get Plan
             await UserService.check_and_increment_chat_limit(resolved_user_id)

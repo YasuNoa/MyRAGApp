@@ -13,6 +13,7 @@ import LineSDK
 import GoogleSignIn
 import RevenueCat
 import StoreKit
+import KeychainAccess
 
 @main
 struct jibunAI_iosApp: App {
@@ -61,6 +62,7 @@ struct jibunAI_iosApp: App {
         }
         
         // 【デバッグ】StoreKit直接確認
+        #if DEBUG
         Task {
             AppLogger.billing.debug("🛒 DEBUG: Starting StoreKit product fetch check...")
             do {
@@ -77,6 +79,7 @@ struct jibunAI_iosApp: App {
                 AppLogger.billing.error("🛒 DEBUG: ❌ Failed to fetch products from StoreKit: \(error)")
             }
         }
+        #endif
     }
     
     var body: some Scene {
@@ -107,9 +110,14 @@ struct jibunAI_iosApp: App {
                                     AppLogger.network.error("⚠️ Failed to register referral: \(error)")
                                 }
                             } else {
-                                // 未ログイン時は保存しておき、ログイン後に処理
-                                UserDefaults.standard.set(referrerId, forKey: "pendingReferrerId")
-                                AppLogger.general.info("💾 Pending referrer saved: \(referrerId)")
+                                // 未ログイン時は保存しておき、ログイン後に処理 (Keychain使用)
+                                let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
+                                do {
+                                    try keychain.set(referrerId, key: "pendingReferrerId")
+                                    AppLogger.general.info("💾 Pending referrer saved to Keychain: \(referrerId)")
+                                } catch {
+                                    AppLogger.general.error("⚠️ Failed to save pending referrer to Keychain: \(error)")
+                                }
                             }
                         }
                     }
@@ -141,6 +149,7 @@ final class AppStateManager: ObservableObject {
     @Published var isLoading: Bool = true // 初期ロード中フラグ
     @Published var currentUser: User?
     @Published var userPlan: String = "FREE"
+    @Published var sessionError: String? // セッション復元エラー用
     
     // セッション復元タスク管理用
     private var restoreSessionTask: Task<Void, Never>?
@@ -160,26 +169,35 @@ final class AppStateManager: ObservableObject {
         restoreSessionTask = Task {
             // 初期状態設定
             self.isLoading = true
+            self.sessionError = nil
+            
+            // Re-fetch current user inside Task to maintain isolation
+            guard let currentUser = Auth.auth().currentUser else {
+                 AppLogger.auth.info("⚪️ No active session found during restore")
+                 self.isLoggedIn = false
+                 self.isLoading = false
+                 return
+            }
             
             #if DEBUG
-            AppLogger.auth.debug("🔄 Restoring session for user: \(user.uid)")
+            AppLogger.auth.debug("🔄 Restoring session for user: \(currentUser.uid)")
             #endif
             
             // 仮のユーザー情報で更新（これだけでは不完全）
             self.currentUser = User(
-                id: user.uid,
-                displayName: user.displayName,
-                email: user.email,
-                photoURL: user.photoURL?.absoluteString
+                id: currentUser.uid,
+                displayName: currentUser.displayName,
+                email: currentUser.email,
+                photoURL: currentUser.photoURL?.absoluteString
             )
             
             var retryCount = 0
-            let maxRetries = 5 // 初回 + 4回リトライ
+            let maxRetries = 3 // 初回 + 2回リトライ
             
             while !Task.isCancelled {
                 do {
                     // 1. Firebase ID Token取得
-                    let token = try await user.getIDToken(forceRefresh: true)
+                    let token = try await currentUser.getIDToken(forcingRefresh: true)
                     
                     // MainActorコンテキスト
                     APIService.shared.authToken = token
@@ -208,6 +226,10 @@ final class AppStateManager: ObservableObject {
                     
                     self.checkSubscriptionStatus()
                     self.isLoading = false // ロード完了
+                    
+                    // 招待コードのチェック
+                    self.checkPendingReferral()
+                    
                     return // タスク終了
                     
                 } catch {
@@ -217,9 +239,10 @@ final class AppStateManager: ObservableObject {
                     
                     retryCount += 1
                     if retryCount >= maxRetries {
-                       
-                         retryCount = 0 // 無限リトライモード（またはエラーダイアログ用Stateが必要）
-                         try? await Task.sleep(nanoseconds: 10 * 1_000_000_000) // 10秒待機
+                        // リトライ上限到達: ユーザーへエラー通知
+                        self.sessionError = "セッションの復元に失敗しました。\nネットワーク接続を確認して再試行してください。"
+                        self.isLoading = false
+                        return
                     } else {
                         // 指数バックオフ待ち
                         let delay = UInt64(pow(2.0, Double(retryCount))) * 1_000_000_000
@@ -273,6 +296,9 @@ final class AppStateManager: ObservableObject {
         // 課金状態の監視開始
         self.checkSubscriptionStatus()
         AppLogger.auth.info("✅ User logged in and RevenueCat listener started")
+        
+        // 招待コードのチェック
+        self.checkPendingReferral()
     }
     
     /// ユーザー情報を保持する構造体
@@ -295,11 +321,16 @@ final class AppStateManager: ObservableObject {
     
     /// RevenueCatの状態を確認 (外部から呼び出し可能)
     func checkSubscriptionStatus() {
-        AppLogger.billing.debug("👀 Checking subscription status...")
-        Purchases.shared.getCustomerInfo { [weak self] (customerInfo, error) in
-            guard let self = self else { return }
-            if let info = customerInfo {
-                self.updateUserPlan(with: info)
+        #if DEBUG
+        AppLogger.billing.debug("👀 Checking subscription status")
+        #endif
+        
+        Task {
+            do {
+                let customerInfo = try await Purchases.shared.customerInfo()
+                self.updateUserPlan(with: customerInfo)
+            } catch {
+                AppLogger.billing.error("❌ Failed to fetch customer info: \(error)")
             }
         }
     }
@@ -309,10 +340,12 @@ final class AppStateManager: ObservableObject {
     /// CustomerInfoからプラン情報を更新
     func updateUserPlan(with customerInfo: CustomerInfo) {
         // [DEBUG] 全Entitlementsの出力
+        #if DEBUG
         AppLogger.billing.debug("👀 Checking Entitlements: \(customerInfo.entitlements.all.keys)")
         for (key, entitlement) in customerInfo.entitlements.all {
             AppLogger.billing.debug("   - \(key): isActive=\(entitlement.isActive), willRenew=\(entitlement.willRenew)")
         }
+        #endif
 
         // "premium" という識別子のエンタイトルメントを確認
         // RevenueCatのダッシュボードで設定したEntitlement IDに合わせてください
@@ -334,11 +367,9 @@ final class AppStateManager: ObservableObject {
             newExpirationDate = nil
         }
         
-        // UI更新
-        DispatchQueue.main.async {
-            self.userPlan = newPlan
-            self.expirationDate = newExpirationDate
-        }
+        // UI更新 (MainActor内なのでDispatchQueue不要)
+        self.userPlan = newPlan
+        self.expirationDate = newExpirationDate
         
         // バックエンド同期 (プラン変更時)
         Task {
@@ -353,6 +384,37 @@ final class AppStateManager: ObservableObject {
                 }
             } catch {
                 AppLogger.network.error("⚠️ Failed to sync plan or refresh profile: \(error)")
+            }
+        }
+    }
+
+    
+    // MARK: - Referral Logic
+    
+    /// 保留中の招待コードを確認して処理
+    private func checkPendingReferral() {
+        Task {
+            let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
+            guard let referrerId = try? keychain.getString("pendingReferrerId"), let userId = self.currentUser?.id else {
+                return
+            }
+            
+            AppLogger.general.info("🔍 Found pending referrer: \(referrerId), processing...")
+            
+            do {
+                try await APIService.shared.registerReferral(referrerId: referrerId, userId: userId)
+                AppLogger.network.info("✅ Pending referral registered successfully")
+                
+                // 処理成功したら削除
+                do {
+                    try keychain.remove("pendingReferrerId")
+                    AppLogger.general.debug("🗑 Removed pendingReferrerId from Keychain")
+                } catch {
+                     AppLogger.general.error("⚠️ Failed to remove pending referrer from Keychain: \(error)")
+                }
+            } catch {
+                AppLogger.network.error("⚠️ Failed to process pending referral: \(error)")
+                // 失敗した場合は次回リトライのため削除しない（またはエラーコードによっては削除する判断も可）
             }
         }
     }

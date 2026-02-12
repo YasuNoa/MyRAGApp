@@ -283,7 +283,7 @@ class APIService: ObservableObject {
         let tempFileURL = tempDir.appendingPathComponent(UUID().uuidString)
         
         // ファイルを空で作成
-        FileManager.default.createFile(atPath: tempFileURL.path, contents: nil, attributes: nil)
+        FileManager.default.createFile(atPath: tempFileURL.path, contents: nil, attributes: [.protectionKey: FileProtectionType.completeUnlessOpen])
         
         do {
             let fileHandle = try FileHandle(forWritingTo: tempFileURL)
@@ -345,7 +345,11 @@ class APIService: ObservableObject {
             progressSession.finishTasksAndInvalidate() // セッションの解放
             
             // クリーンアップ
-            try? FileManager.default.removeItem(at: tempFileURL)
+            do {
+                try FileManager.default.removeItem(at: tempFileURL)
+            } catch {
+                AppLogger.network.error("⚠️ [Upload] Failed to remove temp file: \(error)")
+            }
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 AppLogger.network.error("❌ [Upload] Invalid response type")
@@ -377,11 +381,19 @@ class APIService: ObservableObject {
                 throw APIError.decodingError(error)
             }
         } catch let error as APIError {
-            try? FileManager.default.removeItem(at: tempFileURL)
+            do {
+                try FileManager.default.removeItem(at: tempFileURL)
+            } catch {
+                AppLogger.network.error("⚠️ [Upload] Failed to remove temp file (on APIError): \(error)")
+            }
             AppLogger.network.error("❌ [Upload] APIError: \(error)")
             throw error
         } catch {
-            try? FileManager.default.removeItem(at: tempFileURL)
+            do {
+                try FileManager.default.removeItem(at: tempFileURL)
+            } catch {
+                AppLogger.network.error("⚠️ [Upload] Failed to remove temp file (on Error): \(error)")
+            }
             AppLogger.network.error("❌ [Upload] Network/Other Error: \(error)")
             throw APIError.networkError(error)
         }

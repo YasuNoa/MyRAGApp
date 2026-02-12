@@ -336,7 +336,11 @@ class AuthService: ObservableObject {
         
         // Clear persisted internal ID
         let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
-        try? keychain.remove("internalUserId")
+        do {
+            try keychain.remove("internalUserId")
+        } catch {
+            AppLogger.auth.error("⚠️ Failed to remove internalUserId from Keychain: \(error)")
+        }
     }
 
     // MARK: - Session Management
@@ -424,7 +428,11 @@ class AuthService: ObservableObject {
             
             // CUIDを永続化 (次回のSyncで使用) - Keychainに保存
             let keychain = Keychain(service: "com.jibunai.ios").accessibility(.afterFirstUnlock)
-            try? keychain.set(internalUserId, key: "internalUserId")
+            do {
+                try keychain.set(internalUserId, key: "internalUserId")
+            } catch {
+                AppLogger.auth.error("⚠️ Failed to save internalUserId to Keychain: \(error)")
+            }
             #if DEBUG
             AppLogger.auth.debug("💾 Saved Internal User ID: \(internalUserId)")
             #endif

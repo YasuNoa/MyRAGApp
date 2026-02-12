@@ -33,20 +33,12 @@ class SubscriptionViewModel: ObservableObject {
         AppLogger.billing.info("📡 Fetching RevenueCat offerings...")
         isLoading = true
         
-        Purchases.shared.getOfferings { [weak self] (offerings, error) in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
+        Task {
+            do {
+                let offerings = try await Purchases.shared.offerings()
                 self.isLoading = false
                 
-                if let error = error {
-                    AppLogger.billing.error("❌ Error fetching offerings: \(error.localizedDescription)")
-                    self.errorMessage = "プラン情報の取得エラー: \(error.localizedDescription)"
-                    self.showError = true
-                    return
-                }
-                
-                if let offerings = offerings, let current = offerings.current {
+                if let current = offerings.current {
                     AppLogger.billing.info("📦 Offerings fetched. Current: \(current.identifier)")
                     self.currentOffering = current
                 } else {
@@ -55,6 +47,11 @@ class SubscriptionViewModel: ObservableObject {
                     self.errorMessage = "プラン情報が見つかりません (No Current Offering)"
                     self.showError = true
                 }
+            } catch {
+                self.isLoading = false
+                AppLogger.billing.error("❌ Error fetching offerings: \(error.localizedDescription)")
+                self.errorMessage = "プラン情報の取得エラー: \(error.localizedDescription)"
+                self.showError = true
             }
         }
     }
@@ -63,24 +60,29 @@ class SubscriptionViewModel: ObservableObject {
         AppLogger.billing.info("💰 Purchase started: \(package.identifier)")
         self.isPurchasing = true
         
-        Purchases.shared.purchase(package: package) { [weak self] (transaction, info, error, userCancelled) in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
+        Task {
+            do {
+                let result = try await Purchases.shared.purchase(package: package)
                 self.isPurchasing = false
                 
-                if let error = error {
-                    AppLogger.billing.error("❌ Purchase failed: \(error.localizedDescription)")
-                    if !userCancelled {
-                        let nsError = error as NSError
-                        self.errorMessage = "購入エラー: \(error.localizedDescription) (Code: \(nsError.code))"
-                        self.showError = true
-                    } else {
-                        AppLogger.billing.info("🚫 User cancelled purchase")
-                    }
-                } else if !userCancelled {
+                if !result.userCancelled {
                     AppLogger.billing.info("✅ Purchase success")
                     completion()
+                } else {
+                    AppLogger.billing.info("🚫 User cancelled purchase")
+                }
+            } catch {
+                self.isPurchasing = false
+                
+                AppLogger.billing.error("❌ Purchase failed: \(error.localizedDescription)")
+                let nsError = error as NSError
+                // RevenueCat UserCancelled error code?
+                // Let's assume error means real error.
+                if let purchaseError = error as? ErrorCode, purchaseError == .purchaseCancelledError {
+                     AppLogger.billing.info("🚫 User cancelled purchase (Error)")
+                } else {
+                    self.errorMessage = "購入エラー: \(error.localizedDescription) (Code: \(nsError.code))"
+                    self.showError = true
                 }
             }
         }
@@ -90,28 +92,26 @@ class SubscriptionViewModel: ObservableObject {
         AppLogger.billing.info("🔄 Restore started")
         self.isPurchasing = true
         
-        Purchases.shared.restorePurchases { [weak self] (info, error) in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
+        Task {
+            do {
+                let info = try await Purchases.shared.restorePurchases()
                 self.isPurchasing = false
                 
-                if let error = error {
-                    AppLogger.billing.error("❌ Restore failed: \(error.localizedDescription)")
-                    self.errorMessage = "復元エラー: \(error.localizedDescription)"
+                if info.entitlements.active.isEmpty {
+                     AppLogger.billing.info("ℹ️ No active entitlements found")
+                    self.errorMessage = "復元可能な購入が見つかりませんでした。"
                     self.showError = true
-                } else if let info = info {
-                    if info.entitlements.active.isEmpty {
-                         AppLogger.billing.info("ℹ️ No active entitlements found")
-                        self.errorMessage = "復元可能な購入が見つかりませんでした。"
-                        self.showError = true
-                    } else {
-                        AppLogger.billing.info("✅ Restore success: \(info.entitlements.active.keys)")
-                        self.successMessage = "購入を復元しました。"
-                        self.showSuccess = true
-                        completion()
-                    }
+                } else {
+                    AppLogger.billing.info("✅ Restore success: \(info.entitlements.active.keys)")
+                    self.successMessage = "購入を復元しました。"
+                    self.showSuccess = true
+                    completion()
                 }
+            } catch {
+                self.isPurchasing = false
+                AppLogger.billing.error("❌ Restore failed: \(error.localizedDescription)")
+                self.errorMessage = "復元エラー: \(error.localizedDescription)"
+                self.showError = true
             }
         }
     }
@@ -151,13 +151,10 @@ class SubscriptionViewModel: ObservableObject {
                         }
                         
                         if let promoDiscount = foundDiscount {
-                            
-                            DispatchQueue.main.async {
-                                self.promoPackage = package
-                                self.promoDiscount = promoDiscount
-                                self.isEligibleForPromo = true
-                                self.isLoading = false
-                            }
+                            self.promoPackage = package
+                            self.promoDiscount = promoDiscount
+                            self.isEligibleForPromo = true
+                            self.isLoading = false
                             return
                         }
                     }
@@ -166,37 +163,25 @@ class SubscriptionViewModel: ObservableObject {
                 AppLogger.billing.error("Promo check failed: \(error)")
             }
             
-            DispatchQueue.main.async {
-                self.isLoading = false
-            }
+            self.isLoading = false
         }
     }
     
     func purchasePromo(package: Package, discount: StoreProductDiscount, completion: @escaping () -> Void) {
-        // 1. まず署名付きのPromotionalOfferを取得する
-        Purchases.shared.getPromotionalOffer(forProductDiscount: discount, product: package.storeProduct) { [weak self] (promoOffer, error) in
-            guard let self = self else { return }
-            
-            if let error = error {
-                 AppLogger.billing.error("Failed to get promo offer signature: \(error.localizedDescription)")
-                 return
-            }
-            
-            guard let promoOffer = promoOffer else {
-                AppLogger.billing.error("Promo offer is nil")
-                return
-            }
-            
-            // 2. 取得したPromotionalOfferを使って購入
-            Purchases.shared.purchase(package: package, promotionalOffer: promoOffer) { [weak self] (transaction, customerInfo, error, userCancelled) in
-                guard let _ = self else { return }
+        Task {
+            do {
+                // 1. まず署名付きのPromotionalOfferを取得する
+                let promoOffer = try await Purchases.shared.promotionalOffer(forProductDiscount: discount, product: package.storeProduct)
                 
-                if let error = error {
-                    AppLogger.billing.error("Promo purchase failed: \(error.localizedDescription)")
-                } else if !userCancelled {
+                // 2. 取得したPromotionalOfferを使って購入
+                let result = try await Purchases.shared.purchase(package: package, promotionalOffer: promoOffer)
+                
+                if !result.userCancelled {
                     AppLogger.billing.info("Promo purchase success!")
                     completion()
                 }
+            } catch {
+                AppLogger.billing.error("Promo purchase failed: \(error.localizedDescription)")
             }
         }
     }

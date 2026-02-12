@@ -2,6 +2,7 @@
 import os
 import io
 import uuid
+import tempfile
 import logging
 import json
 import re
@@ -18,6 +19,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from database.db import db
 from services.vector_service import VectorService
+from utils.validators import validate_course_access
 from services.user_service import UserService
 from services.prompts import (
     PDF_TRANSCRIPTION_PROMPT,
@@ -39,6 +41,23 @@ if GOOGLE_API_KEY:
 class KnowledgeService:
 
     @staticmethod
+    def detect_mime_type(content: bytes) -> str:
+        """
+        python-magicを使用してファイルのMIMEタイプを検出します。
+        Security: クライアントからのMIMEタイプを信頼せず、マジックバイトから判定します。
+        """
+        try:
+            import magic
+            mime = magic.Magic(mime=True)
+            return mime.from_buffer(content)
+        except ImportError:
+            logger.warning("python-magic not installed, falling back to default behavior (returning empty string or handle upstream)")
+            return ""
+        except Exception as e:
+            logger.error(f"Error detecting mime type: {e}")
+            return ""
+
+    @staticmethod
     def extract_text_from_pdf(file_content: bytes) -> str:
         # PDFファイルのバイナリデータからテキストを抽出します。
         # pypdfライブラリを使用して、ページごとにテキストを読み取ります。
@@ -58,10 +77,10 @@ class KnowledgeService:
     async def _process_pdf_with_gemini(content: bytes) -> str:
         # PDFをGemini 2.0 Flashにアップロードして、テキスト抽出 (OCR) を行います。
         # 通常のテキスト抽出が失敗した場合や、画像中心のPDFの場合に使用します。
-        temp_filename = f"/tmp/{uuid.uuid4()}.pdf"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+             tmp.write(content)
+             temp_filename = tmp.name
         try:
-            with open(temp_filename, "wb") as f:
-                f.write(content)
             
             logger.info("Uploading PDF to Gemini for OCR...")
             uploaded_file = genai.upload_file(temp_filename, mime_type="application/pdf")
@@ -108,9 +127,10 @@ class KnowledgeService:
     async def process_image(content: bytes, mime_type: str, filename: str) -> str:
         # 画像をGeminiにアップロードして、その内容説明 (Description) を生成させます。
         # これにより、画像の内容もテキストとして検索可能になります。
-        temp_filename = f"/tmp/{uuid.uuid4()}_{filename}"
-        with open(temp_filename, "wb") as f:
-            f.write(content)
+        safe_filename = os.path.basename(filename)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{safe_filename}") as tmp:
+            tmp.write(content)
+            temp_filename = tmp.name
         
         try:
             logger.info("Uploading image to Gemini...")
@@ -172,8 +192,10 @@ class KnowledgeService:
         course_id: Optional[str] = None, # course_idを追加
         source: str = "import",
         mime_type: Optional[str] = None,
-        tags: List[str] = []
+        tags: Optional[List[str]] = None
     ):
+        if tags is None:
+            tags = []
         try:
             # Check if exists (idempotency)
             existing = await db.document.find_unique(where={"id": doc_id})
@@ -256,7 +278,6 @@ class KnowledgeService:
         mime_type = metadata.get("mimeType") # Get mimeType
         course_id = metadata.get("courseId") # メタデータからcourseIdを取得
 
-from utils.validators import validate_course_access
 
         # Ensure we have a db_id (Document ID) and the Document record exists
         if not db_id:

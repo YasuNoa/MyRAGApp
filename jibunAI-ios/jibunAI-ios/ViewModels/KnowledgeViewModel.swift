@@ -64,16 +64,26 @@ class KnowledgeViewModel: ObservableObject {
         let progressTask = Task {
             var progress = 0.0
             while progress < 0.9 {
-                if Task.isCancelled { return }
+                try Task.checkCancellation() // 協調的キャンセル
                 try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                
                 progress += 0.1
                 let current = progress
+                
                 await MainActor.run {
-                    if self.isSaving {
+                    // Check cancellation again before update? Not strictly necessary due to checkCancellation above,
+                    // but safer if we want to avoid update after cancel.
+                    if !Task.isCancelled {
                         self.uploadProgress = min(current, 0.9)
                     }
                 }
             }
+        }
+        
+        // Cleanup Block (Always executed)
+        defer {
+            progressTask.cancel()
+            isSaving = false
         }
         
         do {
@@ -86,23 +96,18 @@ class KnowledgeViewModel: ObservableObject {
                 summary: nil
             )
             
-            progressTask.cancel()
+            // Success
             uploadProgress = 1.0
             try? await Task.sleep(nanoseconds: 300_000_000)
             
             inputText = ""
             selectedTags = []
             errorMessage = "保存完了！"
-            isSaving = false
             return true
             
         } catch {
-            progressTask.cancel()
-            isSaving = false
-            
             if let apiError = error as? APIError, case .forbidden(let detail) = apiError {
                 // Limit handling
-                // detail might be raw string, check if it contains limit info
                 AppLogger.knowledge.warning("Limit reached: \(detail)")
                 showLimitAlert = true
             } else {

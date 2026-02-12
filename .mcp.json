@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sourcekit-lsp": {
+      "command": "sourcekit-lsp",
+      "args": [],
+      "env": {
+        "SOURCEKIT_TOOLCHAIN_OVERRIDE": "/Applications/Xcode.app/Contents/Developer"
+      }
+    }
+  }
+}

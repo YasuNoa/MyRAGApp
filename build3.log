@@ -1,0 +1,154 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild build -project jibunAI-ios/jibunAI-ios.xcodeproj -target jibunAI-ios -destination "platform=iOS Simulator,name=iPhone 15" CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= CODE_SIGNING_ALLOWED=NO
+
+Build settings from command line:
+    CODE_SIGN_IDENTITY = 
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+
+Resolve Package Graph
+
+Fetching from https://github.com/google/interop-ios-for-google-sdks.git (cached)
+
+Fetching from https://github.com/google/GoogleUtilities.git (cached)
+
+Fetching from https://github.com/google/GoogleDataTransport.git (cached)
+
+Fetching from https://github.com/google/abseil-cpp-binary.git (cached)
+
+Fetching from https://github.com/firebase/nanopb.git (cached)
+
+Fetching from https://github.com/google/gtm-session-fetcher.git (cached)
+
+Fetching from https://github.com/onevcat/Kingfisher (cached)
+
+Fetching from https://github.com/google/promises.git (cached)
+
+Fetching from https://github.com/google/grpc-binary.git (cached)
+
+Fetching from https://github.com/apple/swift-protobuf.git (cached)
+
+Fetching from https://github.com/google/app-check.git (cached)
+
+Fetching from https://github.com/openid/AppAuth-iOS.git (cached)
+
+Fetching from https://github.com/google/GoogleSignIn-iOS (cached)
+
+Fetching from https://github.com/firebase/firebase-ios-sdk (cached)
+
+Fetching from https://github.com/kishikawakatsumi/KeychainAccess (cached)
+
+Fetching from https://github.com/line/line-sdk-ios-swift (cached)
+
+Fetching from https://github.com/airbnb/lottie-ios (cached)
+
+Fetching from https://github.com/google/GoogleAppMeasurement.git (cached)
+
+Fetching from https://github.com/firebase/leveldb.git (cached)
+
+Fetching from https://github.com/RevenueCat/purchases-ios (cached)
+
+Fetching from https://github.com/google/GTMAppAuth.git (cached)
+
+Creating working copy of package ‘nanopb’
+
+Creating working copy of package ‘promises’
+
+Creating working copy of package ‘abseil-cpp-binary’
+
+Creating working copy of package ‘GoogleUtilities’
+
+Creating working copy of package ‘Kingfisher’
+
+Creating working copy of package ‘GoogleDataTransport’
+
+Creating working copy of package ‘interop-ios-for-google-sdks’
+
+Creating working copy of package ‘app-check’
+
+Checking out 9.4.0 of package ‘GoogleDataTransport’
+
+Checking out 2.4.0 of package ‘promises’
+
+Creating working copy of package ‘gtm-session-fetcher’
+
+Checking out 7.13.3 of package ‘GoogleUtilities’
+
+Checking out 2.30910.0 of package ‘nanopb’
+
+Checking out 1.2024011602.0 of package ‘abseil-cpp-binary’
+
+Checking out 7.12.0 of package ‘Kingfisher’
+
+Checking out 10.19.2 of package ‘app-check’
+
+Checking out 100.0.0 of package ‘interop-ios-for-google-sdks’
+
+Creating working copy of package ‘swift-protobuf’
+
+Creating working copy of package ‘grpc-binary’
+
+Checking out 3.5.0 of package ‘gtm-session-fetcher’
+
+Creating working copy of package ‘GoogleSignIn-iOS’
+
+Checking out 1.33.3 of package ‘swift-protobuf’
+Couldn’t update repository submodules:
+    Submodule 'Sources/protobuf/abseil' (https://github.com/abseil/abseil-cpp) registered for path 'Sources/protobuf/abseil'
+    Submodule 'Sources/protobuf/protobuf' (https://github.com/protocolbuffers/protobuf) registered for path 'Sources/protobuf/protobuf'
+    Cloning into '/Users/super/Library/Developer/Xcode/DerivedData/jibunAI-ios-esjtwbjjzxxjdfaqojwjhbvkcwgo/SourcePackages/checkouts/swift-protobuf/Sources/protobuf/abseil'...
+    Cloning into '/Users/super/Library/Developer/Xcode/DerivedData/jibunAI-ios-esjtwbjjzxxjdfaqojwjhbvkcwgo/SourcePackages/checkouts/swift-protobuf/Sources/protobuf/protobuf'...
+    fatal: could not open '/Users/super/Library/Developer/Xcode/DerivedData/jibunAI-ios-esjtwbjjzxxjdfaqojwjhbvkcwgo/SourcePackages/checkouts/swift-protobuf/.git/modules/Sources/protobuf/protobuf/objects/pack/tmp_pack_0KttT5' for reading: No such file or directory
+    fatal: fetch-pack: invalid index-pack output
+    fatal: clone of 'https://github.com/protocolbuffers/protobuf' into submodule path '/Users/super/Library/Developer/Xcode/DerivedData/jibunAI-ios-esjtwbjjzxxjdfaqojwjhbvkcwgo/SourcePackages/checkouts/swift-protobuf/Sources/protobuf/protobuf' failed
+    Failed to clone 'Sources/protobuf/protobuf'. Retry scheduled
+    fatal: Unable to read current working directory: No such file or directory
+    Failed to clone 'Sources/protobuf/protobuf' a second time, aborting
+Checking out 7.1.0 of package ‘GoogleSignIn-iOS’
+
+Checking out 1.62.2 of package ‘grpc-binary’
+
+Creating working copy of package ‘KeychainAccess’
+
+Creating working copy of package ‘GoogleAppMeasurement’
+
+Checking out 4.2.2 of package ‘KeychainAccess’
+
+Creating working copy of package ‘firebase-ios-sdk’
+
+Checking out 10.28.0 of package ‘GoogleAppMeasurement’
+
+Creating working copy of package ‘lottie-ios’
+
+Creating working copy of package ‘purchases-ios’
+
+Creating working copy of package ‘line-sdk-ios-swift’
+
+Creating working copy of package ‘leveldb’
+
+Checking out 4.6.0 of package ‘lottie-ios’
+
+Creating working copy of package ‘GTMAppAuth’
+
+Checking out 5.56.0 of package ‘purchases-ios’
+
+Checking out 5.14.0 of package ‘line-sdk-ios-swift’
+
+Checking out 1.22.5 of package ‘leveldb’
+
+Checking out 10.29.0 of package ‘firebase-ios-sdk’
+
+Creating working copy of package ‘AppAuth-iOS’
+
+Checking out 1.7.6 of package ‘AppAuth-iOS’
+
+Checking out 4.1.1 of package ‘GTMAppAuth’
+
+Couldn’t check out revision ‘b30ad3e7d22979feee2abf4de7fefd872eb14290’:
+    fatal: unable to read tree (b30ad3e7d22979feee2abf4de7fefd872eb14290)fatalError
+2026-02-05 12:40:11.573 xcodebuild[40768:28405245] Writing error result bundle to /var/folders/7g/t1z0t0bs0xv6zz2xjg4ht7hr0000gn/T/ResultBundle_2026-05-02_12-40-0011.xcresult
+xcodebuild: error: Could not resolve package dependencies:
+  Couldn’t check out revision ‘b30ad3e7d22979feee2abf4de7fefd872eb14290’:
+  fatalError
+  Couldn’t update repository submodules:
+

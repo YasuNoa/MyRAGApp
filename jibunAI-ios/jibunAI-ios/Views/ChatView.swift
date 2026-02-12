@@ -68,7 +68,8 @@ struct ChatView: View {
                         // キーボード表示時にもスクロール
                         .onChange(of: isInputFocused) { _, isFocused in
                             if isFocused {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                Task {
+                                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
                                     withAnimation {
                                         proxy.scrollTo("bottom")
                                     }

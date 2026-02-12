@@ -7,6 +7,7 @@ import json
 import logging
 import subprocess
 import asyncio
+import tempfile
 from datetime import datetime, timezone, timedelta
 
 from pydub import AudioSegment
@@ -106,15 +107,17 @@ class VoiceService:
         if file_ext not in allowed_exts:
             file_ext = ".mp3"
             
-        temp_filename = f"/tmp/{uuid.uuid4()}{file_ext}"
-        with open(temp_filename, "wb") as f:
-            f.write(content)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+            tmp.write(content)
+            temp_filename = tmp.name
             
         current_temp_file = temp_filename
         temp_files_to_cleanup = [temp_filename]
 
         try:
             # --- Plan-Based Logic: Truncation & Usage Recording ---
+            
+            MAX_FFMPEG_RETRIES = 3
             
             # 1. Truncation
             needs_truncation = False
@@ -133,43 +136,53 @@ class VoiceService:
                 truncate_seconds = 10800 # 180 mins (3 hours)
                 logger.info("Premium Plan detected: Truncating to 180 mins.")
 
-            try:
-                if needs_truncation:
-                    actual_duration = await cls.get_audio_duration(temp_filename)
-                    
-                    if actual_duration > truncate_seconds:
-                        truncated_filename = f"/tmp/{uuid.uuid4()}_truncated{file_ext}"
-                        # ffmpeg: -t duration, -acodec copy
-                        cmd = ["ffmpeg", "-y", "-i", temp_filename, "-t", str(truncate_seconds), "-acodec", "copy", truncated_filename]
-                        
-                        process = await asyncio.create_subprocess_exec(
-                            *cmd,
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE
-                        )
-                        await process.communicate()
-                        if process.returncode != 0:
-                            raise Exception("FFmpeg truncation failed")
-                        
-                        current_temp_file = truncated_filename
-                        temp_files_to_cleanup.append(truncated_filename)
-                        logger.info(f"Truncated from {actual_duration:.1f}s to {truncate_seconds}s")
+            
+            if needs_truncation:
+                actual_duration = await cls.get_audio_duration(temp_filename)
                 
-                # 2. Record Usage
+                if actual_duration > truncate_seconds:
+                    # Create temp file for truncated version
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_truncated{file_ext}") as trunc_tmp:
+                            truncated_filename = trunc_tmp.name
+                    
+                    # ffmpeg: -t duration, -acodec copy
+                    cmd = ["ffmpeg", "-y", "-i", temp_filename, "-t", str(truncate_seconds), "-acodec", "copy", truncated_filename]
+                    
+                    for attempt in range(MAX_FFMPEG_RETRIES):
+                        try:
+                            logger.info(f"FFmpeg Truncation Attempt {attempt + 1}/{MAX_FFMPEG_RETRIES}")
+                            process = await asyncio.create_subprocess_exec(
+                                *cmd,
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE
+                            )
+                            await process.communicate()
+                            
+                            if process.returncode == 0:
+                                current_temp_file = truncated_filename
+                                temp_files_to_cleanup.append(truncated_filename)
+                                logger.info(f"Truncated from {actual_duration:.1f}s to {truncate_seconds}s")
+                                break
+                            else:
+                                raise Exception(f"FFmpeg return code {process.returncode}")
+                        except Exception as e:
+                            logger.error(f"Truncation failure (Attempt {attempt+1}): {e}")
+                            if attempt == MAX_FFMPEG_RETRIES - 1:
+                                raise HTTPException(status_code=500, detail="Failed to limit audio duration after retries.")
+                            await asyncio.sleep(1) # Wait before retry
+            
+            # 2. Record Usage
+            try:
                 final_duration = await cls.get_audio_duration(current_temp_file)
                 sub = await UserService.get_or_create_subscription(user_id)
                 await cls.check_and_update_voice_limit(user_id, sub, final_duration)
-
             except Exception as e:
-                logger.error(f"Audio processing/recording failed: {e}")
-                if "limit exceeded" in str(e):
-                    raise e 
-                pass # Proceed if ffmpeg fails?
+                logger.error(f"Recording usage failed: {e}")
+                raise e
 
             # --- Chunking & Segmentation ---
             chunk_duration = 600 # 10 minutes
-            temp_dir = f"/tmp/{uuid.uuid4()}"
-            os.makedirs(temp_dir, exist_ok=True)
+            temp_dir = tempfile.mkdtemp()
             
             split_pattern = os.path.join(temp_dir, "part%03d" + file_ext)
             logger.info(f"Splitting audio into {chunk_duration}s chunks...")
@@ -179,14 +192,26 @@ class VoiceService:
                 "-f", "segment", "-segment_time", str(chunk_duration), 
                 "-c", "copy", split_pattern
             ]
-            process_split = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await process_split.communicate()
-            if process_split.returncode != 0:
-                 raise Exception("FFmpeg splitting failed")
+            
+            for attempt in range(MAX_FFMPEG_RETRIES):
+                try:
+                    logger.info(f"FFmpeg Splitting Attempt {attempt + 1}/{MAX_FFMPEG_RETRIES}")
+                    process_split = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    await process_split.communicate()
+                    
+                    if process_split.returncode == 0:
+                        break
+                    else:
+                        raise Exception(f"FFmpeg return code {process_split.returncode}")
+                except Exception as e:
+                    logger.error(f"Splitting failure (Attempt {attempt+1}): {e}")
+                    if attempt == MAX_FFMPEG_RETRIES - 1:
+                        raise HTTPException(status_code=500, detail="Failed to process audio chunks after retries.")
+                    await asyncio.sleep(1)
             
             chunks_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.startswith("part")])
             logger.info(f"Created {len(chunks_files)} chunks: {chunks_files}")
@@ -260,6 +285,7 @@ class VoiceService:
             # --- Storage via KnowledgeService ---
             
             # Create Document Record
+            chunks = []
             if save:
                 db_id = metadata.get("dbId") or file_id
 
@@ -338,10 +364,6 @@ class VoiceService:
 
     @staticmethod
     async def check_and_update_voice_limit(user_id: str, sub, duration_sec: float):
-        # Re-implementing logic from original VoiceService (which was good) or copying?
-        # main.py called `VoiceService.check_and_update_voice_limit`.
-        # So I should keep the existing logic in VoiceService for this method.
-        # I'll paste the existing logic here.
         
         current_plan = sub.plan
         

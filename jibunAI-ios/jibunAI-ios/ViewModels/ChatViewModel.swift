@@ -19,20 +19,19 @@ class ChatViewModel: ObservableObject {
     @Published var showLimitAlert = false // 制限到達時のアラート用フラグ
     
     private let apiService = APIService.shared
-    private var cancellables = Set<AnyCancellable>()
     
     init() {
         // AuthTokenの変更を監視して、有効になったらカテゴリを再読み込み
-        apiService.$authToken
-            .receive(on: RunLoop.main)
-            .sink { [weak self] token in
+        Task { [weak self] in
+            guard let self = self else { return }
+            
+            // CombineのストリームをAsyncSequenceとして扱う
+            for await token in self.apiService.$authToken.values {
                 if token != nil {
-                    Task {
-                        await self?.loadCategories()
-                    }
+                    await self.loadCategories()
                 }
             }
-            .store(in: &cancellables)
+        }
     }
     
     // カテゴリ読み込み

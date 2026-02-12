@@ -59,9 +59,9 @@ struct CustomButton: View {
 #Preview {
     VStack {
         CustomButton(title: "Primary Button", action: {})
-        CustomButton(title: "Secondary Button", style: .secondary, action: {})
-        CustomButton(title: "Loading", isLoading: true, action: {})
-        CustomButton(title: "Disabled", isDisabled: true, action: {})
+        CustomButton(title: "Secondary Button",action: {}, style: .secondary )
+        CustomButton(title: "Loading", action: {}, isLoading: true)
+        CustomButton(title: "Disabled", action: {}, isDisabled: true)
     }
     .padding()
     .background(Color.black)

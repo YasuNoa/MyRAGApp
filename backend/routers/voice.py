@@ -36,6 +36,11 @@ async def save_voice(req: SaveVoiceRequest, user: Dict[str, Any] = Depends(get_c
         logger.error(f"Save Error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+from utils.rate_limiter import InMemoryRateLimiter
+
+# Initialize Rate Limiter (5 requests per 1 minute)
+rate_limiter = InMemoryRateLimiter(max_requests=5, window_seconds=60)
+
 @router.post("/process", response_model=VoiceProcessResponse)
 async def process_voice_memo_endpoint(
     file: UploadFile = File(...),
@@ -49,6 +54,9 @@ async def process_voice_memo_endpoint(
     """
     logger.info(f"Received voice memo request for: {file.filename} (User: {user['uid']})")
     
+    # Rate Limit Check
+    await rate_limiter.check_limit(user["uid"])
+            
     try:
         meta_dict = json.loads(metadata)
         

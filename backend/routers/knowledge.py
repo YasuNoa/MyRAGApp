@@ -14,6 +14,11 @@ router = APIRouter()
 from dependencies import get_current_user
 from fastapi import Depends
 
+from utils.rate_limiter import InMemoryRateLimiter
+
+# Initialize Rate Limiter (5 requests per 1 minute)
+rate_limiter = InMemoryRateLimiter(max_requests=5, window_seconds=60)
+
 @router.post("/import-file")
 async def import_file(
     file: UploadFile = File(...),
@@ -23,14 +28,32 @@ async def import_file(
     # ファイルインポートの統合エンドポイント
     logger.info(f"Received unified import request for file: {file.filename}")
     
+    # Rate Limit Check
+    await rate_limiter.check_limit(current_user["uid"])
+    
     try:
         meta_dict = json.loads(metadata)
         # Override user_id from token
         meta_dict["userId"] = current_user["uid"]
         meta_dict["fileName"] = file.filename
         
-        mime_type = meta_dict.get("mimeType")
+        # Override user_id from token
+        meta_dict["userId"] = current_user["uid"]
+        meta_dict["fileName"] = file.filename
+        
         content = await file.read()
+        
+        # Security: Detect MIME type from content, ignoring client input
+        detected_mime = KnowledgeService.detect_mime_type(content)
+        if detected_mime:
+            logger.info(f"Detected MIME type: {detected_mime}")
+            mime_type = detected_mime
+        else:
+             mime_type = meta_dict.get("mimeType") # Fallback to client input if detection fails
+        
+        # Update metadata for storage
+        meta_dict["mimeType"] = mime_type
+
         text = ""
 
         if mime_type == "application/pdf":
@@ -68,9 +91,13 @@ async def import_file(
 @router.post("/import-text")
 async def import_text(
     request: TextImportRequest,
+    request: TextImportRequest,
     current_user: dict = Depends(get_current_user)
 ):
     # テキストデータを直接インポート
+    # Rate Limit Check
+    await rate_limiter.check_limit(current_user["uid"])
+            
     try:
         user_id = current_user["uid"]
         meta_dict = {

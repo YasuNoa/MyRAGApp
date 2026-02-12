@@ -182,7 +182,9 @@ struct VoiceNoteView: View {
                         // Button
                         Button {
                             if voiceViewModel.isRecording {
-                                voiceViewModel.stopRecording(userId: appState.currentUser?.id ?? "")
+                                Task {
+                                    await voiceViewModel.stopRecording(userId: appState.currentUser?.id ?? "")
+                                }
                             } else {
                                 // Pre-check limit
                                 // FREE plan limit: 1 voice note per day

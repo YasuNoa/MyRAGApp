@@ -15,9 +15,15 @@ struct AppRootView: View {
     // ログイン画面を表示するかどうか
     @State private var showLogin: Bool = false
     
+    // 設定エラー
+    @State private var configErrors: [String] = []
+    
     var body: some View {
         Group {
-            if appState.isLoading {
+            if !configErrors.isEmpty {
+                // 重大な設定エラー時
+                CriticalErrorView(errors: configErrors)
+            } else if appState.isLoading {
                 // 初期ロード画面
                 ZStack {
                     Color.black.ignoresSafeArea()
@@ -43,8 +49,27 @@ struct AppRootView: View {
             }
         }
         .onAppear {
+            // 設定検証
+            let errors = AppConfig.validate()
+            if !errors.isEmpty {
+                configErrors = errors
+                return // 検証エラー時はセッション復元もしない
+            }
+            
             // アプリ起動時にセッションを復元
             appState.restoreSession()
+        }
+        .alert("エラー", isPresented: Binding<Bool>(
+            get: { appState.sessionError != nil },
+            set: { if !$0 { appState.sessionError = nil } }
+        )) {
+            Button("再試行") {
+                appState.restoreSession()
+            }
+        } message: {
+            if let error = appState.sessionError {
+                Text(error)
+            }
         }
     }
 }

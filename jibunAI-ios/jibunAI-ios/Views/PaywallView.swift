@@ -154,7 +154,7 @@ struct PaywallView: View {
                                     PremiumPlanCard(
                                         title: "Standardプラン", // Explicit Name
                                         price: "月額 " + standardPkg.storeProduct.localizedPriceString, // Explicit Price
-                                        period: isYearly ? "1年" : "1ヶ月", // Explicit Period
+                                        period: subscriptionViewModel.isYearly ? "1年" : "1ヶ月", // Explicit Period
                                         description: "一番人気のプラン",
                                         features: [
                                             "チャット: 100回 / 日",
@@ -178,7 +178,7 @@ struct PaywallView: View {
                                     PremiumPlanCard(
                                         title: "Premiumプラン", // Explicit Name
                                         price: "月額 " + premiumPkg.storeProduct.localizedPriceString, // Explicit Price
-                                        period: isYearly ? "1年" : "1ヶ月", // Explicit Period
+                                        period: subscriptionViewModel.isYearly ? "1年" : "1ヶ月", // Explicit Period
                                         description: "ヘビーユーザー向け",
                                         features: [
                                             "チャット: 200回 / 日",
